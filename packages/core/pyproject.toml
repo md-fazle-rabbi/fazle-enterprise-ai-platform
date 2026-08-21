@@ -1,0 +1,13 @@
+[project]
+name = "core"
+version = "0.1.0"
+description = "Shared Pydantic v2 settings for fazle-enterprise-ai-platform"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
