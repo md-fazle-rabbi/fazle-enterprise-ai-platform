@@ -1,18 +1,15 @@
-"""
-Entry point for the rag-engine service.
-Why lifespan instead of @app.on_event("startup"/"shutdown"): the old
-event-handler API is deprecated, and lifespan lets startup and shutdown share
-state (a DB pool, a Redis client) through one generator instead of two
-disconnected functions guessing at each other's globals.
-"""
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from core import settings
+from core.db import make_engine
 from core.logging import configure_logging
+from rag_engine.routers.documents import router as documents_router
 
 configure_logging(settings.log_level)
 logger = structlog.get_logger()
@@ -20,10 +17,14 @@ logger = structlog.get_logger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # Connects as app_user, the least-privilege role, not the fazle owner
+    # role — deliberate change from the original roadmap text.
+    engine = make_engine(settings.app_database_url)
+    app.state.engine = engine
+    app.state.session_factory = async_sessionmaker(engine, expire_on_commit=False)
     logger.info("rag_engine.startup", environment=settings.environment)
-    # Next micro-step: open the asyncpg pool and Redis client here, store on
-    # app.state, close them in the block after yield.
     yield
+    await engine.dispose()
     logger.info("rag_engine.shutdown")
 
 
@@ -32,20 +33,20 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.include_router(documents_router)
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    """Liveness: is the process running at all. No dependency checks."""
     return {"status": "ok"}
 
 
 @app.get("/ready")
-async def ready() -> dict[str, str]:
-    """
-    Readiness: can this instance actually serve traffic.
-    Placeholder today, always returns ok. Becomes a real DB/Redis ping in the
-    next micro-step. This is a stated gap, tracked in README's Known
-    Limitations, not a hidden one.
-    """
-    return {"status": "ok"}
+async def ready(request: Request) -> dict[str, str]:
+    try:
+        async with request.app.state.session_factory() as session:
+            await session.execute(text("SELECT 1"))
+        return {"status": "ok"}
+    except Exception:
+        logger.warning("rag_engine.ready_check_failed", exc_info=True)
+        raise HTTPException(status_code=503, detail="database unreachable")
