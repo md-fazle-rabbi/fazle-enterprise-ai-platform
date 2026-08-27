@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from rag_engine.routers.documents import router as documents_router
+from rag_engine.routers.ingest import router as ingest_router
 
 configure_logging(settings.log_level)
 logger = structlog.get_logger()
@@ -34,7 +35,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(documents_router)
-
+app.include_router(ingest_router)
 
 @app.get("/health")
 async def health() -> dict[str, str]:

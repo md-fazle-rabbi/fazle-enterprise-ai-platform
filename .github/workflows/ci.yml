@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: Install Python
+        run: uv python install 3.13.15
+      - name: Install dependencies
+        run: uv sync
+      - name: ruff check
+        run: uv run ruff check .
+      - name: ruff format check
+        run: uv run ruff format --check .
+      - name: mypy --strict
+        run: uv run mypy --strict packages/core/src packages/rag-engine/src
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg18-trixie
+        env:
+          POSTGRES_USER: fazle
+          POSTGRES_PASSWORD: fazle_ci_password
+          POSTGRES_DB: fazle
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fazle -d fazle"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://fazle:fazle_ci_password@localhost:5432/fazle
+      REDIS_URL: redis://localhost:6379/0
+      VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: Install Python
+        run: uv python install 3.13.15
+      - name: Install dependencies
+        run: uv sync
+      - name: Run migrations
+        working-directory: packages/rag-engine
+        run: uv run alembic upgrade head
+      - name: pytest, coverage gate on chunking only
+        working-directory: packages/rag-engine
+        run: |
+          uv run pytest \
+            --cov=rag_engine.chunking \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=90
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: packages/rag-engine/coverage.xml
+
+  security:
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: pip-audit
+        run: |
+          uv export --format requirements-txt --no-hashes > requirements.txt
+          uvx pip-audit -r requirements.txt || true
+        # non-blocking for now: findings get triaged on the first real run,
+        # tighten to a hard fail once that first pass is reviewed by hand
+      - name: CodeQL init
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - name: CodeQL analyze
+        uses: github/codeql-action/analyze@v3
+
+  build-and-scan:
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f packages/rag-engine/Dockerfile -t rag-engine:${{ github.sha }} .
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: rag-engine:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: "1"

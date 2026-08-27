@@ -12,6 +12,8 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "tiktoken>=0.8",
+    "pgvector>=0.3.6",
+    "voyageai>=0.3",
 ]
 
 [dependency-groups]
@@ -29,6 +31,10 @@ core = { workspace = true }
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+markers = ["asyncio: marks tests as asyncio"]
+asyncio_mode = "auto"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rag_engine"]

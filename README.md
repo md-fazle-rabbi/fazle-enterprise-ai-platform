@@ -26,7 +26,9 @@ Not yet available. Fills in once rag-engine is sellable.
 Not yet deployed.
 
 ## Known limitations
-Tenant identification is header-based only (X-Tenant-ID), with no signature or authentication check, any caller can claim any tenant ID. RLS still guarantees isolation between whichever tenant IDs are used, but nothing yet verifies a caller is entitled to the tenant ID it claims. Real auth is a stated next step, not implemented
+Tenant identification is header-based only (X-Tenant-ID), with no signature or authentication check, any caller can claim any tenant ID. RLS still guarantees isolation between whichever tenant IDs are used, but nothing yet verifies a caller is entitled to the tenant ID it claims. Real auth is a stated next step, not implemented.
+
+chunks and embeddings can be stored, but nothing wires ingestion end to end yet, chunking, hashing, and storage aren't connected to an endpoint. That's the next micro-step, not this one.
 
 ## License
 MIT, see LICENSE.md.

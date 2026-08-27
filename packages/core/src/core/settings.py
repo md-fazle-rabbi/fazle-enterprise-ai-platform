@@ -35,6 +35,7 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://app_user:change_me@localhost:5432/fazle"
     )
     app_db_password: str = Field(default="change_me_locally")
+    voyage_api_key: str = Field(default="")
 
 
 settings = Settings()
