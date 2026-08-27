@@ -12,11 +12,10 @@ not-null violation, since the Python-side default never reaches the DB.
 import uuid
 from datetime import datetime
 
+from core.db import Base
 from sqlalchemy import DateTime, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
-
-from core.db import Base
 
 
 class Document(Base):

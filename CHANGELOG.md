@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### 2026-08-27
+- Fixed a `ruff` B023 warning in `chunking.py`: `flush()` was defined inside the section loop and read `section.heading_path` from the enclosing scope via closure rather than as a parameter. Moved `flush()` outside the loop and pass `heading_path` explicitly on each call. No behavior change, `test_heading_path_tracks_nesting` still passes; this removes a latent bug risk if the closure pattern were ever misused in a future edit.
+- Ran `ruff check . --fix` across the repo: auto-fixed 36 style issues (import sorting, `Union[...]` → `X | Y` syntax, unused imports, nested `with` merging) in `alembic/env.py`, all migration files, and `main.py`. No logic changes.
+
 ### 2026-08-26
 - Fixed `documents.id` violating not-null on raw SQL inserts: the SQLAlchemy model only had a Python-side `default=uuid.uuid4`, invisible to any insert that bypasses the ORM. Added `server_default=gen_random_uuid()` via migration, so the database itself always has a fallback.
 - Fixed `app_user` role having no password: the role-creation migration set `LOGIN` but never `PASSWORD`, so password auth for that role always failed. Added a follow-up migration to set it from `settings.app_db_password`.

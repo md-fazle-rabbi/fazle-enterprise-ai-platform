@@ -32,12 +32,11 @@ async def get_tenant_id(
 async def get_session(
     request: Request,
     tenant_id: Annotated[UUID, Depends(get_tenant_id)],
-) -> AsyncGenerator[AsyncSession, None]:
+) -> AsyncGenerator[AsyncSession]:
     session_factory = request.app.state.session_factory
-    async with session_factory() as session:
-        async with session.begin():
-            await session.execute(
-                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
-                {"tenant_id": str(tenant_id)},
-            )
-            yield session
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+            {"tenant_id": str(tenant_id)},
+        )
+        yield session

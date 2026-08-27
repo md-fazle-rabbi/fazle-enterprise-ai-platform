@@ -1,14 +1,14 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
+from core import settings
+from core.db import make_engine
+from core.logging import configure_logging
 from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from core import settings
-from core.db import make_engine
-from core.logging import configure_logging
 from rag_engine.routers.documents import router as documents_router
 
 configure_logging(settings.log_level)
@@ -16,7 +16,7 @@ logger = structlog.get_logger()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Connects as app_user, the least-privilege role, not the fazle owner
     # role — deliberate change from the original roadmap text.
     engine = make_engine(settings.app_database_url)

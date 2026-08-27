@@ -26,8 +26,7 @@ Not yet available. Fills in once rag-engine is sellable.
 Not yet deployed.
 
 ## Known limitations
-No application code exists yet. This README documents intent, not shipped
-behavior. Check CHANGELOG.md for what's actually built.
+Tenant identification is header-based only (X-Tenant-ID), with no signature or authentication check, any caller can claim any tenant ID. RLS still guarantees isolation between whichever tenant IDs are used, but nothing yet verifies a caller is entitled to the tenant ID it claims. Real auth is a stated next step, not implemented
 
 ## License
 MIT, see LICENSE.md.
