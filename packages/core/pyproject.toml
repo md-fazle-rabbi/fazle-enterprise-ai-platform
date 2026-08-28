@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Shared Pydantic v2 settings for fazle-enterprise-ai-platform"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "google-genai>=2.20.0",
     "pydantic>=2.9",
     "pydantic-settings>=2.5",
 ]

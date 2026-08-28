@@ -14,6 +14,8 @@ dependencies = [
     "tiktoken>=0.8",
     "pgvector>=0.3.6",
     "voyageai>=0.3",
+    "google-genai>=2.20.0",
+    "httpx>=0.28.1",
 ]
 
 [dependency-groups]
