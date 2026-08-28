@@ -1,6 +1,6 @@
 # fazle-enterprise-ai-platform
 
-![CI](https://img.shields.io/badge/CI-not_yet_wired-lightgrey)
+![CI](https://github.com/md-fazle-rabbi/fazle-enterprise-ai-platform/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.13.15-blue)
 ![Coverage](https://img.shields.io/badge/coverage-not_yet_measured-lightgrey)
