@@ -8,7 +8,7 @@ back to a specific chunk instead of trusted on faith.
 import re
 from typing import Any
 
-from core.llm_client import client
+from core.llm_client import get_client
 
 GENERATION_MODEL = "gemini-3.5-flash-lite"
 
@@ -34,7 +34,7 @@ def _format_context(chunks: list[dict[str, Any]]) -> str:
 
 async def generate_answer(question: str, chunks: list[dict[str, Any]]) -> str:
     context = _format_context(chunks)
-    response = await client.aio.models.generate_content(
+    response = await get_client().aio.models.generate_content(
         model=GENERATION_MODEL,
         contents=f"Context:\n{context}\n\nQuestion: {question}",
         config={"system_instruction": _SYSTEM_PROMPT},

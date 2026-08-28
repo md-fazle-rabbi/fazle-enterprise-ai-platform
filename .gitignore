@@ -7,4 +7,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-.DS_Store
+.DS_Store.coverage
+coverage.xml
+htmlcov/
