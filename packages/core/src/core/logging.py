@@ -2,6 +2,7 @@
 Shared structlog configuration, JSON output. One call from every package's
 entrypoint so log format never drifts between rag-engine, agent-mesh, etc.
 """
+
 import logging
 import sys
 

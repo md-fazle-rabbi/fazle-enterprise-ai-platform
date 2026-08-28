@@ -5,6 +5,7 @@ the same environment variables (DB URL, Redis URL, log level). One source of
 truth here means one place to change it, not four separate .env parsers
 drifting out of sync with each other.
 """
+
 from pathlib import Path
 
 from pydantic import Field
