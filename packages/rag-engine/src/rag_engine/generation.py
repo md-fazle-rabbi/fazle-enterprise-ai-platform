@@ -9,7 +9,6 @@ import re
 from typing import Any
 
 import structlog
-
 from core.llm_client import get_client
 
 GENERATION_MODEL = "gemini-3.5-flash-lite"
