@@ -14,6 +14,5 @@ members = ["packages/*"]
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.6.2",
     "py-spy>=0.4.2",
 ]
