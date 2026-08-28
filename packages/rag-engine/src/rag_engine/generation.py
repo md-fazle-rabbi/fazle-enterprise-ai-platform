@@ -8,6 +8,8 @@ back to a specific chunk instead of trusted on faith.
 import re
 from typing import Any
 
+import structlog
+
 from core.llm_client import get_client
 
 GENERATION_MODEL = "gemini-3.5-flash-lite"
@@ -25,6 +27,8 @@ Rules:
 
 _CITATION_RE = re.compile(r"\[(\d+)\]")
 
+logger = structlog.get_logger()
+
 
 def _format_context(chunks: list[dict[str, Any]]) -> str:
     return "\n\n".join(
@@ -41,6 +45,13 @@ async def generate_answer(question: str, chunks: list[dict[str, Any]]) -> str:
     )
     if response.text is None:
         raise RuntimeError("Gemini returned no text in response")
+    if response.usage_metadata:
+        logger.info(
+            "rag_engine.generation.usage",
+            cached_tokens=response.usage_metadata.cached_content_token_count,
+            prompt_tokens=response.usage_metadata.prompt_token_count,
+            candidates_tokens=response.usage_metadata.candidates_token_count,
+        )
     return response.text
 
 
