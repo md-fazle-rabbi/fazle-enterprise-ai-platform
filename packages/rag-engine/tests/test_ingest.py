@@ -8,6 +8,7 @@ Uses app.router.lifespan_context to run the app's real startup/shutdown
 does not trigger FastAPI lifespan events on its own, only a real server
 (uvicorn) does that automatically.
 """
+
 import os
 import uuid
 
@@ -31,12 +32,12 @@ async def test_ingesting_same_content_twice_is_idempotent():
         "source_path": "/tmp/idempotency-test.md",
         "text": "# Test\n\nSame content, ingested twice, should dedupe.",
     }
-    async with app.router.lifespan_context(app):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            first = await client.post("/ingest", json=payload, headers=HEADERS)
-            second = await client.post("/ingest", json=payload, headers=HEADERS)
+    async with (
+        app.router.lifespan_context(app),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        first = await client.post("/ingest", json=payload, headers=HEADERS)
+        second = await client.post("/ingest", json=payload, headers=HEADERS)
 
     assert first.status_code == 201
     assert second.status_code == 201

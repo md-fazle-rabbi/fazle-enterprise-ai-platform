@@ -4,6 +4,7 @@ fixed-size character splitting. Chunk boundaries respect heading structure
 first, then pack whole paragraphs up to a token budget, only splitting a
 single paragraph if it alone exceeds the budget.
 """
+
 import re
 from dataclasses import dataclass, field
 

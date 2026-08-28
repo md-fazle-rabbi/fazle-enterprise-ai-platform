@@ -3,6 +3,7 @@ Per-request DB session with tenant context set inside the same transaction
 as the request's queries, so it can never leak into a different request
 sharing a pooled connection.
 """
+
 from collections.abc import AsyncGenerator
 from typing import Annotated
 from uuid import UUID

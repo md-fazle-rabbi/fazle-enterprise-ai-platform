@@ -5,13 +5,14 @@ Revises: 355ad3bb11ed
 Create Date: 2026-08-26 17:08:22.223539
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '842acdfa23ba'
-down_revision: str | Sequence[str] | None = '355ad3bb11ed'
+revision: str = "842acdfa23ba"
+down_revision: str | Sequence[str] | None = "355ad3bb11ed"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

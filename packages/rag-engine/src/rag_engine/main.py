@@ -37,6 +37,7 @@ app = FastAPI(
 app.include_router(documents_router)
 app.include_router(ingest_router)
 
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}

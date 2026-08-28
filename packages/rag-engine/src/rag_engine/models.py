@@ -9,15 +9,16 @@ any raw SQL insert that bypasses the ORM — psql, other services, admin
 scripts). Without the server_default, a raw INSERT that omits id hits a
 not-null violation, since the Python-side default never reaches the DB.
 """
+
 import uuid
 from datetime import datetime
 
+from core.db import Base
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import ARRAY, DateTime, ForeignKey, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.db import Base
 from rag_engine.embeddings import EMBEDDING_DIMENSION
 
 
@@ -49,7 +50,9 @@ class Chunk(Base):
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
     )
     chunk_index: Mapped[int] = mapped_column(nullable=False)
     heading_path: Mapped[list[str]] = mapped_column(

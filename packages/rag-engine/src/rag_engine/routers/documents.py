@@ -2,6 +2,7 @@
 Minimal document endpoints, just enough to prove tenant-scoped sessions work
 end to end through the real API, not only through psql.
 """
+
 import uuid
 from typing import Annotated
 
@@ -35,7 +36,9 @@ async def create_document(
 ) -> Document:
     # tenant_id comes from the header dependency, never the request body
     document = Document(
-        tenant_id=tenant_id, content_hash=body.content_hash, source_path=body.source_path
+        tenant_id=tenant_id,
+        content_hash=body.content_hash,
+        source_path=body.source_path,
     )
     session.add(document)
     await session.flush()

@@ -4,14 +4,14 @@ own embedding model and names Voyage AI as its recommended partner for
 Claude-based apps, that's the reason for this choice, not unfamiliarity
 with alternatives.
 """
-import voyageai
 
+import voyageai
 from core.settings import settings
 
 EMBEDDING_MODEL = "voyage-4-large"
 EMBEDDING_DIMENSION = 1024
 
-_client = voyageai.AsyncClient(api_key=settings.voyage_api_key)
+_client = voyageai.AsyncClient(api_key=settings.voyage_api_key)  # type: ignore[attr-defined]
 
 
 async def embed_documents(texts: list[str]) -> list[list[float]]:
@@ -22,7 +22,7 @@ async def embed_documents(texts: list[str]) -> list[list[float]]:
         input_type="document",
         output_dimension=EMBEDDING_DIMENSION,
     )
-    return result.embeddings
+    return [[float(x) for x in vector] for vector in result.embeddings]
 
 
 async def embed_query(text: str) -> list[float]:
@@ -33,4 +33,4 @@ async def embed_query(text: str) -> list[float]:
         input_type="query",
         output_dimension=EMBEDDING_DIMENSION,
     )
-    return result.embeddings[0]
+    return [float(x) for x in result.embeddings[0]]

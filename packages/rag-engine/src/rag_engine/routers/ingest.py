@@ -3,6 +3,7 @@ The real ingestion entry point: raw text in, chunked + embedded + stored.
 Idempotent by content hash, re-ingesting the same content for the same
 tenant is a no-op that returns the existing document, not a duplicate.
 """
+
 import hashlib
 import uuid
 from typing import Annotated
@@ -36,10 +37,21 @@ def _hash_content(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-async def _existing_response(session: AsyncSession, content_hash: str) -> IngestResponse:
+async def _existing_response(
+    session: AsyncSession, content_hash: str
+) -> IngestResponse:
     existing = await session.scalar(
         select(Document).where(Document.content_hash == content_hash)
     )
+    if existing is None:
+        # this function is only ever called right after confirming a
+        # matching document exists (either the pre-check SELECT or an
+        # IntegrityError from a lost insert race), so reaching None here
+        # means that invariant broke, worth a loud error, not a silent
+        # None-attribute crash
+        raise RuntimeError(
+            f"expected an existing document for content_hash={content_hash!r}, found none"
+        )
     chunk_count = await session.scalar(
         select(func.count()).select_from(Chunk).where(Chunk.document_id == existing.id)
     )
@@ -81,7 +93,9 @@ async def ingest(
 
     chunks = chunk_markdown(body.text)
     if not chunks:
-        return IngestResponse(document_id=document.id, chunk_count=0, deduplicated=False)
+        return IngestResponse(
+            document_id=document.id, chunk_count=0, deduplicated=False
+        )
 
     vectors = await embed_documents([c.text for c in chunks])
 
@@ -98,4 +112,6 @@ async def ingest(
             )
         )
 
-    return IngestResponse(document_id=document.id, chunk_count=len(chunks), deduplicated=False)
+    return IngestResponse(
+        document_id=document.id, chunk_count=len(chunks), deduplicated=False
+    )
