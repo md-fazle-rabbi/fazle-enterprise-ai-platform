@@ -2,6 +2,7 @@
 Shared Gemini client. One client construction, one place to change if the
 API key or client config needs to change, not repeated per module.
 """
+
 import httpx
 from google import genai
 from google.genai import types

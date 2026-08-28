@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from rag_engine.routers.documents import router as documents_router
 from rag_engine.routers.ingest import router as ingest_router
-from rag_engine.routers.search import router as search_router
 from rag_engine.routers.query import router as query_router
+from rag_engine.routers.search import router as search_router
 
 configure_logging(settings.log_level)
 logger = structlog.get_logger()

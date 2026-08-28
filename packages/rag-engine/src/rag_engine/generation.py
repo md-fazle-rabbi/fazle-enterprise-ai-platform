@@ -4,6 +4,7 @@ the chunks it's given; every retrieved chunk gets a numbered citation tag
 the model is instructed to reference, so an answer's claims can be traced
 back to a specific chunk instead of trusted on faith.
 """
+
 import re
 
 from core.llm_client import client
@@ -25,7 +26,9 @@ _CITATION_RE = re.compile(r"\[(\d+)\]")
 
 
 def _format_context(chunks: list[dict]) -> str:
-    return "\n\n".join(f'<chunk id="{i + 1}">\n{c["text"]}\n</chunk>' for i, c in enumerate(chunks))
+    return "\n\n".join(
+        f'<chunk id="{i + 1}">\n{c["text"]}\n</chunk>' for i, c in enumerate(chunks)
+    )
 
 
 async def generate_answer(question: str, chunks: list[dict]) -> str:

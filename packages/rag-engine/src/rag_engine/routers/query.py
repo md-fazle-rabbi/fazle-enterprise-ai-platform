@@ -49,15 +49,24 @@ async def query(
     by_id = {row.id: row for row in rows}
     ordered_chunks = [by_id[cid] for cid in chunk_ids if cid in by_id]
 
-    answer = await generate_answer(body.question, [{"text": c.text} for c in ordered_chunks])
+    answer = await generate_answer(
+        body.question, [{"text": c.text} for c in ordered_chunks]
+    )
 
     cited_indices = extract_cited_indices(answer)
-    cited_chunks = [ordered_chunks[i - 1] for i in cited_indices if 0 < i <= len(ordered_chunks)]
+    cited_chunks = [
+        ordered_chunks[i - 1] for i in cited_indices if 0 < i <= len(ordered_chunks)
+    ]
 
     return QueryResponse(
         answer=answer,
         citations=[
-            Citation(chunk_id=c.id, document_id=c.document_id, heading_path=c.heading_path, text=c.text)
+            Citation(
+                chunk_id=c.id,
+                document_id=c.document_id,
+                heading_path=c.heading_path,
+                text=c.text,
+            )
             for c in cited_chunks
         ],
         retrieved_but_uncited_count=len(ordered_chunks) - len(cited_chunks),

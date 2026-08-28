@@ -10,6 +10,7 @@ Chose native tsvector for zero extra infrastructure. Swapping in a real
 BM25 extension is a documented upgrade path, tracked in Known Limitations,
 not a claimed feature this doesn't actually have.
 """
+
 import uuid
 
 from sqlalchemy import select, text
@@ -25,7 +26,9 @@ async def _dense_search(
     session: AsyncSession, query_vector: list[float], limit: int
 ) -> list[tuple[uuid.UUID, int]]:
     result = await session.execute(
-        select(Chunk.id).order_by(Chunk.embedding.cosine_distance(query_vector)).limit(limit)
+        select(Chunk.id)
+        .order_by(Chunk.embedding.cosine_distance(query_vector))
+        .limit(limit)
     )
     ids = result.scalars().all()
     return [(chunk_id, rank) for rank, chunk_id in enumerate(ids, start=1)]

@@ -47,7 +47,10 @@ async def search(
     return SearchResponse(
         results=[
             SearchResult(
-                chunk_id=c.id, text=c.text, heading_path=c.heading_path, document_id=c.document_id
+                chunk_id=c.id,
+                text=c.text,
+                heading_path=c.heading_path,
+                document_id=c.document_id,
             )
             for c in ordered
         ]
