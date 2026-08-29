@@ -7,6 +7,7 @@ context budget and reintroduce the imprecision this technique avoids.
 """
 
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,7 @@ from rag_engine.models import Chunk
 
 async def expand_to_parents(
     session: AsyncSession, chunk_ids: list[uuid.UUID]
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Matched chunks that share a parent section collapse into one context
     entry, not duplicated. chunk_id in the result stays the originally
@@ -30,7 +31,7 @@ async def expand_to_parents(
         return []
 
     seen: set[tuple[uuid.UUID, tuple[str, ...]]] = set()
-    parents: list[dict] = []
+    parents: list[dict[str, Any]] = []
 
     for chunk in matched:
         key = (chunk.document_id, tuple(chunk.heading_path))

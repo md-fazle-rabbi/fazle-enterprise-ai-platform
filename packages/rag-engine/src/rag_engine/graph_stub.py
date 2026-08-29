@@ -47,4 +47,6 @@ async def extract_entities(chunk_text: str) -> ExtractionResult:
             "response_schema": ExtractionResult,
         },
     )
+    if response.text is None:
+        raise RuntimeError("LLM returned empty response")
     return ExtractionResult.model_validate_json(response.text)

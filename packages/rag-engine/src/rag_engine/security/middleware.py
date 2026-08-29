@@ -5,19 +5,25 @@ carry free text into an LLM context.
 """
 
 import json
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import structlog
 from fastapi import Request
 from rag_engine.security.firewall import assess
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 logger = structlog.get_logger()
 _INSPECTED_PATHS = {"/query": "question", "/ingest": "text"}
 
 
 class InjectionFirewallMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         field = _INSPECTED_PATHS.get(request.url.path)
         if field and request.method == "POST":
             body_bytes = await request.body()
@@ -52,7 +58,7 @@ class InjectionFirewallMiddleware(BaseHTTPMiddleware):
             # route handler downstream can still read it. This touches a
             # private Starlette attribute, a known workaround, not a
             # documented public API, flagged so it isn't mistaken for one.
-            async def receive():
+            async def receive() -> dict[str, Any]:
                 return {"type": "http.request", "body": body_bytes}
 
             request._receive = receive

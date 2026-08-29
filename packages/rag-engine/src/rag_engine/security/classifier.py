@@ -10,12 +10,13 @@ below is the expected convention, not independently confirmed here.
 """
 
 from functools import lru_cache
+from typing import Any
 
 MODEL_ID = "meta-llama/Llama-Prompt-Guard-2-86M"
 
 
 @lru_cache(maxsize=1)
-def _get_pipeline():
+def _get_pipeline() -> Any:
     from transformers import pipeline
 
     return pipeline("text-classification", model=MODEL_ID)
@@ -24,4 +25,5 @@ def _get_pipeline():
 def classifier_score(text: str) -> float:
     """Probability, 0 to 1, that text is a jailbreak or injection attempt."""
     result = _get_pipeline()(text, truncation=True)[0]
-    return result["score"] if result["label"] == "INJECTION" else 1 - result["score"]
+    score = float(result["score"])
+    return score if result["label"] == "INJECTION" else 1 - score

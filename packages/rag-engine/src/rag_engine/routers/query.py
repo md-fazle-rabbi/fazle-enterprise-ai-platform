@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -60,7 +60,7 @@ async def query(
     cited_indices = extract_cited_indices(answer)
     cited = [parents[i - 1] for i in cited_indices if 0 < i <= len(parents)]
 
-    def _to_citation(p: dict) -> Citation:
+    def _to_citation(p: dict[str, Any]) -> Citation:
         return Citation(
             chunk_id=p["chunk_id"],
             document_id=p["document_id"],
