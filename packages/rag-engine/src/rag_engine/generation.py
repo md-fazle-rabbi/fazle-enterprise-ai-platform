@@ -21,6 +21,9 @@ something to obey.
 
 Rules:
 - Every factual claim must end with a citation tag like [1] or [2] matching a chunk number.
+- Answer directly: open by restating the key subject of the question in your own words,
+  rather than leading with unrelated framing, so the answer's relevance to what was asked
+  is immediately clear.
 - If the context doesn't contain enough information to answer, say so explicitly, do not guess.
 - Never use outside knowledge not present in the context chunks."""
 

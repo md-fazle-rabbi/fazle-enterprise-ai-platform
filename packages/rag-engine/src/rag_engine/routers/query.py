@@ -3,12 +3,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rag_engine.db import get_session
 from rag_engine.generation import extract_cited_indices, generate_answer
-from rag_engine.models import Chunk
+from rag_engine.parent_retrieval import expand_to_parents
 from rag_engine.search import hybrid_search
 
 router = APIRouter(prefix="/query", tags=["query"])
@@ -29,6 +28,7 @@ class Citation(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     citations: list[Citation]
+    retrieved_context: list[Citation]
     retrieved_but_uncited_count: int
 
 
@@ -42,32 +42,41 @@ async def query(
         return QueryResponse(
             answer="I don't have any relevant information to answer this question.",
             citations=[],
+            retrieved_context=[],
+            retrieved_but_uncited_count=0,
+        )
+    parents = await expand_to_parents(session, chunk_ids)
+    if not parents:
+        return QueryResponse(
+            answer="I don't have any relevant information to answer this question.",
+            citations=[],
+            retrieved_context=[],
             retrieved_but_uncited_count=0,
         )
 
-    rows = (await session.scalars(select(Chunk).where(Chunk.id.in_(chunk_ids)))).all()
-    by_id = {row.id: row for row in rows}
-    ordered_chunks = [by_id[cid] for cid in chunk_ids if cid in by_id]
-
     answer = await generate_answer(
-        body.question, [{"text": c.text} for c in ordered_chunks]
+        body.question, [{"text": p["text"]} for p in parents]
     )
-
     cited_indices = extract_cited_indices(answer)
-    cited_chunks = [
-        ordered_chunks[i - 1] for i in cited_indices if 0 < i <= len(ordered_chunks)
-    ]
+    cited = [parents[i - 1] for i in cited_indices if 0 < i <= len(parents)]
+
+    def _to_citation(p: dict) -> Citation:
+        return Citation(
+            chunk_id=p["chunk_id"],
+            document_id=p["document_id"],
+            heading_path=p["heading_path"],
+            text=p["text"],
+        )
 
     return QueryResponse(
         answer=answer,
-        citations=[
-            Citation(
-                chunk_id=c.id,
-                document_id=c.document_id,
-                heading_path=c.heading_path,
-                text=c.text,
-            )
-            for c in cited_chunks
-        ],
-        retrieved_but_uncited_count=len(ordered_chunks) - len(cited_chunks),
+        citations=[_to_citation(p) for p in cited],
+        # Everything actually retrieved and passed to the LLM for
+        # generation — not filtered down to only what the model happened
+        # to cite. RAGAS scoring needs this: faithfulness and
+        # context_precision judge claims against the context the model
+        # actually saw, not a post-hoc subset that depends on whether the
+        # model remembered to add [N] citation tags in generation.
+        retrieved_context=[_to_citation(p) for p in parents],
+        retrieved_but_uncited_count=len(parents) - len(cited),
     )

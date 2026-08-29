@@ -8,6 +8,7 @@ drifting out of sync with each other.
 
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,6 +18,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # was launched from (e.g. packages/rag-engine/), silently finds nothing
 # there, and falls back to the hardcoded default below with no warning.
 _ENV_FILE = Path(__file__).resolve().parents[4] / ".env"
+
+# pydantic-settings below only loads .env values into this Settings class's
+# own declared fields. Some third-party libraries (huggingface_hub,
+# transformers) read credentials straight from os.environ instead of going
+# through this class — HF_TOKEN being the current example. load_dotenv()
+# here pushes every .env key into os.environ directly, so those libraries
+# pick it up too, without needing a manual `export` in every shell session.
+load_dotenv(dotenv_path=_ENV_FILE)
 
 
 class Settings(BaseSettings):

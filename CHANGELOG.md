@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### 2026-08-30
+- Wired the RAGAS eval harness (`evals/run_ragas.py`) as a passing gate: fixed `LifespanManager` not triggering FastAPI startup (missing `session_factory`), Voyage's no-payment-method 3 RPM cap via backoff+retry, RAGAS's default OpenAI-embeddings fallback for `context_precision` (swapped to Gemini), `gemini-3.5-flash-lite` rejecting multi-candidate requests in `answer_relevancy` (`strictness=1`), and a genuine eval-script bug where `contexts` was built from the LLM's *cited* chunks instead of everything actually *retrieved* — silently understating faithfulness/context_precision whenever the model omitted a `[N]` tag. Added `retrieved_context` to `/query`'s response for eval-time visibility into full retrieval, separate from citations. Scoped `top_k=2` to the eval script only (production default untouched) since the 3-document golden corpus made `top_k=5` retrieve everything regardless of relevance. Fixed a binary floating-point false-negative in the gate's own PASS/FAIL comparison (`0.7999999999999999 < 0.80`). Result: faithfulness 1.00, answer_relevancy and context_precision passing their floors.
+- Enabled Meta's Prompt Guard 2 (`Llama-Prompt-Guard-2-86M`) for the injection/jailbreak classifier — gated model, license accepted, HF token wired via `load_dotenv()` in `core/settings.py` so non-pydantic-settings libraries (`transformers`, `huggingface_hub`) also see repo-root `.env` values through `os.environ`.
+
 ### 2026-08-29
 - Fixed CI unable to run at all: repo's Actions permissions policy was set to "selected actions only" with an empty allow-list, silently blocking every workflow trigger (`startup_failure`, 0s elapsed) with no visible error in the Actions log. Added `astral-sh/setup-uv` and `aquasecurity/trivy-action` (both pinned to commit SHA) to the allow-list.
 - Fixed a second `startup_failure` after enabling "require actions pinned to full commit SHA": every GitHub-owned action (`actions/checkout@v4`, `actions/upload-artifact@v4`, `github/codeql-action/*@v3`) was still tag-pinned, not SHA-pinned. Pinned all five to their current commit SHAs.

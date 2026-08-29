@@ -13,6 +13,7 @@ from rag_engine.routers.documents import router as documents_router
 from rag_engine.routers.ingest import router as ingest_router
 from rag_engine.routers.query import router as query_router
 from rag_engine.routers.search import router as search_router
+from rag_engine.security.middleware import InjectionFirewallMiddleware
 
 configure_logging(settings.log_level)
 logger = structlog.get_logger()
@@ -40,6 +41,7 @@ app.include_router(documents_router)
 app.include_router(ingest_router)
 app.include_router(search_router)
 app.include_router(query_router)
+app.add_middleware(InjectionFirewallMiddleware)
 
 
 @app.get("/health")
