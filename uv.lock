@@ -418,12 +418,16 @@ source = { virtual = "." }
 [package.dev-dependencies]
 dev = [
     { name = "py-spy" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
 
 [package.metadata.requires-dev]
-dev = [{ name = "py-spy", specifier = ">=0.4.2" }]
+dev = [
+    { name = "py-spy", specifier = ">=0.4.2" },
+    { name = "ruff", specifier = ">=0.16.5" },
+]
 
 [[package]]
 name = "filelock"

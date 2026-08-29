@@ -15,4 +15,5 @@ members = ["packages/*"]
 [dependency-groups]
 dev = [
     "py-spy>=0.4.2",
+    "ruff>=0.16.5",
 ]
