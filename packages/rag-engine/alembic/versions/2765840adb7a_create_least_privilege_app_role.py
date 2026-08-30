@@ -27,7 +27,17 @@ def upgrade() -> None:
         END
         $$;
     """)
-    op.execute("GRANT CONNECT ON DATABASE fazle TO app_user")
+    # current_database() instead of a hardcoded name: this migration runs
+    # unmodified against local Postgres (database "fazle") and against
+    # Supabase (database "postgres"), it always grants on whichever
+    # database the connection is actually using.
+    op.execute("""
+        DO $$
+        BEGIN
+            EXECUTE format('GRANT CONNECT ON DATABASE %I TO app_user', current_database());
+        END
+        $$;
+    """)
     op.execute("GRANT USAGE ON SCHEMA public TO app_user")
     op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON documents TO app_user")
 
@@ -35,5 +45,11 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute("REVOKE SELECT, INSERT, UPDATE, DELETE ON documents FROM app_user")
     op.execute("REVOKE USAGE ON SCHEMA public FROM app_user")
-    op.execute("REVOKE CONNECT ON DATABASE fazle FROM app_user")
+    op.execute("""
+        DO $$
+        BEGIN
+            EXECUTE format('REVOKE CONNECT ON DATABASE %I FROM app_user', current_database());
+        END
+        $$;
+    """)
     op.execute("DROP ROLE IF EXISTS app_user")

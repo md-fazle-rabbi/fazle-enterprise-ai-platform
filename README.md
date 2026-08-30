@@ -57,7 +57,7 @@ curl -X POST https://[demo-url]/query \
 ```
 
 ## Live demo
-[URL once deployed, next] · Public Swagger/OpenAPI at `/docs`
+https://fazle-enterprise-ai-platform.onrender.com · Public Swagger/OpenAPI: https://fazle-enterprise-ai-platform.onrender.com/docs
 
 ## Known limitations
 - Tenant identification via header/demo-key only, no signed auth yet
