@@ -50,6 +50,8 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://fazle:fazle_ci_password@localhost:5432/fazle
       REDIS_URL: redis://localhost:6379/0
+      APP_DATABASE_URL: postgresql+asyncpg://app_user:ci_app_password@localhost:5432/fazle
+      APP_DB_PASSWORD: ci_app_password
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
@@ -149,6 +151,8 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 5
     env:
       DATABASE_URL: postgresql+asyncpg://fazle:fazle_ci_password@localhost:5432/fazle
+      APP_DATABASE_URL: postgresql+asyncpg://app_user:ci_app_password@localhost:5432/fazle
+      APP_DB_PASSWORD: ci_app_password
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
