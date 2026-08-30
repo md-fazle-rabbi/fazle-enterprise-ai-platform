@@ -31,6 +31,6 @@ async def test_raises_when_both_paths_produce_nothing():
     with (
         patch("rag_engine.vision._vision_extract", new=AsyncMock(return_value=None)),
         patch("rag_engine.vision._ocr_extract", return_value=""),
+        pytest.raises(ValueError, match="no content"),
     ):
-        with pytest.raises(ValueError, match="no content"):
-            await extract_image_content(b"fake-bytes")
+        await extract_image_content(b"fake-bytes")
