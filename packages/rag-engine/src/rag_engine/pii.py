@@ -9,6 +9,7 @@ from functools import lru_cache
 
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
+from presidio_anonymizer.entities import RecognizerResult as AnonymizerRecognizerResult
 
 PII_ENTITIES = [
     "PERSON",
@@ -32,7 +33,9 @@ def _get_analyzer() -> AnalyzerEngine:
 
 @lru_cache(maxsize=1)
 def _get_anonymizer() -> AnonymizerEngine:
-    return AnonymizerEngine()
+    # presidio-anonymizer ships no py.typed marker, so mypy --strict
+    # sees this constructor as untyped. Not our bug, library limitation.
+    return AnonymizerEngine()  # type: ignore[no-untyped-call]
 
 
 def redact_pii(text: str) -> tuple[str, list[str]]:
@@ -48,6 +51,19 @@ def redact_pii(text: str) -> tuple[str, list[str]]:
     if not results:
         return text, []
 
-    anonymized = _get_anonymizer().anonymize(text=text, analyzer_results=results)
+    # presidio_analyzer.RecognizerResult and presidio_anonymizer's own
+    # RecognizerResult are structurally similar but nominally distinct
+    # types, hence the explicit conversion instead of passing analyzer
+    # results straight through.
+    anonymizer_results = [
+        AnonymizerRecognizerResult(
+            entity_type=r.entity_type, start=r.start, end=r.end, score=r.score
+        )
+        for r in results
+    ]
+
+    anonymized = _get_anonymizer().anonymize(
+        text=text, analyzer_results=anonymizer_results
+    )
     entity_types = sorted({r.entity_type for r in results})
     return anonymized.text, entity_types
