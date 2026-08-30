@@ -1,15 +1,17 @@
 """
-Shared test fixtures. Mocks Voyage (embeddings), Gemini (generation), and
-the injection-firewall classifier so the test suite never needs real API
-keys, HuggingFace gated-model access, or makes real network calls —
-tests stay fast, deterministic, and runnable in CI without secrets.
+Shared test fixtures. Mocks Voyage (embeddings), Gemini (generation), the
+CRAG relevance grader, and the injection-firewall classifier so the test
+suite never needs real API keys, HuggingFace gated-model access, or makes
+real network calls — tests stay fast, deterministic, and runnable in CI
+without secrets.
 
 Patched at point of use, not at definition: ingest.py, search.py, and
 query.py each do `from rag_engine.embeddings import embed_documents` /
-`embed_query` / `from rag_engine.generation import generate_answer`,
-which binds a separate name in each importing module. Patching
-rag_engine.embeddings.embed_documents would leave those already-bound
-names untouched and still hitting the real API.
+`embed_query` / `from rag_engine.generation import generate_answer` /
+`from rag_engine.crag import grade_relevance`, which binds a separate
+name in each importing module. Patching rag_engine.embeddings.embed_documents
+would leave those already-bound names untouched and still hitting the
+real API.
 """
 
 import pytest
@@ -37,6 +39,22 @@ def mock_gemini_generation(monkeypatch):
 
     monkeypatch.setattr(
         "rag_engine.routers.query.generate_answer", _fake_generate_answer
+    )
+
+
+@pytest.fixture(autouse=True)
+def mock_crag_grading(monkeypatch):
+    """Isolated grade_relevance() logic (RELEVANT/IRRELEVANT parsing) is
+    covered directly in test_crag.py against a mocked genai client. Here,
+    at the /query endpoint level, we only need the gate to pass so
+    retrieval and citation-building run for real — the grader's own
+    correctness isn't this test's concern."""
+
+    async def _fake_grade_relevance(question: str, parents: list[dict]) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        "rag_engine.routers.query.grade_relevance", _fake_grade_relevance
     )
 
 
