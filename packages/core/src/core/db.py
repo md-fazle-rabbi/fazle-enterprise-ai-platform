@@ -6,7 +6,6 @@ not one per package.
 
 import ssl
 
-import certifi
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -16,15 +15,15 @@ class Base(DeclarativeBase):
 
 
 def make_engine(database_url: str) -> AsyncEngine:
-    # Passing ?ssl=require in the URL query string is not reliably parsed by
-    # SQLAlchemy's asyncpg dialect and can silently fall back to no SSL,
-    # which breaks Supabase's pooler (SNI-based tenant identification
-    # requires a real TLS handshake). An explicit ssl.SSLContext via
-    # connect_args is passed straight to asyncpg, unambiguous.
-    # certifi's CA bundle is used explicitly rather than the platform's
-    # default trust store, which can be stale or, on some networks,
-    # intercepted by a middlebox the platform store doesn't recognize.
-    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    # Supabase's connection pooler (Supavisor) presents a self-signed
+    # certificate, so full chain verification fails even against the
+    # correct host. This matches sslmode=require semantics (encrypt the
+    # connection, don't verify the certificate chain) rather than
+    # sslmode=verify-full, which is what Supabase itself documents for
+    # pooler connections.
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
     return create_async_engine(
         database_url,
         pool_pre_ping=True,
