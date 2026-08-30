@@ -4,6 +4,11 @@ FROM python:3.13.15-slim-bookworm AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /uvx /bin/
 WORKDIR /app
 
+# uv's default 30s per-request timeout gets blown past once large
+# packages (torch, spacy, pyarrow, scipy) saturate the connection;
+# bump it so a slow chunk mid-download doesn't kill the whole sync.
+ENV UV_HTTP_TIMEOUT=300
+
 COPY pyproject.toml uv.lock ./
 COPY packages/core/pyproject.toml packages/core/pyproject.toml
 COPY packages/rag-engine/pyproject.toml packages/rag-engine/pyproject.toml

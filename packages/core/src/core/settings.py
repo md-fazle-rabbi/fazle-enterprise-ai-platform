@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     app_db_password: str = Field(default="change_me_locally")
     voyage_api_key: str = Field(default="")
     gemini_api_key: str = Field(default="")
+    demo_api_key: str = Field(default="fazle-demo-key")
 
 
 settings = Settings()

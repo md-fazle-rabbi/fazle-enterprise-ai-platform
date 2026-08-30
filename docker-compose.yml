@@ -10,6 +10,9 @@ services:
       APP_DATABASE_URL: postgresql+asyncpg://${APP_DB_USER}:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      HF_TOKEN: ${HF_TOKEN}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     depends_on:
       db:
         condition: service_healthy

@@ -3,32 +3,68 @@
 ![CI](https://github.com/md-fazle-rabbi/fazle-enterprise-ai-platform/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.13.15-blue)
-![Coverage](https://img.shields.io/badge/coverage-not_yet_measured-lightgrey)
+![RAGAS Faithfulness](https://img.shields.io/badge/RAGAS_faithfulness-pending_first_run-lightgrey)
 
 ## Hire me
 I build production AI systems that pass security audits, not demos: enterprise RAG that
-doesn't hallucinate, agent meshes with signed inter-agent messaging, and GDPR/HIPAA/SOC 2/EU AI
-Act compliance tooling. This repo is the flagship proof of that.
-Contact: mfrabbi.ai@gmail.com · Demo: TBD  · Loom walkthrough: TBD 
+doesn't hallucinate across text and visual input, agent meshes with signed inter-agent
+messaging, and GDPR/HIPAA/EU AI Act compliance tooling. This repo is the proof.
+Contact: mfrabbi.ai@gmail.com · Live demo: [link once deployed] · Loom walkthrough: [link]
 
-## What this is
-An enterprise-grade RAG and agentic AI platform, one monorepo:
-- `packages/rag-engine`: hybrid search, anti-hallucination eval gate, PII redaction
-- `packages/agent-mesh`: LangGraph orchestration, MCP tools, signed agent messaging
-- `packages/observability`: OpenTelemetry tracing, cost/latency dashboards
-- `packages/governance`: EU AI Act risk classification, SOC2-aligned audit logging
-- `packages/core`: shared Pydantic v2 settings and schemas
+## 30 second read
+RAG chatbots hallucinate and leak data across tenants. This system enforces both problems
+shut at the infrastructure layer: Postgres Row-Level Security for tenant isolation (not
+app-code filtering), enforced citation tags so every claim traces to a retrieved chunk, a
+two-layer prompt-injection firewall, PII redaction before anything reaches storage, and an
+automated RAGAS gate in CI that fails the build if answer faithfulness regresses.
 
-## 30 second / 3 minute / 10 minute read
-Not yet available. Fills in once rag-engine is sellable.
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "External"
+        User[API Client]
+        Gemini[Gemini API<br/>generation + vision]
+        Voyage[Voyage AI<br/>embeddings]
+    end
+
+    subgraph "rag-engine (this repo)"
+        API[FastAPI Service]
+        FW[Injection Firewall<br/>pattern + classifier]
+        PII[Presidio<br/>PII redaction]
+    end
+
+    subgraph "Data"
+        PG[(Postgres + pgvector<br/>RLS enforced)]
+        Redis[(Redis<br/>rate limiting)]
+    end
+
+    User -->|X-Tenant-ID or demo key| API
+    API --> FW
+    FW --> PII
+    PII --> PG
+    API -->|embed| Voyage
+    API -->|generate| Gemini
+    API --> Redis
+```
+
+## One-command demo
+```bash
+curl -X POST https://[demo-url]/query \
+  -H "Authorization: Bearer fazle-demo-key" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How does this system enforce tenant isolation?"}'
+```
 
 ## Live demo
-Not yet deployed.
+[URL once deployed, next] · Public Swagger/OpenAPI at `/docs`
 
 ## Known limitations
-Tenant identification is header-based only (X-Tenant-ID), with no signature or authentication check, any caller can claim any tenant ID. RLS still guarantees isolation between whichever tenant IDs are used, but nothing yet verifies a caller is entitled to the tenant ID it claims. Real auth is a stated next step, not implemented.
-
-chunks and embeddings can be stored, but nothing wires ingestion end to end yet, chunking, hashing, and storage aren't connected to an endpoint. That's the next micro-step, not this one.
+- Tenant identification via header/demo-key only, no signed auth yet
+- BM25-family ranking via Postgres native `ts_rank_cd`, not exact Okapi BM25
+- GraphRAG entity extraction is stored but not wired into retrieval
+- PDF pages process sequentially, not concurrently
+- PII coverage is a defined entity list, not the complete GDPR/HIPAA identifier set
 
 ## License
 MIT, see LICENSE.md.

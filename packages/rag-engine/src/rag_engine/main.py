@@ -6,6 +6,7 @@ from core import settings
 from core.db import make_engine
 from core.logging import configure_logging
 from fastapi import FastAPI, HTTPException, Request
+from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -27,8 +28,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     engine = make_engine(settings.app_database_url)
     app.state.engine = engine
     app.state.session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    app.state.redis = AsyncRedis.from_url(settings.redis_url)
     logger.info("rag_engine.startup", environment=settings.environment)
     yield
+    await app.state.redis.aclose()
     await engine.dispose()
     logger.info("rag_engine.shutdown")
 

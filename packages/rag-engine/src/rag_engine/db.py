@@ -12,16 +12,16 @@ from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from rag_engine.demo_auth import resolve_demo_tenant
+
 
 async def get_tenant_id(
+    request: Request,
     x_tenant_id: Annotated[str | None, Header()] = None,
 ) -> UUID:
-    """
-    Placeholder tenant resolution: reads X-Tenant-ID straight off the
-    request header, no signature or auth check yet. Any caller can claim
-    any tenant right now. Stated gap, closes once real authentication
-    replaces this.
-    """
+    demo_tenant = await resolve_demo_tenant(request)
+    if demo_tenant is not None:
+        return demo_tenant
     if x_tenant_id is None:
         raise HTTPException(status_code=400, detail="X-Tenant-ID header required")
     try:
