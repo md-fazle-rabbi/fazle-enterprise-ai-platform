@@ -1,7 +1,8 @@
 """
 Integration test for the ingest endpoint's idempotency guarantee. Needs a
-live Postgres (docker compose up -d db) and a real VOYAGE_API_KEY, this is
-proving actual dedup behavior end to end, not a pure unit test.
+live Postgres (docker compose up -d db) — the ingest/dedup logic itself
+runs for real. Embeddings are mocked (see conftest.py) so this doesn't
+need a real VOYAGE_API_KEY or make a real Voyage API call.
 
 Uses app.router.lifespan_context to run the app's real startup/shutdown
 (building the DB engine and session_factory), since httpx's ASGITransport
@@ -9,17 +10,11 @@ does not trigger FastAPI lifespan events on its own, only a real server
 (uvicorn) does that automatically.
 """
 
-import os
 import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from rag_engine.main import app
-
-pytestmark = pytest.mark.skipif(
-    not os.getenv("VOYAGE_API_KEY"),
-    reason="requires a real VOYAGE_API_KEY and a running Postgres, not run without both",
-)
 
 TENANT = str(uuid.uuid4())
 HEADERS = {"X-Tenant-ID": TENANT}

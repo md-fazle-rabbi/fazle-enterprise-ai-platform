@@ -1,23 +1,20 @@
 """
 Does the answer actually cite a real retrieved chunk, not just sound
-plausible. Needs VOYAGE_API_KEY, GEMINI_API_KEY, and a running Postgres.
+plausible. Needs a running Postgres. Embeddings and generation are mocked
+(see conftest.py), so this doesn't need real VOYAGE_API_KEY/GEMINI_API_KEY
+— the retrieval and citation-building logic still runs for real against
+whatever was actually ingested.
 
 Uses app.router.lifespan_context to run the app's real startup/shutdown
 (building the DB engine and session_factory), since httpx's ASGITransport
 does not trigger FastAPI lifespan events on its own.
 """
 
-import os
 import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from rag_engine.main import app
-
-pytestmark = pytest.mark.skipif(
-    not (os.getenv("VOYAGE_API_KEY") and os.getenv("GEMINI_API_KEY")),
-    reason="requires VOYAGE_API_KEY and GEMINI_API_KEY plus a running Postgres",
-)
 
 TENANT = str(uuid.uuid4())
 HEADERS = {"X-Tenant-ID": TENANT}
@@ -40,17 +37,13 @@ async def test_query_answer_cites_a_real_retrieved_chunk():
             },
             headers=HEADERS,
         )
-
         response = await client.post(
             "/query",
             json={"question": "How does this system isolate tenants?"},
             headers=HEADERS,
         )
-
     body = response.json()
-
     assert response.status_code == 200
     assert len(body["citations"]) > 0
-
     cited_text = body["citations"][0]["text"].lower()
     assert "database" in cited_text or "row-level" in cited_text

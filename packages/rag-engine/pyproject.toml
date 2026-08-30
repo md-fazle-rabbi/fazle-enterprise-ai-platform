@@ -21,6 +21,7 @@ dependencies = [
     "pillow>=11.0",
     "pytesseract>=0.3.13",
     "pymupdf>=1.25",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]
