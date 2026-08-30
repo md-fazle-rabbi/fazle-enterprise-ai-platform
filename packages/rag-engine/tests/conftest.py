@@ -1,6 +1,7 @@
 """
-Shared test fixtures. Mocks Voyage (embeddings) and Gemini (generation)
-so the test suite never needs real API keys or makes real network calls —
+Shared test fixtures. Mocks Voyage (embeddings), Gemini (generation), and
+the injection-firewall classifier so the test suite never needs real API
+keys, HuggingFace gated-model access, or makes real network calls —
 tests stay fast, deterministic, and runnable in CI without secrets.
 
 Patched at point of use, not at definition: ingest.py, search.py, and
@@ -30,11 +31,6 @@ def mock_voyage_embeddings(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def mock_gemini_generation(monkeypatch):
-    """Cites every chunk passed in with a [N] tag, so any test asserting
-    on citations has something real to work with — citation *text* still
-    comes from the actually-ingested/retrieved chunk, this only fakes
-    the LLM call itself."""
-
     async def _fake_generate_answer(question: str, chunks: list[dict]) -> str:
         tags = " ".join(f"[{i + 1}]" for i in range(len(chunks)))
         return f"Mocked answer for: {question} {tags}".strip()
@@ -42,3 +38,21 @@ def mock_gemini_generation(monkeypatch):
     monkeypatch.setattr(
         "rag_engine.routers.query.generate_answer", _fake_generate_answer
     )
+
+
+@pytest.fixture(autouse=True)
+def mock_injection_firewall(monkeypatch):
+    """The real firewall loads a gated HuggingFace model
+    (Llama-Prompt-Guard-2-86M) on first use, requiring HF_TOKEN and
+    network access. Tests exercise ingest/query request handling, not
+    the classifier's own accuracy — that's Prompt Guard's job to get
+    right, not this test suite's. Faking a clean bill of health here
+    keeps tests independent of HF availability and account state."""
+    from rag_engine.security.firewall import InjectionAssessment
+
+    def _fake_assess(text: str) -> InjectionAssessment:
+        return InjectionAssessment(
+            pattern_hit=False, classifier_score=0.0, action="allow"
+        )
+
+    monkeypatch.setattr("rag_engine.security.middleware.assess", _fake_assess)
