@@ -20,6 +20,7 @@ dependencies = [
     "torch>=2.5",
     "pillow>=11.0",
     "pytesseract>=0.3.13",
+    "pymupdf>=1.25",
 ]
 
 [dependency-groups]
@@ -40,6 +41,10 @@ dev = [
 [tool.uv.sources]
 core = { workspace = true }
 torch = { index = "pytorch-cpu" }
+
+[tool.mypy.overrides]
+module = "fitz"
+ignore_missing_imports = true
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
