@@ -15,6 +15,7 @@ RUN uv sync --frozen --no-install-project --package rag-engine
 COPY packages/core packages/core
 COPY packages/rag-engine packages/rag-engine
 RUN uv sync --frozen --package rag-engine
+RUN uv run python -m spacy download en_core_web_sm
 
 FROM python:3.13.15-slim-bookworm AS runtime
 # Patch OS CVEs Debian has already fixed upstream — the base tag only

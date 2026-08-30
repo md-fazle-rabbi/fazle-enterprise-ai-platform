@@ -8,8 +8,9 @@ Create Date: 2026-08-27 02:09:58.745513
 
 from collections.abc import Sequence
 
-from alembic import op
 from core.settings import settings
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "16b5134495f8"

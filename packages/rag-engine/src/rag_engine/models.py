@@ -37,6 +37,9 @@ class Document(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    pii_entity_types: Mapped[list[str] | None] = mapped_column(
+        ARRAY(Text), nullable=True
+    )
 
 
 class Chunk(Base):

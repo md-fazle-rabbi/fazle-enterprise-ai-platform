@@ -8,6 +8,7 @@ import hashlib
 import uuid
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -18,8 +19,10 @@ from rag_engine.chunking import chunk_markdown
 from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
+from rag_engine.pii import redact_pii
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
+logger = structlog.get_logger()
 
 
 class IngestRequest(BaseModel):
@@ -66,6 +69,10 @@ async def ingest(
     tenant_id: Annotated[uuid.UUID, Depends(get_tenant_id)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> IngestResponse:
+    # content_hash is computed on the ORIGINAL text, not the redacted
+    # text, dedup identity should come from the document's real identity
+    # and shouldn't shift if redaction behavior changes later (new entity
+    # type added, Presidio version bump)
     content_hash = _hash_content(body.text)
 
     # tenant_id isn't in this WHERE clause on purpose, RLS already scopes
@@ -77,8 +84,17 @@ async def ingest(
     if already_exists is not None:
         return await _existing_response(session, content_hash)
 
+    redacted_text, pii_types_found = redact_pii(body.text)
+    if pii_types_found:
+        logger.info(
+            "pii.redacted", entity_types=pii_types_found, source_path=body.source_path
+        )
+
     document = Document(
-        tenant_id=tenant_id, content_hash=content_hash, source_path=body.source_path
+        tenant_id=tenant_id,
+        content_hash=content_hash,
+        source_path=body.source_path,
+        pii_entity_types=pii_types_found or None,
     )
     try:
         async with session.begin_nested():
@@ -91,7 +107,9 @@ async def ingest(
         # from get_session is still fine to keep querying on
         return await _existing_response(session, content_hash)
 
-    chunks = chunk_markdown(body.text)
+    # chunking runs on the REDACTED text, the original unredacted text
+    # never reaches chunking, embedding, or the chunks table
+    chunks = chunk_markdown(redacted_text)
     if not chunks:
         return IngestResponse(
             document_id=document.id, chunk_count=0, deduplicated=False

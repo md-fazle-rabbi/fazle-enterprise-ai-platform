@@ -1,6 +1,7 @@
 import os
 
 import pytest
+
 from rag_engine.embeddings import EMBEDDING_DIMENSION, embed_documents, embed_query
 
 pytestmark = pytest.mark.skipif(
