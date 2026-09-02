@@ -5,13 +5,13 @@ suite never needs real API keys, HuggingFace gated-model access, or makes
 real network calls — tests stay fast, deterministic, and runnable in CI
 without secrets.
 
-Patched at point of use, not at definition: ingest.py, search.py, and
-query.py each do `from rag_engine.embeddings import embed_documents` /
-`embed_query` / `from rag_engine.generation import generate_answer` /
-`from rag_engine.crag import grade_relevance`, which binds a separate
-name in each importing module. Patching rag_engine.embeddings.embed_documents
-would leave those already-bound names untouched and still hitting the
-real API.
+Patched at point of use, not at definition: ingest.py, ingest_image.py,
+ingest_pdf.py, search.py, and query.py each do their own `from
+rag_engine.embeddings import embed_documents` / `embed_query` / `from
+rag_engine.generation import generate_answer` / `from rag_engine.crag
+import grade_relevance`, which binds a separate name in each importing
+module. Patching rag_engine.embeddings.embed_documents would leave those
+already-bound names untouched and still hitting the real API.
 """
 
 import pytest
@@ -27,6 +27,12 @@ def mock_voyage_embeddings(monkeypatch):
 
     monkeypatch.setattr(
         "rag_engine.routers.ingest.embed_documents", _fake_embed_documents
+    )
+    monkeypatch.setattr(
+        "rag_engine.routers.ingest_image.embed_documents", _fake_embed_documents
+    )
+    monkeypatch.setattr(
+        "rag_engine.routers.ingest_pdf.embed_documents", _fake_embed_documents
     )
     monkeypatch.setattr("rag_engine.search.embed_query", _fake_embed_query)
 

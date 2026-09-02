@@ -18,6 +18,7 @@ from rag_engine.chunking import count_tokens
 from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
+from rag_engine.pii import redact_pii
 from rag_engine.security.firewall import assess
 from rag_engine.vision import extract_image_content
 
@@ -73,23 +74,33 @@ async def ingest_image(
             detail="Extracted image content blocked: possible prompt injection.",
         )
 
+    redacted_text, pii_types_found = redact_pii(text)
+    if pii_types_found:
+        logger.info(
+            "pii.redacted",
+            entity_types=pii_types_found,
+            modality=modality,
+            source_path=file.filename,
+        )
+
     document = Document(
         tenant_id=tenant_id,
         content_hash=content_hash,
         source_path=file.filename or "unknown",
+        pii_entity_types=pii_types_found or None,
     )
     session.add(document)
     await session.flush()
 
-    vectors = await embed_documents([text])
+    vectors = await embed_documents([redacted_text])
     session.add(
         Chunk(
             tenant_id=tenant_id,
             document_id=document.id,
             chunk_index=0,
             heading_path=[],
-            text=text,
-            token_count=count_tokens(text),
+            text=redacted_text,
+            token_count=count_tokens(redacted_text),
             embedding=vectors[0],
             modality=modality,
         )

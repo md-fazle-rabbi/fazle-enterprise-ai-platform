@@ -17,15 +17,17 @@ import voyageai.error
 from asgi_lifespan import LifespanManager
 from core.settings import settings
 from datasets import Dataset
-from evals.golden_set import GOLDEN_CORPUS, GOLDEN_QUESTIONS
 from httpx import ASGITransport, AsyncClient
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from rag_engine.main import app
 from ragas import evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
+from ragas.evaluation import EvaluationResult
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerRelevancy, context_precision, faithfulness
 from ragas.run_config import RunConfig
+
+from evals.golden_set import GOLDEN_CORPUS, GOLDEN_QUESTIONS
 
 THRESHOLDS = {
     "faithfulness": 0.90,
@@ -132,13 +134,13 @@ def main() -> None:
     judge = LangchainLLMWrapper(
         ChatGoogleGenerativeAI(
             model="gemini-3.5-flash-lite",
-            google_api_key=settings.gemini_api_key,
+            google_api_key=settings.gemini_api_key,  # type: ignore[call-arg]
         )
     )
     ragas_embeddings = LangchainEmbeddingsWrapper(
         GoogleGenerativeAIEmbeddings(
             model="models/gemini-embedding-001",
-            google_api_key=settings.gemini_api_key,
+            google_api_key=settings.gemini_api_key,  # type: ignore[call-arg]
         )
     )
 
@@ -162,6 +164,13 @@ def main() -> None:
         embeddings=ragas_embeddings,
         run_config=run_config,
     )
+
+    # evaluate()'s return type is EvaluationResult | Executor in the
+    # installed ragas stubs; in practice a synchronous evaluate() call
+    # (no `Executor` passed in explicitly) always returns
+    # EvaluationResult. Asserting narrows the type for mypy and fails
+    # loudly instead of silently if that assumption ever breaks.
+    assert isinstance(result, EvaluationResult)
 
     df = result.to_pandas()
 

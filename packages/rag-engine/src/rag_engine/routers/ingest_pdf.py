@@ -13,6 +13,7 @@ from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
 from rag_engine.pdf import pdf_to_page_images
+from rag_engine.pii import redact_pii
 from rag_engine.security.firewall import assess
 from rag_engine.vision import extract_image_content
 
@@ -68,6 +69,7 @@ async def ingest_pdf(
     await session.flush()
 
     stored_pages = 0
+    all_pii_types: set[str] = set()
     for page_number, image_bytes in enumerate(page_images, start=1):
         try:
             text, modality = await extract_image_content(image_bytes)
@@ -84,20 +86,32 @@ async def ingest_pdf(
             logger.warning("firewall.blocked", path="/ingest/pdf", page=page_number)
             continue
 
-        vectors = await embed_documents([text])
+        redacted_text, pii_types_found = redact_pii(text)
+        all_pii_types.update(pii_types_found)
+
+        vectors = await embed_documents([redacted_text])
         session.add(
             Chunk(
                 tenant_id=tenant_id,
                 document_id=document.id,
                 chunk_index=page_number - 1,
                 heading_path=[f"page {page_number}"],
-                text=text,
-                token_count=count_tokens(text),
+                text=redacted_text,
+                token_count=count_tokens(redacted_text),
                 embedding=vectors[0],
                 modality=modality,
             )
         )
         stored_pages += 1
+
+    if all_pii_types:
+        document.pii_entity_types = sorted(all_pii_types)
+        logger.info(
+            "pii.redacted",
+            entity_types=sorted(all_pii_types),
+            document_id=str(document.id),
+            page_count=stored_pages,
+        )
 
     return PdfIngestResponse(
         document_id=document.id, page_count=stored_pages, deduplicated=False

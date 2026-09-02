@@ -64,7 +64,6 @@ https://fazle-enterprise-ai-platform.onrender.com · Public Swagger/OpenAPI: htt
 - BM25-family ranking via Postgres native `ts_rank_cd`, not exact Okapi BM25
 - GraphRAG entity extraction is stored but not wired into retrieval
 - PDF pages process sequentially, not concurrently
-- PII coverage is a defined entity list, not the complete GDPR/HIPAA identifier set
 
 ## License
 MIT, see LICENSE.md.
