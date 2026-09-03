@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+## 2026-09-02
+- Redact PII in image/PDF ingestion before embedding/storage (previously text-only)
+
 ### 2026-08-30
 - Fixed CI failing on `gated repo` (`meta-llama/Llama-Prompt-Guard-2-86M`) inside `test`/`ragas-gate`: added `HF_TOKEN` as a repo secret and wired it into both jobs' `env:` block — the injection-firewall classifier needs authenticated HuggingFace access, unlike the local dev machine where the token was already set.
 - Fixed a follow-on CI failure (`asyncpg.exceptions.InvalidPasswordError` for `app_user`): `APP_DATABASE_URL`'s embedded password and the standalone `APP_DB_PASSWORD` setting didn't match in `ci.yml`'s defaults, only aligned locally via `.env`. Set both explicitly and identically in CI.

@@ -10,7 +10,7 @@ text does, without a separate, less-scrutinized path that's both an
 easier injection target and harder to keep secure over time.
 
 ## Decision
-- Vision-capable Claude call first for any image or PDF page, OCR
+- Vision-capable Gemini call first for any image or PDF page, OCR
   (Tesseract) as fallback only.
 - PDF pages render to images via PyMuPDF, targeting scanned/image-embedded
   PDFs specifically, not born-digital text PDFs (separate, simpler,
