@@ -57,13 +57,14 @@ curl -X POST https://[demo-url]/query \
 ```
 
 ## Live demo
-https://fazle-enterprise-ai-platform.onrender.com · Public Swagger/OpenAPI: https://fazle-enterprise-ai-platform.onrender.com/docs
+https://huggingface.co/spaces/Fazbi/fazle-enterprise-ai-platform · Swagger/OpenAPI: https://huggingface.co/spaces/Fazbi/fazle-enterprise-ai-platform/docs
 
 ## Known limitations
 - Tenant identification via header/demo-key only, no signed auth yet
 - BM25-family ranking via Postgres native `ts_rank_cd`, not exact Okapi BM25
 - GraphRAG entity extraction is stored but not wired into retrieval
 - PDF pages process sequentially, not concurrently
+- Hosted on Hugging Face Spaces' free CPU tier (Docker SDK requires a paid plan as of 2026); Gradio SDK is used as a thin entry point, with the FastAPI app mounted onto the same server
 
 ## License
 MIT, see LICENSE.md.
