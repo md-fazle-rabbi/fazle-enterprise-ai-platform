@@ -8,6 +8,15 @@ import sys
 
 import structlog
 
+_LEVEL_NAMES = {
+    "CRITICAL": logging.CRITICAL,
+    "ERROR": logging.ERROR,
+    "WARNING": logging.WARNING,
+    "INFO": logging.INFO,
+    "DEBUG": logging.DEBUG,
+    "NOTSET": logging.NOTSET,
+}
+
 
 def configure_logging(log_level: str = "INFO") -> None:
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=log_level)
@@ -21,7 +30,7 @@ def configure_logging(log_level: str = "INFO") -> None:
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
-            logging.getLevelNamesMapping()[log_level.upper()]
+            _LEVEL_NAMES[log_level.upper()]
         ),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
