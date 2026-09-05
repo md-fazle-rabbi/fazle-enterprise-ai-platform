@@ -50,6 +50,11 @@ app.include_router(ingest_image.router)
 app.include_router(ingest_pdf.router)
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"status": "ok", "service": "fazle-enterprise-ai-platform: rag-engine"}
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
