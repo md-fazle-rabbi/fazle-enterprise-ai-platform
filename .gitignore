@@ -10,3 +10,4 @@ __pycache__/
 .DS_Store.coverage
 coverage.xml
 htmlcov/
+requirements-generated.txt
