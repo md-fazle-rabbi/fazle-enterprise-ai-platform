@@ -26,8 +26,11 @@ def _log_signal(signum, frame):
     logger.warning("rag_engine.signal_received", signal=signal.Signals(signum).name)
 
 
-signal.signal(signal.SIGTERM, _log_signal)
-signal.signal(signal.SIGINT, _log_signal)
+try:
+    signal.signal(signal.SIGTERM, _log_signal)
+    signal.signal(signal.SIGINT, _log_signal)
+except ValueError:
+    logger.warning("rag_engine.signal_handler_not_main_thread")
 
 
 @asynccontextmanager
