@@ -1,6 +1,7 @@
 import signal
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from types import FrameType
 
 import structlog
 from core import settings
@@ -22,7 +23,7 @@ configure_logging(settings.log_level)
 logger = structlog.get_logger()
 
 
-def _log_signal(signum, frame):
+def _log_signal(signum: int, frame: FrameType | None) -> None:
     logger.warning("rag_engine.signal_received", signal=signal.Signals(signum).name)
 
 
