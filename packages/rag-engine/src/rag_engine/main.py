@@ -1,3 +1,4 @@
+import signal
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -19,6 +20,14 @@ from rag_engine.security.middleware import InjectionFirewallMiddleware
 
 configure_logging(settings.log_level)
 logger = structlog.get_logger()
+
+
+def _log_signal(signum, frame):
+    logger.warning("rag_engine.signal_received", signal=signal.Signals(signum).name)
+
+
+signal.signal(signal.SIGTERM, _log_signal)
+signal.signal(signal.SIGINT, _log_signal)
 
 
 @asynccontextmanager
