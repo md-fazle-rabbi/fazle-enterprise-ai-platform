@@ -9,7 +9,7 @@
 I build production AI systems that pass security audits, not demos: enterprise RAG that
 doesn't hallucinate across text and visual input, agent meshes with signed inter-agent
 messaging, and GDPR/HIPAA/EU AI Act compliance tooling. This repo is the proof.
-Contact: mfrabbi.ai@gmail.com · Live demo: [link once deployed] · Loom walkthrough: [link]
+Contact: mfrabbi.ai@gmail.com · Loom walkthrough: [link]
 
 ## 30 second read
 RAG chatbots hallucinate and leak data across tenants. This system enforces both problems
@@ -48,23 +48,37 @@ graph TB
     API --> Redis
 ```
 
-## One-command demo
+## Demo
+This system runs on Postgres+pgvector, Redis, and a FastAPI service — infrastructure
+that doesn't fit a free public hosting tier without compromising the security model
+it's built to demonstrate. Rather than run a stripped-down version publicly, the demo
+is a Loom walkthrough of the full stack running locally end-to-end (ingestion,
+tenant-isolated retrieval, injection firewall, PII redaction, citation-backed answers):
+
+**Loom walkthrough:** [link]
+
+### Run it yourself
 ```bash
-curl -X POST https://[demo-url]/query \
+git clone https://github.com/md-fazle-rabbi/fazle-enterprise-ai-platform.git
+cd fazle-enterprise-ai-platform
+docker-compose up
+```
+
+Then query it:
+```bash
+curl -X POST http://localhost:8000/query \
   -H "Authorization: Bearer fazle-demo-key" \
   -H "Content-Type: application/json" \
   -d '{"question": "How does this system enforce tenant isolation?"}'
 ```
 
-## Live demo
-https://huggingface.co/spaces/Fazbi/fazle-enterprise-ai-platform · Swagger/OpenAPI: https://huggingface.co/spaces/Fazbi/fazle-enterprise-ai-platform/docs
+Swagger/OpenAPI docs at `http://localhost:8000/docs` once running.
 
 ## Known limitations
 - Tenant identification via header/demo-key only, no signed auth yet
 - BM25-family ranking via Postgres native `ts_rank_cd`, not exact Okapi BM25
 - GraphRAG entity extraction is stored but not wired into retrieval
 - PDF pages process sequentially, not concurrently
-- Hosted on Hugging Face Spaces' free CPU tier (Docker SDK requires a paid plan as of 2026); Gradio SDK is used as a thin entry point, with the FastAPI app mounted onto the same server
 
 ## License
 MIT, see LICENSE.md.
