@@ -2,10 +2,6 @@
 
 ## [Unreleased]
 
-## 2026-09-05
-- Migrate deployment from Render to Hugging Face Spaces (Gradio SDK wrapper around FastAPI, `hf-space` branch)
-- Fix: replace deprecated `logging.getLevelNamesMapping()` with explicit level mapping (Python 3.10 compatibility for HF Spaces)
-
 ## 2026-09-02
 - Redact PII in image/PDF ingestion before embedding/storage (previously text-only)
 
