@@ -1,10 +1,14 @@
 [project]
 name = "agent-mesh"
 version = "0.1.0"
-description = "Empty stub, filled later"
+description = "LangGraph-based agent orchestration, MCP tools, signed inter-agent messaging"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "core",
+    "langchain>=1.0",
+    "langchain-google-genai>=2.1",
+    "httpx>=0.28",
+    "mcp>=2.2.0",
 ]
 
 [tool.uv.sources]

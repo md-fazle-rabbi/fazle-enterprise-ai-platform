@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     voyage_api_key: str = Field(default="")
     gemini_api_key: str = Field(default="")
     demo_api_key: str = Field(default="fazle-demo-key")
+    rag_engine_url: str = Field(default="http://localhost:8000")
 
 
 settings = Settings()
