@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from agent_mesh.agents.research_agent import query_knowledge_base
 
 

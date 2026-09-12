@@ -39,6 +39,13 @@ provider-swap note for the full rationale and file list.
   anything from `mcp.server` directly — that choice predates this
   version check but turns out to be the right one for a second reason:
   it insulates the tool code from the v1→v2 rewrite entirely.
+- MCP tool interface built on standalone `fastmcp` 4.0.3, not the in-SDK
+  `mcp.server.fastmcp`. `fastmcp` 4.0.3 also removed `stateless_http` from
+  the `FastMCP()` constructor (moved to `run()` / `run_http_async()` /
+  `http_app()`, or the `FASTMCP_STATELESS_HTTP` env var) between when the
+  original pattern was written and when it was actually run — caught by
+  running the server, not by trusting the constructor signature as
+  documented.
 
 ## Options considered
 - Raw ReAct loop, hand-rolled: rejected, durable execution (survives a
@@ -68,6 +75,11 @@ spot-checked, not assumed equal to what Sonnet was giving. Also: don't
 trust a package's own `__version__` attribute to exist —
 `importlib.metadata.version()` is the reliable check going forward, this
 ADR itself was almost written with a wrong number because of that gap.
+LangChain's `StructuredTool` (Pydantic v2, strict) rejects instance-level
+attribute patching (e.g. `patch("...tool.ainvoke", ...)`) since `ainvoke`
+isn't a declared model field — tests that need to stub a tool's behavior
+should patch the module-level name the tool is bound to, not an
+attribute on the tool instance itself.
 Risk to mitigation: re-check both LangGraph and MCP versions again before
 Day 8's decision gate, both are moving fast enough that a two-week-old
 assumption is already a real risk.
