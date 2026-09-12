@@ -25,21 +25,25 @@ version = "0.1.0"
 source = { editable = "packages/agent-mesh" }
 dependencies = [
     { name = "core" },
+    { name = "cryptography" },
     { name = "fastmcp" },
     { name = "httpx" },
     { name = "langchain" },
     { name = "langchain-google-genai" },
     { name = "mcp" },
+    { name = "redis" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "core", editable = "packages/core" },
+    { name = "cryptography", specifier = ">=44.0" },
     { name = "fastmcp", specifier = ">=4.0.3" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "langchain", specifier = ">=1.0" },
     { name = "langchain-google-genai", specifier = ">=2.1" },
     { name = "mcp", specifier = ">=2.2.0" },
+    { name = "redis", specifier = ">=5.2" },
 ]
 
 [[package]]
