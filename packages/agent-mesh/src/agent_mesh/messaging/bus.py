@@ -15,9 +15,10 @@ constructing Redis directly.
 from dataclasses import dataclass
 
 import structlog
-from agent_mesh.messaging.envelope import MessageEnvelope, verify_envelope
 from cryptography.hazmat.primitives.asymmetric import rsa
 from redis.asyncio import Redis
+
+from agent_mesh.messaging.envelope import MessageEnvelope, verify_envelope
 
 logger = structlog.get_logger()
 STREAM_PREFIX = "agent_mesh:"

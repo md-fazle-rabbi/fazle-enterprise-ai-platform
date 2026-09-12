@@ -1,7 +1,8 @@
 from unittest.mock import AsyncMock, patch
 
-import agent_mesh.mcp_server as mcp_server_module
 import pytest
+
+import agent_mesh.mcp_server as mcp_server_module
 from agent_mesh.mcp_server import QueryKnowledgeBaseInput
 
 

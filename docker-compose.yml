@@ -13,6 +13,11 @@ services:
       HF_TOKEN: ${HF_TOKEN}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      # Read-only socket mount: this service spins up throwaway sandbox
+      # containers (agent_mesh.sandbox.runner) and destroys them immediately.
+      # It never needs to do anything else with the socket.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       db:
         condition: service_healthy

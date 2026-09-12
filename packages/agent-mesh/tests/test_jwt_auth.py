@@ -1,5 +1,6 @@
 import jwt
 import pytest
+
 from agent_mesh.identity.jwt_auth import verify_agent_token
 
 

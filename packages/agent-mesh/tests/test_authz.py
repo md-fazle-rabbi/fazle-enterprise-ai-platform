@@ -1,6 +1,7 @@
 """Needs docker compose up -d opa first."""
 
 import pytest
+
 from agent_mesh.identity.authz import is_authorized
 
 pytestmark = pytest.mark.asyncio

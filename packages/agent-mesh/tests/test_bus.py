@@ -4,6 +4,8 @@ import os
 import uuid
 
 import pytest
+from redis.asyncio import Redis
+
 from agent_mesh.messaging.bus import (
     ack,
     consume_one,
@@ -13,7 +15,6 @@ from agent_mesh.messaging.bus import (
 )
 from agent_mesh.messaging.envelope import MessageEnvelope, sign_envelope
 from agent_mesh.messaging.keys import generate_keypair
-from redis.asyncio import Redis
 
 pytestmark = pytest.mark.asyncio
 
