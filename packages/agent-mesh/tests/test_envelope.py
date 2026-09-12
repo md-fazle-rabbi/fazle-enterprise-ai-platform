@@ -6,7 +6,7 @@ from agent_mesh.messaging.envelope import (
 from agent_mesh.messaging.keys import generate_keypair
 
 
-def test_valid_signature_verifies():
+def test_valid_signature_verifies() -> None:
     priv, pub = generate_keypair()
     env = sign_envelope(
         MessageEnvelope(sender="a", recipient="b", type="q", payload={"q": "test"}),
@@ -15,7 +15,7 @@ def test_valid_signature_verifies():
     assert verify_envelope(env, pub) is True
 
 
-def test_tampered_payload_fails_verification():
+def test_tampered_payload_fails_verification() -> None:
     priv, pub = generate_keypair()
     env = sign_envelope(
         MessageEnvelope(sender="a", recipient="b", type="q", payload={"q": "test"}),
@@ -25,7 +25,7 @@ def test_tampered_payload_fails_verification():
     assert verify_envelope(tampered, pub) is False
 
 
-def test_wrong_key_fails_verification():
+def test_wrong_key_fails_verification() -> None:
     priv_a, _ = generate_keypair()
     _, pub_b = generate_keypair()
     env = sign_envelope(
@@ -34,7 +34,7 @@ def test_wrong_key_fails_verification():
     assert verify_envelope(env, pub_b) is False
 
 
-def test_expired_ttl_detected():
+def test_expired_ttl_detected() -> None:
     env = MessageEnvelope(
         sender="a", recipient="b", type="t", payload={}, timestamp=0, ttl=1
     )

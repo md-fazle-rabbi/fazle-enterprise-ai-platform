@@ -9,6 +9,8 @@ stateless_http moved off the FastMCP() constructor in the installed
 fastmcp version — passed to run() instead now, not at construction time.
 """
 
+from typing import cast
+
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
@@ -28,9 +30,13 @@ class QueryKnowledgeBaseInput(BaseModel):
     description="Query the tenant's RAG knowledge base for information relevant to a question."
 )
 async def query_kb(input: QueryKnowledgeBaseInput) -> str:
-    return await query_knowledge_base.ainvoke(
+    # LangChain's BaseTool.ainvoke is typed to return Any (it's generic
+    # over arbitrary tool outputs); query_knowledge_base itself is
+    # annotated -> str, so this just restates that guarantee for mypy.
+    result = await query_knowledge_base.ainvoke(
         {"question": input.question, "tenant_id": input.tenant_id}
     )
+    return cast(str, result)
 
 
 if __name__ == "__main__":

@@ -38,18 +38,30 @@ def ast_scan(code: str) -> None:
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             names = {alias.name.split(".")[0] for alias in node.names}
+            # For `from X import Y`, alias.name is Y, not X — the module
+            # itself only shows up on node.module, so it has to be added
+            # separately or `from subprocess import run` slips right past.
+            if isinstance(node, ast.ImportFrom) and node.module:
+                names.add(node.module.split(".")[0])
             if hit := names & DANGEROUS_IMPORTS:
                 raise UnsafeCodeError(f"Disallowed import: {', '.join(hit)}")
 
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            if node.func.id in DANGEROUS_CALLS:
-                raise UnsafeCodeError(f"Disallowed call: {node.func.id}()")
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in DANGEROUS_CALLS
+        ):
+            raise UnsafeCodeError(f"Disallowed call: {node.func.id}()")
 
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            if node.func.attr == "open" and any(
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "open"
+            and any(
                 isinstance(a, ast.Constant)
                 and isinstance(a.value, str)
                 and "w" in a.value
                 for a in node.args[1:2]
-            ):
-                raise UnsafeCodeError("Disallowed call: open() in write mode")
+            )
+        ):
+            raise UnsafeCodeError("Disallowed call: open() in write mode")

@@ -13,17 +13,27 @@ constructing Redis directly.
 """
 
 from dataclasses import dataclass
+from typing import Any, cast
 
 import structlog
+from agent_mesh.messaging.envelope import MessageEnvelope, verify_envelope
 from cryptography.hazmat.primitives.asymmetric import rsa
 from redis.asyncio import Redis
-
-from agent_mesh.messaging.envelope import MessageEnvelope, verify_envelope
 
 logger = structlog.get_logger()
 STREAM_PREFIX = "agent_mesh:"
 DLQ_SUFFIX = ":dlq"
 MAX_DELIVERY_ATTEMPTS = 3
+
+# redis-py's own stubs for xautoclaim/xreadgroup/xpending_range stay
+# ambiguous (bytes | str unions) even once the client is parameterized
+# as Redis, because the overloads are keyed on args we pass as
+# plain str/int rather than on decode_responses. These aliases describe
+# the shape decode_responses=True actually returns at runtime, and are
+# used with cast() below instead of trusting the stub's inferred type.
+_XAutoClaimResponse = tuple[str, list[tuple[str, dict[str, str]]], list[str]]
+_XReadGroupResponse = list[tuple[str, list[tuple[str, dict[str, str]]]]]
+_XPendingRangeResponse = list[dict[str, Any]]
 
 
 def make_redis_client(url: str) -> Redis:
@@ -43,9 +53,10 @@ class ReceivedMessage:
 
 
 async def publish(redis: Redis, envelope: MessageEnvelope) -> str:
-    return await redis.xadd(
+    msg_id = await redis.xadd(
         _stream_key(envelope.recipient), {"envelope": envelope.model_dump_json()}
     )
+    return cast(str, msg_id)
 
 
 async def ensure_consumer_group(
@@ -73,15 +84,20 @@ async def consume_one(
     """
     stream = _stream_key(recipient)
 
-    _, claimed, _ = await redis.xautoclaim(
+    msg_id: str
+    fields: dict[str, str]
+
+    raw_claim = await redis.xautoclaim(
         stream, group, consumer_name, min_idle_time=claim_idle_ms, start_id="0"
     )
+    _, claimed, _ = cast(_XAutoClaimResponse, raw_claim)
     if claimed:
         msg_id, fields = claimed[0]
     else:
-        result = await redis.xreadgroup(
+        raw_read = await redis.xreadgroup(
             group, consumer_name, {stream: ">"}, count=1, block=1000
         )
+        result = cast(_XReadGroupResponse, raw_read)
         if not result or not result[0][1]:
             return None
         msg_id, fields = result[0][1][0]
@@ -116,10 +132,11 @@ async def fail(
     redis: Redis, recipient: str, received: ReceivedMessage, group: str = "workers"
 ) -> None:
     stream = _stream_key(recipient)
-    pending = await redis.xpending_range(
+    raw_pending = await redis.xpending_range(
         stream, group, min=received.redis_msg_id, max=received.redis_msg_id, count=1
     )
-    delivery_count = pending[0]["times_delivered"] if pending else 1
+    pending = cast(_XPendingRangeResponse, raw_pending)
+    delivery_count = int(pending[0]["times_delivered"]) if pending else 1
 
     if delivery_count >= MAX_DELIVERY_ATTEMPTS:
         await _dead_letter(

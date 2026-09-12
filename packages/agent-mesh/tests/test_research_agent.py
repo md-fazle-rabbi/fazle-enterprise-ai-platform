@@ -1,12 +1,11 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from agent_mesh.agents.research_agent import query_knowledge_base
 
 
 @pytest.mark.asyncio
-async def test_query_knowledge_base_calls_rag_engine():
+async def test_query_knowledge_base_calls_rag_engine() -> None:
     fake_response = AsyncMock()
     fake_response.json = lambda: {
         "answer": "RLS enforces isolation at the database layer."

@@ -8,6 +8,7 @@ import binascii
 import json
 import time
 import uuid
+from typing import Any
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -20,7 +21,7 @@ class MessageEnvelope(BaseModel):
     sender: str
     recipient: str
     type: str
-    payload: dict
+    payload: dict[str, Any]
     timestamp: float = Field(default_factory=time.time)
     ttl: int = 300
     signature: str | None = None

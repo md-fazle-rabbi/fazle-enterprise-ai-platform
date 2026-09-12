@@ -7,6 +7,8 @@ enforcement point, the header pre-check below is defense-in-depth for a
 clearer error, not the real fix by itself.
 """
 
+from typing import Any
+
 import jwt
 from core.settings import settings
 from jwt import PyJWKClient
@@ -16,7 +18,7 @@ _jwks_client = PyJWKClient(
 )
 
 
-def verify_agent_token(token: str) -> dict:
+def verify_agent_token(token: str) -> dict[str, Any]:
     header = jwt.get_unverified_header(token)
     if header.get("alg") != "RS256":
         raise ValueError(

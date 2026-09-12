@@ -4,11 +4,12 @@ Container is destroyed immediately after, regardless of success or
 failure, nothing from one execution persists to the next.
 """
 
+from typing import cast
+
 import docker
 import requests
-from docker.errors import DockerException
-
 from agent_mesh.sandbox.ast_scanner import ast_scan
+from docker.errors import DockerException
 
 RUNNER_IMAGE = "python:3.13.15-slim"
 TIMEOUT_SECONDS = 10
@@ -54,7 +55,10 @@ def run_sandboxed(code: str) -> str:
                 f"Execution failed (exit {status_code}): "
                 f"{logs.decode('utf-8', errors='replace')}"
             )
-        return logs.decode("utf-8")
+        # docker-py's logs() is typed Any (even with types-docker installed,
+        # its return depends on the stream/tail kwargs passed), so this
+        # asserts the str this call site actually produces.
+        return cast(str, logs.decode("utf-8"))
 
     except DockerException as e:
         raise SandboxExecutionError(f"Sandbox infrastructure error: {e}") from e

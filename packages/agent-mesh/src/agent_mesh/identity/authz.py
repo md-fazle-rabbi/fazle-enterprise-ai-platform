@@ -16,4 +16,8 @@ async def is_authorized(agent_id: str, tool: str) -> bool:
             timeout=5.0,
         )
         response.raise_for_status()
-        return response.json().get("result", False)
+        # httpx's .json() is typed Any, so .get(...) is Any too — bool()
+        # makes the actual runtime type match the declared return type
+        # instead of letting an untrusted "result" field silently pass
+        # through as whatever OPA sent.
+        return bool(response.json().get("result", False))

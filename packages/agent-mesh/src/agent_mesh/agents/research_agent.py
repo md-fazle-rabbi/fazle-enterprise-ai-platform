@@ -5,6 +5,8 @@ LangGraph 1.3.x runtime underneath. Never langgraph.prebuilt's deprecated
 create_react_agent, never the legacy AgentExecutor.
 """
 
+from typing import cast
+
 import httpx
 from core.settings import settings
 from langchain.agents import create_agent
@@ -23,7 +25,10 @@ async def query_knowledge_base(question: str, tenant_id: str) -> str:
             timeout=30.0,
         )
         response.raise_for_status()
-        return response.json()["answer"]
+        # httpx's .json() is typed Any; rag-engine's contract is that
+        # "answer" is always a string, so this asserts that contract to
+        # mypy rather than letting Any silently satisfy the -> str return.
+        return cast(str, response.json()["answer"])
 
 
 research_agent = create_agent(
