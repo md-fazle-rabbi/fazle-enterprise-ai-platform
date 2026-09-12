@@ -1,0 +1,47 @@
+{
+  "realm": "agent-mesh",
+  "enabled": true,
+  "defaultSignatureAlgorithm": "RS256",
+  "clientScopes": [
+    {
+      "name": "agent-mesh-audience",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "agent-mesh-aud-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "agent-mesh",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "research-agent",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-secret-change-in-production",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["agent-mesh-audience"]
+    },
+    {
+      "clientId": "orchestrator-agent",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-secret-change-in-production",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["agent-mesh-audience"]
+    }
+  ]
+}

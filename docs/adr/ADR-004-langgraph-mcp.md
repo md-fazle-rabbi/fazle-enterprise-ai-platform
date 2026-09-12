@@ -46,6 +46,11 @@ provider-swap note for the full rationale and file list.
   original pattern was written and when it was actually run — caught by
   running the server, not by trusting the constructor signature as
   documented.
+- Signed inter-agent messaging over Redis Streams (RS256 envelope
+  signing, `XAUTOCLAIM`-based retry, dead-letter after 3 delivery
+  attempts). Identity/authz layer: Keycloak 26.6 (client_credentials
+  grant per agent, RS256-only enforced at `jwt.decode()`), OPA for
+  policy-as-code tool authorization.
 
 ## Options considered
 - Raw ReAct loop, hand-rolled: rejected, durable execution (survives a
@@ -61,11 +66,21 @@ provider-swap note for the full rationale and file list.
 - Importing `mcp.server` (v2) directly for the tool interface: rejected,
   standalone `fastmcp` insulates the tool code from the v1→v2 breaking
   rewrite and is the more widely-adopted stateless pattern regardless.
+- A hand-rolled retry-counter table for messaging: rejected, Redis
+  Streams consumer groups already track per-message delivery count
+  natively (including across a crashed consumer), a parallel counter can
+  only drift from that truth.
+- An if/elif authorization chain in Python instead of OPA: rejected,
+  policy-as-code keeps the "who can call what" rule in one auditable
+  file, reviewable without reading the whole codebase, and changeable
+  without a redeploy.
 
 ## Consequences
 Positive: one durable runtime, one agent-construction pattern, across
-every agent this mesh eventually holds. The MCP tool layer is now
-decoupled from `mcp` SDK churn by design, not by luck.
+every agent this mesh eventually holds. The MCP tool layer is decoupled
+from `mcp` SDK churn by design, not by luck. The mesh now has a working
+agent, an MCP tool interface, signed and retried messaging, and real
+identity plus authorization — not stubs.
 Negative: MCP's stateless rewrite means any tool-interface code written
 before checking the installed package version risks targeting a spec
 that no longer matches what actually ships — mitigated here since the
@@ -80,6 +95,13 @@ attribute patching (e.g. `patch("...tool.ainvoke", ...)`) since `ainvoke`
 isn't a declared model field — tests that need to stub a tool's behavior
 should patch the module-level name the tool is bound to, not an
 attribute on the tool instance itself.
-Risk to mitigation: re-check both LangGraph and MCP versions again before
-Day 8's decision gate, both are moving fast enough that a two-week-old
-assumption is already a real risk.
+`redis.asyncio.Redis.from_url(...)` defaults to `decode_responses=False`,
+returning stream field dicts with bytes keys/values (`b"envelope"`, not
+`"envelope"`). Every Redis client used with this bus must be constructed
+with `decode_responses=True`, or field lookups like `fields["envelope"]`
+fail with KeyError despite the data being present.
+Risk to mitigation: re-check both LangGraph and MCP versions again before 
+decision gate, both are moving fast enough that a two-week-old
+assumption is already a real risk. Rotate every dev-placeholder secret
+(Keycloak client secrets, admin password) before this repo runs against
+real data — none of the current values are production-safe.

@@ -48,5 +48,31 @@ services:
       retries: 5
     restart: unless-stopped
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_change_me}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infra/keycloak/import:/opt/keycloak/data/import
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  opa:
+    image: openpolicyagent/opa:1.19.1
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "/policies"]
+    volumes:
+      - ./infra/opa/policies:/policies
+    ports:
+      - "8181:8181"
+    restart: unless-stopped
+
 volumes:
   pgdata:

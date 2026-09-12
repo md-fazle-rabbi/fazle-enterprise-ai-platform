@@ -31,6 +31,7 @@ dependencies = [
     { name = "langchain" },
     { name = "langchain-google-genai" },
     { name = "mcp" },
+    { name = "pyjwt" },
     { name = "redis" },
 ]
 
@@ -43,6 +44,7 @@ requires-dist = [
     { name = "langchain", specifier = ">=1.0" },
     { name = "langchain-google-genai", specifier = ">=2.1" },
     { name = "mcp", specifier = ">=2.2.0" },
+    { name = "pyjwt", specifier = ">=2.10" },
     { name = "redis", specifier = ">=5.2" },
 ]
 

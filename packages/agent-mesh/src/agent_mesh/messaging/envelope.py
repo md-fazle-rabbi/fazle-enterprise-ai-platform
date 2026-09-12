@@ -4,10 +4,12 @@ identity layer's algorithm choice, one signing scheme across the mesh.
 """
 
 import base64
+import binascii
 import json
 import time
 import uuid
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from pydantic import BaseModel, Field
@@ -53,5 +55,8 @@ def verify_envelope(envelope: MessageEnvelope, public_key: rsa.RSAPublicKey) -> 
             hashes.SHA256(),
         )
         return True
-    except Exception:
+    except (InvalidSignature, binascii.Error, ValueError):
+        # InvalidSignature: cryptography's own verification failure.
+        # binascii.Error / ValueError: malformed base64 in envelope.signature
+        # (untrusted input off the wire — must not crash the consumer loop).
         return False

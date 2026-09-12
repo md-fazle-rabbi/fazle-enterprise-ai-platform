@@ -12,6 +12,7 @@ dependencies = [
     "fastmcp>=4.0.3",
     "redis>=5.2",
     "cryptography>=44.0",
+    "pyjwt>=2.10",
 ]
 
 [tool.uv.sources]
