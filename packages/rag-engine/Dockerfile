@@ -19,6 +19,7 @@ RUN uv sync --frozen --no-install-project --package rag-engine
 
 COPY packages/core packages/core
 COPY packages/rag-engine packages/rag-engine
+COPY packages/agent-mesh packages/agent-mesh
 RUN uv sync --frozen --package rag-engine
 RUN uv run python -m spacy download en_core_web_sm
 
