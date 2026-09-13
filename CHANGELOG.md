@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## 2026-09-13 — Agent mesh, MCP, messaging, identity & authz
+
+**Added:** first LangGraph agent (`create_agent` + rag-engine tool call), MCP tool interface via standalone `fastmcp`, signed inter-agent messaging over Redis Streams (RS256, `XAUTOCLAIM` retry, dead-letter after 3 attempts), Keycloak identity (RS256-only, `client_credentials`), OPA policy-as-code authorization.
+
+**Changed:** LLM provider switched to Gemini 3.5 Flash-Lite across `rag-engine`/`governance`/`agent-mesh`; `langgraph` now resolved transitively via `langchain` instead of direct pin.
+
+**Fixed:** `fastmcp` constructor kwarg change, missing `decode_responses=True` on Redis client, `StructuredTool` mock-patching in tests, wrong OPA image tag (`-envoy` → plain), Keycloak token audience mismatch.
+
+- **Security:** `agent_mesh.sandbox.ast_scanner` failed to block `from X import Y`-style imports of dangerous modules (e.g. `from subprocess import run`), only catching plain `import X`. Both forms are now blocked.
+- `agent-mesh` package now passes `mypy --strict` (was previously not enforced/passing).
+- Fixed a source/test file content swap in `agent_mesh/mcp_server.py` that caused a circular import.
+
 ## 2026-09-02
 - Redact PII in image/PDF ingestion before embedding/storage (previously text-only)
 
