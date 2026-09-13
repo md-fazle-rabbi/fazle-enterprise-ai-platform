@@ -5,6 +5,7 @@ description = "RAG ingestion, retrieval, and hallucination-defense service"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "core",
+    "agent-mesh",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "structlog>=24.4",
@@ -45,6 +46,7 @@ dev = [
 
 [tool.uv.sources]
 core = { workspace = true }
+agent-mesh = { workspace = true }
 torch = { index = "pytorch-cpu" }
 
 [[tool.mypy.overrides]]

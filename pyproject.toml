@@ -20,3 +20,29 @@ dev = [
     "py-spy>=0.4.2",
     "ruff>=0.16.5",
 ]
+
+[tool.mypy]
+# mypy reads config from the current working directory only — it does
+# NOT merge packages/*/pyproject.toml's [tool.mypy] sections (those
+# overrides for fitz/datasets were silently never applied). This is the
+# one config mypy actually sees when `uv run mypy` runs from repo root.
+#
+# mypy_path + explicit_package_bases tells mypy exactly which
+# directories are independent package roots, instead of letting it
+# guess by walking up from each file looking for a missing __init__.py.
+# Without this, adding a third checked path (agent-mesh) made mypy
+# resolve the same core/settings.py file two different ways depending
+# on which import reached it first ("core.settings" vs
+# "packages.core.src.core.settings") — a real, reproducible bug in
+# mypy's default heuristics for multi-root workspaces like this one,
+# not a mistake in the source files themselves.
+mypy_path = "packages/core/src:packages/rag-engine/src:packages/agent-mesh/src"
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "fitz"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "datasets"
+ignore_missing_imports = true

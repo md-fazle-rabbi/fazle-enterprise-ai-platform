@@ -13,6 +13,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from rag_engine.routers import ingest_image, ingest_pdf
+from rag_engine.routers.agents import admin_router
+from rag_engine.routers.agents import router as agents_router
 from rag_engine.routers.documents import router as documents_router
 from rag_engine.routers.ingest import router as ingest_router
 from rag_engine.routers.query import router as query_router
@@ -61,6 +63,8 @@ app.include_router(query_router)
 app.add_middleware(InjectionFirewallMiddleware)
 app.include_router(ingest_image.router)
 app.include_router(ingest_pdf.router)
+app.include_router(agents_router)
+app.include_router(admin_router)
 
 
 @app.get("/")

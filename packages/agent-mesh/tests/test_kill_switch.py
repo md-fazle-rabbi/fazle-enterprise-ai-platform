@@ -1,6 +1,7 @@
 """Needs docker compose up -d redis first."""
 
 import asyncio
+import os
 import time
 
 import pytest
@@ -10,8 +11,12 @@ from redis.asyncio import Redis
 pytestmark = pytest.mark.asyncio
 
 
+def _redis_url() -> str:
+    return os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+
 async def test_kill_switch_halts_runaway_loop_within_5_seconds() -> None:
-    redis = Redis.from_url("redis://localhost:6379/0")
+    redis = Redis.from_url(_redis_url())
     await deactivate(redis)  # clean slate
 
     listener = KillSwitchListener(redis)
@@ -48,7 +53,7 @@ async def test_kill_switch_clears_via_pubsub() -> None:
     decode_responses=True — message["data"] arrives as bytes and the
     "__cleared__" comparison never matches, so triggered stays set
     forever even though deactivate() "succeeded"."""
-    redis = Redis.from_url("redis://localhost:6379/0")
+    redis = Redis.from_url(_redis_url())
     await deactivate(redis)  # clean slate
 
     listener = KillSwitchListener(redis)
