@@ -80,6 +80,17 @@ jobs:
         with:
           name: coverage-report
           path: packages/rag-engine/coverage.xml
+      - name: Pull sandbox runner image
+        # agent_mesh.sandbox.runner spins up throwaway containers from this
+        # image via docker-py's low-level create_container API, which does
+        # NOT auto-pull on a cache miss the way `docker run` does. On a
+        # fresh runner (no local image cache), create() 404s immediately
+        # unless the image is already present. Pulling explicitly here
+        # keeps that behavior visible and out of test runtime/timeouts.
+        # TODO: pin by digest (python@sha256:...) instead of a mutable tag
+        # once this repo starts caring about supply-chain reproducibility
+        # end-to-end; tracked as a follow-up, not blocking here.
+        run: docker pull python:3.13.15-slim
       - name: agent-mesh tests
         working-directory: packages/agent-mesh
         # test_authz.py excluded: needs a live OPA instance. GitHub Actions'
