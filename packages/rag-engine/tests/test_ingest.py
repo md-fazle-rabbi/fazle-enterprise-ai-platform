@@ -14,6 +14,7 @@ import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+
 from rag_engine.main import app
 
 TENANT = str(uuid.uuid4())

@@ -15,13 +15,26 @@ COPY packages/rag-engine/pyproject.toml packages/rag-engine/pyproject.toml
 COPY packages/agent-mesh/pyproject.toml packages/agent-mesh/pyproject.toml
 COPY packages/observability/pyproject.toml packages/observability/pyproject.toml
 COPY packages/governance/pyproject.toml packages/governance/pyproject.toml
-RUN uv sync --frozen --no-install-project --package rag-engine
+
+# Cache mount: uv's package cache persists across builds even when this
+# layer is invalidated by later source changes, so editing classifier.py
+# etc. no longer forces a full re-download of torch/transformers/spacy
+# from PyPI. This is what actually stops the build-cache bloat problem
+# at the source, rather than pruning after the fact.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --package rag-engine
 
 COPY packages/core packages/core
 COPY packages/rag-engine packages/rag-engine
 COPY packages/agent-mesh packages/agent-mesh
-RUN uv sync --frozen --package rag-engine
-RUN uv run python -m spacy download en_core_web_sm
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --package rag-engine
+
+# Same idea for spacy's model download — it also fetches over the
+# network and is worth caching independently of uv's own cache dir.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv run python -m spacy download en_core_web_sm
 
 FROM python:3.13.15-slim-bookworm AS runtime
 # Patch OS CVEs Debian has already fixed upstream — the base tag only
@@ -30,10 +43,10 @@ FROM python:3.13.15-slim-bookworm AS runtime
 # Then strip pip/setuptools/wheel: ensurepip puts them in every fresh
 # base image's system site-packages, invisible to uv.lock, and they
 # were the real source of the CVEs — not this project's dependencies.
-RUN apt-get update \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
     && apt-get upgrade -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
     && find /usr/local/lib/python3.13/site-packages -maxdepth 1 \
         \( -name 'pip*' -o -name 'setuptools*' -o -name 'wheel*' \) \
         -exec rm -rf {} +
@@ -43,8 +56,10 @@ WORKDIR /app
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 COPY --from=builder --chown=appuser:appuser /app/packages /app/packages
 ENV PATH="/app/.venv/bin:$PATH"
-RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr \
-    && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends tesseract-ocr
 
 # Pre-create the HF cache dir owned by appuser. The docker-compose
 # "hf-cache" named volume mounts here; without this, Docker creates the

@@ -10,9 +10,10 @@ from typing import Any
 
 import structlog
 from fastapi import Request
-from rag_engine.security.firewall import assess
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse, Response
+
+from rag_engine.security.firewall import assess
 
 logger = structlog.get_logger()
 _INSPECTED_PATHS = {"/query": "question", "/ingest": "text"}
@@ -33,7 +34,7 @@ class InjectionFirewallMiddleware(BaseHTTPMiddleware):
                 text = ""
 
             if text:
-                result = assess(text)
+                result = await assess(text)
                 if result.action == "block":
                     logger.warning(
                         "firewall.blocked",

@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+
 from rag_engine.search import RRF_K, _reciprocal_rank_fusion
 
 

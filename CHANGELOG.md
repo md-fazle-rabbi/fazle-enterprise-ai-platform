@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## 2026-09-15
+
+### Added
+- Single-user `/query` load test: 28 requests/12min, 0 failures, p50 1100ms,
+  p95 1900ms (proof/full-pipeline_stats.csv). README p95 badge and load-test
+  limitation section added, scoped to single-user.
+- Proof screenshots wired into README next to the claims they back: RAGAS 100%
+  faithfulness, RLS isolation (API + DB), local CI run, demo rate limiter.
+
+### Fixed
+- `loadtest/locustfile.py`: `FullPipelineUser.wait_time` (1-3s -> 22-28s) — prior
+  spacing exceeded Voyage's 3 RPM cap even at `--users 1`, producing 27000-78000ms
+  p95/p99 that was retry backoff, not real latency.
+- README misattributed the demo rate limiter as per-minute/`/query`-wide. Actual
+  mechanism per `demo_auth.py`: Redis-backed, 20 req/hour, public demo key only.
+
 ## 2026-09-14
 
 ### Fixed

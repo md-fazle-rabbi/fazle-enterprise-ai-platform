@@ -19,9 +19,9 @@ class InjectionAssessment:
     action: str  # "allow" | "flag" | "block"
 
 
-def assess(text: str) -> InjectionAssessment:
+async def assess(text: str) -> InjectionAssessment:
     pattern_hit = pattern_match_score(text) == 1.0
-    score = classifier_score(text)
+    score = await classifier_score(text)
 
     if pattern_hit or score >= BLOCK_THRESHOLD:
         action = "block"

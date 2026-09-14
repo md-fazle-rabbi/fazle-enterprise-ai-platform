@@ -1,5 +1,5 @@
 """
-Answer generation over retrieved context. Claude answers strictly from
+Answer generation over retrieved context. Gemini answers strictly from
 the chunks it's given; every retrieved chunk gets a numbered citation tag
 the model is instructed to reference, so an answer's claims can be traced
 back to a specific chunk instead of trusted on faith.
@@ -10,6 +10,7 @@ from typing import Any
 
 import structlog
 from core.llm_client import get_client
+from opentelemetry import trace
 
 GENERATION_MODEL = "gemini-3.5-flash-lite"
 
@@ -30,6 +31,7 @@ Rules:
 _CITATION_RE = re.compile(r"\[(\d+)\]")
 
 logger = structlog.get_logger()
+_tracer = trace.get_tracer(__name__)
 
 
 def _format_context(chunks: list[dict[str, Any]]) -> str:
@@ -40,21 +42,31 @@ def _format_context(chunks: list[dict[str, Any]]) -> str:
 
 async def generate_answer(question: str, chunks: list[dict[str, Any]]) -> str:
     context = _format_context(chunks)
-    response = await get_client().aio.models.generate_content(
-        model=GENERATION_MODEL,
-        contents=f"Context:\n{context}\n\nQuestion: {question}",
-        config={"system_instruction": _SYSTEM_PROMPT},
-    )
-    if response.text is None:
-        raise RuntimeError("Gemini returned no text in response")
-    if response.usage_metadata:
-        logger.info(
-            "rag_engine.generation.usage",
-            cached_tokens=response.usage_metadata.cached_content_token_count,
-            prompt_tokens=response.usage_metadata.prompt_token_count,
-            candidates_tokens=response.usage_metadata.candidates_token_count,
+    with _tracer.start_as_current_span("gemini.generate_answer") as span:
+        span.set_attribute("gen_ai.request.model", GENERATION_MODEL)
+        response = await get_client().aio.models.generate_content(
+            model=GENERATION_MODEL,
+            contents=f"Context:\n{context}\n\nQuestion: {question}",
+            config={"system_instruction": _SYSTEM_PROMPT},
         )
-    return response.text
+        if response.text is None:
+            raise RuntimeError("Gemini returned no text in response")
+        if response.usage_metadata:
+            span.set_attribute(
+                "gen_ai.usage.input_tokens",
+                response.usage_metadata.prompt_token_count,
+            )
+            span.set_attribute(
+                "gen_ai.usage.output_tokens",
+                response.usage_metadata.candidates_token_count,
+            )
+            logger.info(
+                "rag_engine.generation.usage",
+                cached_tokens=response.usage_metadata.cached_content_token_count,
+                prompt_tokens=response.usage_metadata.prompt_token_count,
+                candidates_tokens=response.usage_metadata.candidates_token_count,
+            )
+        return response.text
 
 
 def extract_cited_indices(answer_text: str) -> set[int]:
