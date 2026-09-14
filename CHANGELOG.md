@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 2026-09-14
+
+### Fixed
+- Langfuse OTel trace export failing with 401 — `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY` were not forwarded from `.env` into the `app` container.
+- `/query` and `/ingest` failing with 500 due to Postgres rejecting an SSL upgrade — SSL is now gated on `environment != "development"` instead of hostname matching, so local/docker-compose Postgres connects without SSL.
+- Injection-detection model (Prompt Guard 2) re-downloading from Hugging Face on every request — added a persistent `hf-cache` volume and a startup warm-up call in `lifespan`, replacing the implicit lazy load on first request.
+- Hugging Face cache volume mount failing with `PermissionError` — pre-create `/home/appuser/.cache/huggingface` with correct ownership in the Dockerfile before switching to `appuser`.
+- CI: bumped `actions/checkout` to v7.0.1, resolving Node 20 deprecation warning.
+
+### Changed
+- `core/db.py`: `make_engine` SSL logic now environment-based, not hostname-based.
+- `main.py`: classifier pipeline now loads eagerly at startup instead of lazily on first `/query`/`/ingest` request.
+- `docker-compose.yml`: added `hf-cache` volume and Langfuse env passthrough for the `app` service.
+
 ## 2026-09-13 — Agent mesh, MCP, messaging, identity & authz
 
 **Added:** first LangGraph agent (`create_agent` + rag-engine tool call), MCP tool interface via standalone `fastmcp`, signed inter-agent messaging over Redis Streams (RS256, `XAUTOCLAIM` retry, dead-letter after 3 attempts), Keycloak identity (RS256-only, `client_credentials`), OPA policy-as-code authorization.
