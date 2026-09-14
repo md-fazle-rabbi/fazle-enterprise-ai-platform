@@ -5,10 +5,11 @@ not one per package.
 """
 
 import ssl
-from urllib.parse import urlparse
 
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+
+from core.settings import settings
 
 
 class Base(DeclarativeBase):
@@ -18,14 +19,14 @@ class Base(DeclarativeBase):
 def make_engine(database_url: str) -> AsyncEngine:
     connect_args: dict[str, object] = {}
 
-    host = urlparse(database_url).hostname or ""
-    if host not in ("localhost", "127.0.0.1"):
-        # Supabase's pooler (Supavisor) presents a certificate that
-        # doesn't chain to a CA in the standard trust store. This is the
-        # documented workaround for Python clients: encrypt without
-        # verifying the chain. CI's local Postgres test container has no
-        # SSL configured at all, so this is skipped for localhost or the
-        # SSLRequest handshake gets rejected outright.
+    # SSL is gated on environment, not hostname. Local dev and the
+    # docker-compose "db" service run Postgres with no SSL configured at
+    # all, so attempting an SSLRequest handshake against them gets
+    # rejected outright. Any non-local environment (staging, production)
+    # is assumed to sit behind a pooler such as Supabase's Supavisor,
+    # whose certificate doesn't chain to a CA in the standard trust
+    # store, hence the documented CERT_NONE workaround below.
+    if settings.environment != "development":
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE

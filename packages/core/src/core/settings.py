@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     rag_engine_url: str = Field(default="http://localhost:8000")
     keycloak_url: str = Field(default="http://localhost:8080")
     opa_url: str = Field(default="http://localhost:8181")
+    langfuse_host: str = Field(default="https://cloud.langfuse.com")
+    langfuse_public_key: str = Field(default="")
+    langfuse_secret_key: str = Field(default="")
+
+    @property
+    def langfuse_auth_header(self) -> str:
+        import base64
+
+        creds = f"{self.langfuse_public_key}:{self.langfuse_secret_key}"
+        return base64.b64encode(creds.encode()).decode()
 
 
 settings = Settings()

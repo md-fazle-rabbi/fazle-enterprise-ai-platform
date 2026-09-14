@@ -45,6 +45,14 @@ COPY --from=builder --chown=appuser:appuser /app/packages /app/packages
 ENV PATH="/app/.venv/bin:$PATH"
 RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
+
+# Pre-create the HF cache dir owned by appuser. The docker-compose
+# "hf-cache" named volume mounts here; without this, Docker creates the
+# mount point as root on first use (since the path doesn't exist in the
+# image yet), and appuser then can't write to it when transformers tries
+# to download/cache model weights at runtime.
+RUN mkdir -p /home/appuser/.cache/huggingface && chown -R appuser:appuser /home/appuser/.cache
+
 USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \

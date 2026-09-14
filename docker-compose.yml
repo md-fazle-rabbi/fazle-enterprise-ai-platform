@@ -13,11 +13,20 @@ services:
       HF_TOKEN: ${HF_TOKEN}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      LANGFUSE_HOST: ${LANGFUSE_HOST}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
     volumes:
       # Read-only socket mount: this service spins up throwaway sandbox
       # containers (agent_mesh.sandbox.runner) and destroys them immediately.
       # It never needs to do anything else with the socket.
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Persists downloaded HF model weights (Prompt Guard, etc.) across
+      # container rebuilds. Without this, every rebuild starts with an
+      # empty cache and re-downloads the same ~86M-parameter model from
+      # scratch, turning routine local iteration into a repeated network
+      # download for no reason.
+      - hf-cache:/home/appuser/.cache/huggingface
     depends_on:
       db:
         condition: service_healthy
@@ -81,3 +90,4 @@ services:
 
 volumes:
   pgdata:
+  hf-cache:

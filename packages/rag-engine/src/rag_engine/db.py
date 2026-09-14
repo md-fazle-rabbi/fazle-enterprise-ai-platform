@@ -8,6 +8,7 @@ from collections.abc import AsyncGenerator
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,14 +21,17 @@ async def get_tenant_id(
     x_tenant_id: Annotated[str | None, Header()] = None,
 ) -> UUID:
     demo_tenant = await resolve_demo_tenant(request)
-    if demo_tenant is not None:
-        return demo_tenant
-    if x_tenant_id is None:
-        raise HTTPException(status_code=400, detail="X-Tenant-ID header required")
-    try:
-        return UUID(x_tenant_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="X-Tenant-ID must be a UUID")
+    tenant_id = demo_tenant
+    if tenant_id is None:
+        if x_tenant_id is None:
+            raise HTTPException(status_code=400, detail="X-Tenant-ID header required")
+        try:
+            tenant_id = UUID(x_tenant_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="X-Tenant-ID must be a UUID")
+
+    structlog.contextvars.bind_contextvars(tenant_id=str(tenant_id))
+    return tenant_id
 
 
 async def get_session(

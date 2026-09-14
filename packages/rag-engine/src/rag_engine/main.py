@@ -1,3 +1,8 @@
+"""
+FastAPI entrypoint for rag-engine: wires up logging, tracing, DB/Redis
+lifespan, routers, and health/readiness endpoints for the service.
+"""
+
 import signal
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -7,6 +12,7 @@ import structlog
 from core import settings
 from core.db import make_engine
 from core.logging import configure_logging
+from core.tracing import configure_tracing, instrument_app
 from fastapi import FastAPI, HTTPException, Request
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import text
@@ -19,6 +25,7 @@ from rag_engine.routers.documents import router as documents_router
 from rag_engine.routers.ingest import router as ingest_router
 from rag_engine.routers.query import router as query_router
 from rag_engine.routers.search import router as search_router
+from rag_engine.security.classifier import _get_pipeline
 from rag_engine.security.middleware import InjectionFirewallMiddleware
 
 configure_logging(settings.log_level)
@@ -44,6 +51,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.engine = engine
     app.state.session_factory = async_sessionmaker(engine, expire_on_commit=False)
     app.state.redis = AsyncRedis.from_url(settings.redis_url)
+
+    # Force the injection-detection model to load now, during startup,
+    # instead of lazily on the first /query or /ingest request. Without
+    # this, the first real request after every container start pays the
+    # full model-load cost (and, without a persistent HF cache volume,
+    # a full re-download) synchronously inside the request path — a
+    # silent multi-second-to-multi-minute hang with no user-facing signal
+    # that anything is happening.
+    logger.info("rag_engine.loading_injection_classifier")
+    _get_pipeline()
+    logger.info("rag_engine.injection_classifier_ready")
+
     logger.info("rag_engine.startup", environment=settings.environment)
     yield
     await app.state.redis.aclose()
@@ -51,11 +70,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("rag_engine.shutdown")
 
 
+configure_tracing(service_name="rag-engine")
+
 app = FastAPI(
     title="fazle-enterprise-ai-platform: rag-engine",
     version="0.1.0",
     lifespan=lifespan,
 )
+instrument_app(app)
 app.include_router(documents_router)
 app.include_router(ingest_router)
 app.include_router(search_router)
