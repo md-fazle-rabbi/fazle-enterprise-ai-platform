@@ -12,7 +12,7 @@ from rag_engine.crag import grade_relevance
 from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_query
 from rag_engine.generation import extract_cited_indices, generate_answer
-from rag_engine.models import ReviewQueueItem
+from rag_engine.models import QueryLog, ReviewQueueItem
 from rag_engine.parent_retrieval import expand_to_parents
 from rag_engine.pii import redact_pii
 from rag_engine.quota import QuotaExceeded, check_and_consume
@@ -93,6 +93,11 @@ async def query(
     # switch already use, via request.app.state.redis.
     # ---------------------------------------------------------
     query_vector = await embed_query(body.question)
+
+    session.add(
+        QueryLog(tenant_id=tenant_id, question=body.question, embedding=query_vector)
+    )
+
     cached = await get_cached_answer(
         request.app.state.redis, str(tenant_id), query_vector
     )

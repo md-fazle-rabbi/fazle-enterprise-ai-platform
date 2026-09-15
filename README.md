@@ -190,6 +190,10 @@ Swagger/OpenAPI docs at `http://localhost:8000/docs` once running.
   before checkout runs, needs a manual `docker run` step post checkout instead
 - Concurrent load p95 for `/query` is not yet published, see "Load test methodology and
   current limitation" above
+- tokens_used estimate in the quota check is character-count-divided-by-4, a rough approximation, not the real usage
+  output_tokens from the Anthropic response, wiring that through cleanly is a quick follow-up, noted here rather than silently left approximate.
+- Drift detection covers query-embedding distribution only, not retrieval quality drift (whether the same query now retrieves
+  worse chunks) or generation-quality drift over time, both real gaps, both future scope, RAGAS's golden-set gate is the closest thing this repo has to the second one, run manually rather than on a schedule.
 
 ## License
 MIT, see LICENSE.md.

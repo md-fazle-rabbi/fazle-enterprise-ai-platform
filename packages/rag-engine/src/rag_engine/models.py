@@ -90,3 +90,38 @@ class ReviewQueueItem(Base):
         DateTime(timezone=True), nullable=True
     )
     reviewer_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class QueryLog(Base):
+    """
+    One row per incoming query, logged as early as possible (right after
+    embedding, before cache/CRAG/generation branch out) so the log captures
+    every query that reached the service -- cache hits, CRAG rejections,
+    and quota-exceeded requests included, not just the ones that made it
+    to a full generation. This is the raw feed for drift/eval tooling
+    (see evidently dependency in rag-engine's pyproject) -- question
+    embeddings over time, not an audit trail of served answers (that's
+    what review_queue is for).
+
+    embedding uses the same Vector(EMBEDDING_DIMENSION), nullable shape as
+    Chunk.embedding, for the same reason: embedding generation is an
+    external call that can fail independently of the row being worth
+    logging.
+    """
+
+    __tablename__ = "query_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(EMBEDDING_DIMENSION), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
