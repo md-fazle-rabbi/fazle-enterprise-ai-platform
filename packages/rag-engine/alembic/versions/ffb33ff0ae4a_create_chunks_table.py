@@ -10,7 +10,6 @@ from collections.abc import Sequence
 
 import pgvector.sqlalchemy
 import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers, used by Alembic.

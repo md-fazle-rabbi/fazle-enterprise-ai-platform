@@ -19,6 +19,7 @@ from core.settings import settings
 from datasets import Dataset
 from httpx import ASGITransport, AsyncClient
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from rag_engine.main import app
 from ragas import evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.evaluation import EvaluationResult
@@ -27,7 +28,6 @@ from ragas.metrics import AnswerRelevancy, context_precision, faithfulness
 from ragas.run_config import RunConfig
 
 from evals.golden_set import GOLDEN_CORPUS, GOLDEN_QUESTIONS
-from rag_engine.main import app
 
 THRESHOLDS = {
     "faithfulness": 0.90,

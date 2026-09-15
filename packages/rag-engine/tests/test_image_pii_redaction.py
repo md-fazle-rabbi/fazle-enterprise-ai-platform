@@ -11,9 +11,8 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 from PIL import Image
-from sqlalchemy import select, text
-
 from rag_engine.main import app
+from sqlalchemy import select, text
 
 TENANT = str(uuid.uuid4())
 HEADERS = {"X-Tenant-ID": TENANT}

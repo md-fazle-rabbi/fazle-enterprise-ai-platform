@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     langfuse_host: str = Field(default="https://cloud.langfuse.com")
     langfuse_public_key: str = Field(default="")
     langfuse_secret_key: str = Field(default="")
+    slack_webhook_url: str = Field(default="")
 
     @property
     def langfuse_auth_header(self) -> str:
