@@ -2,17 +2,24 @@ import uuid
 from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, Depends
+from core.alerts import send_slack_alert
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from rag_engine.cache import get_cached_answer, store_cached_answer
 from rag_engine.crag import grade_relevance
 from rag_engine.db import get_session, get_tenant_id
+from rag_engine.embeddings import embed_query
 from rag_engine.generation import extract_cited_indices, generate_answer
 from rag_engine.models import ReviewQueueItem
 from rag_engine.parent_retrieval import expand_to_parents
 from rag_engine.pii import redact_pii
+from rag_engine.quota import QuotaExceeded, check_and_consume
 from rag_engine.search import hybrid_search
+from rag_engine.security.canary import scan_for_canary_leak
+from rag_engine.security.firewall import assess
+from rag_engine.security.trifecta import assess_trifecta
 
 router = APIRouter(prefix="/query", tags=["query"])
 logger = structlog.get_logger()
@@ -77,7 +84,28 @@ async def query(
     body: QueryRequest,
     tenant_id: Annotated[uuid.UUID, Depends(get_tenant_id)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    request: Request,
 ) -> QueryResponse:
+    # ---------------------------------------------------------
+    # 0. Semantic cache check
+    #
+    # Same Redis instance Day 3's rate limiter and Day 5's kill
+    # switch already use, via request.app.state.redis.
+    # ---------------------------------------------------------
+    query_vector = await embed_query(body.question)
+    cached = await get_cached_answer(
+        request.app.state.redis, str(tenant_id), query_vector
+    )
+    if cached is not None:
+        return QueryResponse(
+            answer=cached,
+            citations=[],
+            retrieved_context=[],
+            retrieved_but_uncited_count=0,
+            flagged=False,
+            flag_reasons=["cache_hit"],
+        )
+
     # ---------------------------------------------------------
     # 1. Retrieve candidate chunks
     # ---------------------------------------------------------
@@ -169,6 +197,77 @@ async def query(
         len(cited),
         len(parents),
     )
+
+    # ---------------------------------------------------------
+    # 6b. Canary token leak detection
+    #
+    # Canary tokens are planted in documents/prompts to detect
+    # prompt-injection exfiltration attempts. If one shows up in
+    # the generated answer, that's a strong signal of a successful
+    # injection/exfil attempt and needs immediate escalation.
+    # ---------------------------------------------------------
+    leaked_canaries = scan_for_canary_leak(answer)
+    if leaked_canaries:
+        await send_slack_alert(
+            "CANARY TOKEN LEAKED",
+            {
+                "tenant_id": str(tenant_id),
+                "canary_count": len(leaked_canaries),
+                "question": body.question,
+            },
+        )
+        reasons.append("canary_leak")
+
+    # ---------------------------------------------------------
+    # 6c. Lethal trifecta assessment
+    #
+    # Checks whether this request simultaneously exhibits private
+    # data access, untrusted content exposure, and an exfiltration
+    # channel — the combination that makes prompt injection
+    # dangerous rather than merely annoying.
+    # ---------------------------------------------------------
+    injection_scores = [(await assess(p["text"])).classifier_score for p in parents]
+    max_injection_score = max(injection_scores, default=0.0)
+    trifecta = assess_trifecta(
+        answer,
+        has_citations=bool(cited),
+        max_classifier_score_on_context=max_injection_score,
+    )
+    if trifecta.triggered:
+        await send_slack_alert(
+            "Lethal Trifecta conditions met",
+            {
+                "tenant_id": str(tenant_id),
+                "conditions_met": trifecta.conditions_met,
+                "private_data_access": trifecta.private_data_access,
+                "untrusted_content_exposure": trifecta.untrusted_content_exposure,
+                "exfiltration_channel": trifecta.exfiltration_channel,
+            },
+        )
+        reasons.append("lethal_trifecta")
+
+    # ---------------------------------------------------------
+    # 6d. Quota check + cache write
+    #
+    # Consume quota only after a real generation (cache hits never
+    # reach here). token estimate is a rough placeholder -- replace
+    # with real usage.output_tokens once the generation client
+    # surfaces it.
+    # ---------------------------------------------------------
+    try:
+        quota_state = await check_and_consume(
+            request.app.state.redis,
+            str(tenant_id),
+            tokens_used=len(answer) // 4,
+        )
+    except QuotaExceeded as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
+
+    await store_cached_answer(
+        request.app.state.redis, str(tenant_id), query_vector, answer
+    )
+    if quota_state != "ok":
+        reasons.append(f"quota_{quota_state}")
 
     # ---------------------------------------------------------
     # 7. Send problematic answers to review queue
