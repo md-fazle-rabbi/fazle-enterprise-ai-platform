@@ -14,8 +14,8 @@ import uuid
 from typing import Annotated, Any
 
 import structlog
-from core.alerts import send_slack_alert
 from fastapi import APIRouter, Depends, HTTPException, Request
+from observability.alerts import send_slack_alert
 from opentelemetry import trace
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession

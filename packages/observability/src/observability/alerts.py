@@ -6,7 +6,6 @@ its own HTTP client code.
 
 import httpx
 import structlog
-
 from core.settings import settings
 
 logger = structlog.get_logger()

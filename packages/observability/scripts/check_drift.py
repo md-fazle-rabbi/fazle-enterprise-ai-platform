@@ -25,9 +25,9 @@ with warnings.catch_warnings():
     from evidently import Report
     from evidently.presets import DataDriftPreset
 
-from core.alerts import send_slack_alert
 from core.db import make_engine
 from core.settings import settings
+from observability.alerts import send_slack_alert
 from rag_engine.models import QueryLog
 from sqlalchemy import select
 

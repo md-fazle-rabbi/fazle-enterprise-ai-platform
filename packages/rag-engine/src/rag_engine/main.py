@@ -11,9 +11,9 @@ from types import FrameType
 import structlog
 from core import settings
 from core.db import make_engine
-from core.logging import configure_logging
-from core.tracing import configure_tracing, instrument_app
 from fastapi import FastAPI, HTTPException, Request
+from observability.logging import configure_logging
+from observability.tracing import configure_tracing, instrument_app
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
