@@ -1,14 +1,19 @@
 [project]
 name = "observability"
 version = "0.1.0"
-description = "Empty stub, filled later"
+description = "Load testing and drift-detection scripts against the running platform. Tracing, alerting, quota, and semantic caching live in core/rag-engine directly, see the note in this package's README for why."
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "core",
+    "rag-engine",
+    "locust>=2.32",
+    "evidently>=0.7.21",
+    "pandas>=2.2",
 ]
 
 [tool.uv.sources]
 core = { workspace = true }
+rag-engine = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

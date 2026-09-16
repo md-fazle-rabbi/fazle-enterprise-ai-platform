@@ -969,7 +969,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "locust" },
     { name = "py-spy" },
     { name = "ruff" },
 ]
@@ -979,7 +978,6 @@ requires-dist = [{ name = "certifi", specifier = ">=2026.7.22" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "locust", specifier = ">=2.46.5" },
     { name = "py-spy", specifier = ">=0.4.2" },
     { name = "ruff", specifier = ">=0.16.5" },
 ]
@@ -2581,10 +2579,20 @@ version = "0.1.0"
 source = { editable = "packages/observability" }
 dependencies = [
     { name = "core" },
+    { name = "evidently" },
+    { name = "locust" },
+    { name = "pandas" },
+    { name = "rag-engine" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "core", editable = "packages/core" }]
+requires-dist = [
+    { name = "core", editable = "packages/core" },
+    { name = "evidently", specifier = ">=0.7.21" },
+    { name = "locust", specifier = ">=2.32" },
+    { name = "pandas", specifier = ">=2.2" },
+    { name = "rag-engine", editable = "packages/rag-engine" },
+]
 
 [[package]]
 name = "openai"
@@ -3484,11 +3492,9 @@ dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "core" },
-    { name = "evidently" },
     { name = "fastapi" },
     { name = "google-genai" },
     { name = "httpx" },
-    { name = "pandas" },
     { name = "pgvector" },
     { name = "pillow" },
     { name = "presidio-analyzer" },
@@ -3529,11 +3535,9 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.14" },
     { name = "asyncpg", specifier = ">=0.30" },
     { name = "core", editable = "packages/core" },
-    { name = "evidently", specifier = ">=0.7.21" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "google-genai", specifier = ">=2.20.0" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "pandas", specifier = ">=2.2" },
     { name = "pgvector", specifier = ">=0.3.6" },
     { name = "pillow", specifier = ">=11.0" },
     { name = "presidio-analyzer", specifier = ">=2.2" },
