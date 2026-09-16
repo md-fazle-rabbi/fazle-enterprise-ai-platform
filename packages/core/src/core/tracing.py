@@ -27,4 +27,9 @@ def configure_tracing(service_name: str) -> None:
 
 
 def instrument_app(app) -> None:
-    FastAPIInstrumentor.instrument_app(app)
+    # /health is hit every 10s by Docker's own HEALTHCHECK and by
+    # docker-compose's service healthchecks, continuously, for as long as
+    # the container runs. Left untraced, it's harmless; left traced, it
+    # drowns real traffic in noise and burns through Langfuse's trace
+    # quota on the free tier for zero diagnostic value.
+    FastAPIInstrumentor.instrument_app(app, excluded_urls="health")

@@ -1,9 +1,22 @@
+"""
+POST /query: the main RAG pipeline. Semantic cache check, hybrid retrieval,
+parent chunk expansion, CRAG relevance grading, citation-enforced generation,
+then output-side PII/grounding/canary/lethal-trifecta checks before the
+answer is returned. Retrieval and output_checks each carry their own
+OpenTelemetry span here; CRAG grading and generation carry theirs inside
+crag.py and generation.py respectively, next to the Gemini call each one
+makes, so Langfuse shows all four pipeline stages with real latency and
+captured input/output rather than just the outer HTTP span.
+"""
+
+import json
 import uuid
 from typing import Annotated, Any
 
 import structlog
 from core.alerts import send_slack_alert
 from fastapi import APIRouter, Depends, HTTPException, Request
+from opentelemetry import trace
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +36,7 @@ from rag_engine.security.trifecta import assess_trifecta
 
 router = APIRouter(prefix="/query", tags=["query"])
 logger = structlog.get_logger()
+_tracer = trace.get_tracer(__name__)
 
 
 class QueryRequest(BaseModel):
@@ -112,44 +126,65 @@ async def query(
         )
 
     # ---------------------------------------------------------
-    # 1. Retrieve candidate chunks
+    # 1-2. Retrieve candidate chunks, expand to parent sections
+    #
+    # One "retrieval" span covers both steps so Langfuse shows a
+    # single retrieval latency, matching how the README describes
+    # the four pipeline stages.
     # ---------------------------------------------------------
-    chunk_ids = await hybrid_search(
-        session,
-        body.question,
-        top_k=body.top_k,
-    )
-
-    if not chunk_ids:
-        return QueryResponse(
-            answer="I don't have any relevant information to answer this question.",
-            citations=[],
-            retrieved_context=[],
-            retrieved_but_uncited_count=0,
-            flagged=False,
-            flag_reasons=[],
+    with _tracer.start_as_current_span("retrieval") as span:
+        span.set_attribute(
+            "langfuse.observation.input",
+            json.dumps({"question": body.question, "top_k": body.top_k}),
         )
 
-    # ---------------------------------------------------------
-    # 2. Expand child chunks to their parent chunks
-    # ---------------------------------------------------------
-    parents = await expand_to_parents(session, chunk_ids)
+        chunk_ids = await hybrid_search(
+            session,
+            body.question,
+            top_k=body.top_k,
+        )
 
-    if not parents:
-        return QueryResponse(
-            answer="I don't have any relevant information to answer this question.",
-            citations=[],
-            retrieved_context=[],
-            retrieved_but_uncited_count=0,
-            flagged=False,
-            flag_reasons=[],
+        if not chunk_ids:
+            span.set_attribute(
+                "langfuse.observation.output",
+                json.dumps({"retrieved_chunk_count": 0}),
+            )
+            return QueryResponse(
+                answer="I don't have any relevant information to answer this question.",
+                citations=[],
+                retrieved_context=[],
+                retrieved_but_uncited_count=0,
+                flagged=False,
+                flag_reasons=[],
+            )
+
+        parents = await expand_to_parents(session, chunk_ids)
+
+        if not parents:
+            span.set_attribute(
+                "langfuse.observation.output",
+                json.dumps({"retrieved_chunk_count": 0}),
+            )
+            return QueryResponse(
+                answer="I don't have any relevant information to answer this question.",
+                citations=[],
+                retrieved_context=[],
+                retrieved_but_uncited_count=0,
+                flagged=False,
+                flag_reasons=[],
+            )
+
+        span.set_attribute(
+            "langfuse.observation.output",
+            json.dumps({"retrieved_chunk_count": len(parents)}),
         )
 
     # ---------------------------------------------------------
     # 3. CRAG relevance grading
     #
     # Grade the retrieved context BEFORE spending money on
-    # answer generation.
+    # answer generation. Per-stage span lives inside
+    # crag.grade_relevance itself, alongside the Gemini call.
     # ---------------------------------------------------------
     is_relevant = await grade_relevance(
         body.question,
@@ -180,7 +215,8 @@ async def query(
 
     # ---------------------------------------------------------
     # 4. Generate answer ONLY after CRAG says the context
-    #    is relevant.
+    #    is relevant. Per-stage span lives inside generate_answer
+    #    itself, alongside the Gemini call.
     # ---------------------------------------------------------
     answer = await generate_answer(
         body.question,
@@ -195,61 +231,69 @@ async def query(
     cited = [parents[i - 1] for i in cited_indices if 0 < i <= len(parents)]
 
     # ---------------------------------------------------------
-    # 6. Output-side PII + grounding checks
+    # 6, 6b, 6c. Output-side PII, grounding, canary, and lethal
+    # trifecta checks, grouped under one "output_checks" span so
+    # Langfuse shows this as its own pipeline stage.
     # ---------------------------------------------------------
-    answer, reasons = _flag_reasons(
-        answer,
-        len(cited),
-        len(parents),
-    )
-
-    # ---------------------------------------------------------
-    # 6b. Canary token leak detection
-    #
-    # Canary tokens are planted in documents/prompts to detect
-    # prompt-injection exfiltration attempts. If one shows up in
-    # the generated answer, that's a strong signal of a successful
-    # injection/exfil attempt and needs immediate escalation.
-    # ---------------------------------------------------------
-    leaked_canaries = scan_for_canary_leak(answer)
-    if leaked_canaries:
-        await send_slack_alert(
-            "CANARY TOKEN LEAKED",
-            {
-                "tenant_id": str(tenant_id),
-                "canary_count": len(leaked_canaries),
-                "question": body.question,
-            },
+    with _tracer.start_as_current_span("output_checks") as span:
+        answer, reasons = _flag_reasons(
+            answer,
+            len(cited),
+            len(parents),
         )
-        reasons.append("canary_leak")
 
-    # ---------------------------------------------------------
-    # 6c. Lethal trifecta assessment
-    #
-    # Checks whether this request simultaneously exhibits private
-    # data access, untrusted content exposure, and an exfiltration
-    # channel — the combination that makes prompt injection
-    # dangerous rather than merely annoying.
-    # ---------------------------------------------------------
-    injection_scores = [(await assess(p["text"])).classifier_score for p in parents]
-    max_injection_score = max(injection_scores, default=0.0)
-    trifecta = assess_trifecta(
-        answer,
-        has_citations=bool(cited),
-        max_classifier_score_on_context=max_injection_score,
-    )
-    if trifecta.triggered:
-        await send_slack_alert(
-            "Lethal Trifecta conditions met",
-            {
-                "tenant_id": str(tenant_id),
-                "conditions_met": trifecta.conditions_met,
-                "private_data_access": trifecta.private_data_access,
-                "untrusted_content_exposure": trifecta.untrusted_content_exposure,
-                "exfiltration_channel": trifecta.exfiltration_channel,
-            },
+        # -----------------------------------------------------
+        # 6b. Canary token leak detection
+        #
+        # Canary tokens are planted in documents/prompts to detect
+        # prompt-injection exfiltration attempts. If one shows up in
+        # the generated answer, that's a strong signal of a successful
+        # injection/exfil attempt and needs immediate escalation.
+        # -----------------------------------------------------
+        leaked_canaries = scan_for_canary_leak(answer)
+        if leaked_canaries:
+            await send_slack_alert(
+                "CANARY TOKEN LEAKED",
+                {
+                    "tenant_id": str(tenant_id),
+                    "canary_count": len(leaked_canaries),
+                    "question": body.question,
+                },
+            )
+            reasons.append("canary_leak")
+
+        # -----------------------------------------------------
+        # 6c. Lethal trifecta assessment
+        #
+        # Checks whether this request simultaneously exhibits private
+        # data access, untrusted content exposure, and an exfiltration
+        # channel, the combination that makes prompt injection
+        # dangerous rather than merely annoying.
+        # -----------------------------------------------------
+        injection_scores = [(await assess(p["text"])).classifier_score for p in parents]
+        max_injection_score = max(injection_scores, default=0.0)
+        trifecta = assess_trifecta(
+            answer,
+            has_citations=bool(cited),
+            max_classifier_score_on_context=max_injection_score,
         )
-        reasons.append("lethal_trifecta")
+        if trifecta.triggered:
+            await send_slack_alert(
+                "Lethal Trifecta conditions met",
+                {
+                    "tenant_id": str(tenant_id),
+                    "conditions_met": trifecta.conditions_met,
+                    "private_data_access": trifecta.private_data_access,
+                    "untrusted_content_exposure": trifecta.untrusted_content_exposure,
+                    "exfiltration_channel": trifecta.exfiltration_channel,
+                },
+            )
+            reasons.append("lethal_trifecta")
+
+        span.set_attribute(
+            "langfuse.observation.output",
+            json.dumps({"flag_reasons": reasons}),
+        )
 
     # ---------------------------------------------------------
     # 6d. Quota check + cache write

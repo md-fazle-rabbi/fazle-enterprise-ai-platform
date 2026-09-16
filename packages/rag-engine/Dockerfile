@@ -24,29 +24,48 @@ COPY packages/governance/pyproject.toml packages/governance/pyproject.toml
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --package rag-engine
 
+# Moved ahead of the source COPY below on purpose: this depends only on
+# spacy being installed (already true after the deps-only sync above),
+# never on this project's own source. Downloading it here means editing
+# query.py/generation.py/etc. no longer invalidates this layer and
+# re-triggers a full network fetch of the model on every source change.
+# Note this download goes through spacy's own downloader, not uv, so the
+# uv cache mount doesn't cover it, keeping this layer cache-stable is
+# what actually avoids the repeat network hit, not the cache mount.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv run python -m spacy download en_core_web_sm
+
 COPY packages/core packages/core
 COPY packages/rag-engine packages/rag-engine
 COPY packages/agent-mesh packages/agent-mesh
 
+# --inexact matters here: uv sync's default is to make the environment
+# match uv.lock exactly, which means removing anything it doesn't
+# recognize. The spacy model above was installed via spaCy's own
+# downloader, not uv, so it isn't tracked in uv.lock, a plain `uv sync`
+# here would silently delete it right after it was installed, that
+# happened, this flag is the fix for it, not a stylistic choice.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --package rag-engine
-
-# Same idea for spacy's model download — it also fetches over the
-# network and is worth caching independently of uv's own cache dir.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv run python -m spacy download en_core_web_sm
+    uv sync --frozen --package rag-engine --inexact
 
 FROM python:3.13.15-slim-bookworm AS runtime
-# Patch OS CVEs Debian has already fixed upstream — the base tag only
+# Patch OS CVEs Debian has already fixed upstream, the base tag only
 # rebuilds on release, not on every security update, so this is what
 # actually closes most of what Trivy flags on a freshly pulled image.
+# tesseract-ocr installs here too, in the same apt transaction, on
+# purpose: this whole RUN sits before COPY --from=builder below, so it
+# stays cache-stable across source edits instead of re-running
+# apt-get update/install over the network every time application code
+# changes, which is what happened when this install lived after the
+# COPY --from=builder steps.
 # Then strip pip/setuptools/wheel: ensurepip puts them in every fresh
 # base image's system site-packages, invisible to uv.lock, and they
-# were the real source of the CVEs — not this project's dependencies.
+# were the real source of the CVEs, not this project's dependencies.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update \
     && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends tesseract-ocr \
     && find /usr/local/lib/python3.13/site-packages -maxdepth 1 \
         \( -name 'pip*' -o -name 'setuptools*' -o -name 'wheel*' \) \
         -exec rm -rf {} +
@@ -56,10 +75,6 @@ WORKDIR /app
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 COPY --from=builder --chown=appuser:appuser /app/packages /app/packages
 ENV PATH="/app/.venv/bin:$PATH"
-
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends tesseract-ocr
 
 # Pre-create the HF cache dir owned by appuser. The docker-compose
 # "hf-cache" named volume mounts here; without this, Docker creates the

@@ -1,0 +1,10 @@
+[worker.oci]
+  gc = true
+
+[[worker.oci.gcpolicy]]
+  keepBytes = "15GB"
+  keepDuration = "168h"
+
+[[worker.oci.gcpolicy]]
+  all = true
+  keepBytes = "20GB"

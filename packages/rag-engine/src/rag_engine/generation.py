@@ -5,6 +5,7 @@ the model is instructed to reference, so an answer's claims can be traced
 back to a specific chunk instead of trusted on faith.
 """
 
+import json
 import re
 from typing import Any
 
@@ -42,15 +43,25 @@ def _format_context(chunks: list[dict[str, Any]]) -> str:
 
 async def generate_answer(question: str, chunks: list[dict[str, Any]]) -> str:
     context = _format_context(chunks)
+    prompt = f"Context:\n{context}\n\nQuestion: {question}"
+
     with _tracer.start_as_current_span("gemini.generate_answer") as span:
         span.set_attribute("gen_ai.request.model", GENERATION_MODEL)
+        span.set_attribute(
+            "langfuse.observation.input",
+            json.dumps({"system_instruction": _SYSTEM_PROMPT, "prompt": prompt}),
+        )
+
         response = await get_client().aio.models.generate_content(
             model=GENERATION_MODEL,
-            contents=f"Context:\n{context}\n\nQuestion: {question}",
+            contents=prompt,
             config={"system_instruction": _SYSTEM_PROMPT},
         )
         if response.text is None:
             raise RuntimeError("Gemini returned no text in response")
+
+        span.set_attribute("langfuse.observation.output", response.text)
+
         if response.usage_metadata:
             span.set_attribute(
                 "gen_ai.usage.input_tokens",

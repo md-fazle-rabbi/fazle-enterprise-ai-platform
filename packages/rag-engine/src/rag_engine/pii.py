@@ -8,6 +8,7 @@ regime's identifiers, stated here rather than implied by the module name.
 from functools import lru_cache
 
 from presidio_analyzer import AnalyzerEngine
+from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_anonymizer import AnonymizerEngine
 from presidio_anonymizer.entities import RecognizerResult as AnonymizerRecognizerResult
 
@@ -25,10 +26,24 @@ PII_ENTITIES = [
     "US_DRIVER_LICENSE",
 ]
 
+# Presidio's own AnalyzerEngine() default pulls in en_core_web_lg, a
+# different, much larger spaCy model than the one this repo's Dockerfile
+# actually downloads (en_core_web_sm). Left unconfigured, AnalyzerEngine
+# discovers en_core_web_lg isn't installed and tries to spacy.cli.download
+# it at runtime, which shells out to pip, deliberately stripped from the
+# runtime image to close CVEs, and crashes the process instead of failing
+# gracefully. Pinning the model here explicitly to en_core_web_sm avoids
+# that path entirely by using the model that's actually present.
+_NLP_CONFIGURATION = {
+    "nlp_engine_name": "spacy",
+    "models": [{"lang_code": "en", "model_name": "en_core_web_sm"}],
+}
+
 
 @lru_cache(maxsize=1)
 def _get_analyzer() -> AnalyzerEngine:
-    return AnalyzerEngine()
+    nlp_engine = NlpEngineProvider(nlp_configuration=_NLP_CONFIGURATION).create_engine()
+    return AnalyzerEngine(nlp_engine=nlp_engine)
 
 
 @lru_cache(maxsize=1)

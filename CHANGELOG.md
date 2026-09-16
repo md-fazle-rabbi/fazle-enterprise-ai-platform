@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+## 2026-09-16
+
+## Observability
+- Added a real span for each `/query` stage (`retrieval`, `crag.grade_relevance`,
+  `gemini.generate_answer`, `output_checks`) with input/output captured, so
+  Langfuse shows actual prompts and answers instead of blank/undefined.
+- Excluded `/health` from tracing, Docker's health check was flooding the
+  trace list every 10 seconds with no diagnostic value.
+
+## Fixes
+- Added the missing `GRANT` migration for `query_log`, it had RLS but no
+  privileges, so every `/query` call failed on insert.
+- Pinned Presidio to `en_core_web_sm` explicitly. Left unconfigured it
+  defaulted to a model that isn't installed and crashed trying to
+  auto-download it (pip was stripped from the runtime image).
+
+## Build
+- Added `--inexact` to `uv sync` so it stops deleting the spaCy model
+  installed by a separate download step.
+- Reordered the spaCy download and `tesseract-ocr` install ahead of the
+  source `COPY` layers, so source edits no longer force a redownload.
+- Added a BuildKit GC policy (`buildkitd.toml`) to cap local build cache,
+  it was growing unbounded (17.8GB) with no policy in place.
+
+## Infra
+- Added a `migrate` service that runs `alembic upgrade head` before `app`
+  starts, no more separate manual migration step.
+
 ## 2026-09-15
 
 ### Added

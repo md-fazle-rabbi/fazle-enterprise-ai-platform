@@ -1,4 +1,19 @@
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: packages/rag-engine/Dockerfile
+    command: sh -c "cd packages/rag-engine && alembic upgrade head"
+    environment:
+      # Migrations run as the Postgres superuser, not app_user: creating
+      # roles, granting privileges, and enabling RLS all require elevated
+      # privileges app_user deliberately doesn't have.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   app:
     build:
       context: .
@@ -32,6 +47,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   db:

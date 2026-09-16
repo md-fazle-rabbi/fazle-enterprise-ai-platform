@@ -93,6 +93,37 @@ that is where RAGAS prints its actual scores. See
 [`packages/rag-engine/evals/run_ragas.py`](packages/rag-engine/evals/run_ragas.py) for
 the gate's exact threshold logic.
 
+## Observability
+This repo instruments `/query` with Langfuse for trace level visibility, per stage
+latency (retrieval, CRAG grading, generation, output side checks), token usage, and
+prompt/response capture for debugging, via OpenTelemetry spans exported to Langfuse's
+OTel endpoint.
+
+- **Live dashboard:** private, viewable only to project members, Langfuse's current
+  version does not offer a public trace sharing link (an older doc snapshot describes
+  one, but it is absent from the current UI and docs), so the two screenshots below are
+  the available proof rather than a live link
+- **Per stage spans and prompt/response capture:** each of the four stages above now
+  carries its own span (`retrieval`, `crag.grade_relevance`, `gemini.generate_answer`,
+  `output_checks`), with `langfuse.observation.input` and `langfuse.observation.output`
+  set explicitly so Langfuse's Preview panel shows real prompt and response content
+  instead of a blank Input and an `undefined` Output. Earlier, only the generation
+  stage had its own span, and it carried model name and token counts but never the
+  actual prompt or answer text, which is why Langfuse showed nothing there. Model cost
+  reads $0.00 throughout since generation and grading both run on Gemini's free tier,
+  not because cost tracking is broken. Screenshots from a local run:
+  [`proof/langfuse-home-overview.png`](proof/langfuse-home-overview.png) (the tracing
+  list across ingest and query calls, all four stage spans present with real Input and
+  Output columns populated, no `GET /health` noise mixed in) and
+  [`proof/langfuse-trace-detail.png`](proof/langfuse-trace-detail.png) (a single trace
+  with the four stage spans expanded and populated Input/Output).
+- **p95 latency (full `/query` pipeline):** 1900ms, single user, same measurement
+  described in "Load test methodology and current limitation" below, not a separate
+  number, listed here as well since it is also what Langfuse's own per trace timing
+  corroborates locally.
+- **RAGAS faithfulness:** 100%, see "CI & evals" above for methodology, thresholds,
+  and how to pull the latest number from CI rather than this static badge.
+
 ### API rate limiting
 The public demo Bearer token (`fazle-demo-key`) is protected by a Redis backed rate
 limiter, 20 requests per hour, returning `429` immediately once exceeded rather than
@@ -152,8 +183,23 @@ tenant isolated retrieval, injection firewall, PII redaction, citation backed an
 ```bash
 git clone https://github.com/md-fazle-rabbi/fazle-enterprise-ai-platform.git
 cd fazle-enterprise-ai-platform
-docker-compose up
+docker compose up --build -d
 ```
+
+A one-off `migrate` service runs `alembic upgrade head` automatically before `app`
+starts, `app` will not come up until migrations apply cleanly, so there is no separate
+manual migration step to remember.
+
+`buildkitd.toml` in the repo root configures a BuildKit garbage collection policy
+(cache capped around 20GB, least-recently-used entries evicted first) for the local
+`prod-builder` instance created with:
+```bash
+docker buildx create --name prod-builder --config buildkitd.toml --use
+```
+It is not copied into any image, the Dockerfile only ever does targeted `COPY`s of
+`pyproject.toml`, `uv.lock`, and specific `packages/*` paths, never a broad `COPY . .`,
+so this file has no effect on build output either way. It exists purely to keep this
+repo's build cache from growing unbounded on a long lived dev machine or CI runner.
 
 Then query it:
 ```bash
@@ -194,6 +240,15 @@ Swagger/OpenAPI docs at `http://localhost:8000/docs` once running.
   output_tokens from the Anthropic response, wiring that through cleanly is a quick follow-up, noted here rather than silently left approximate.
 - Drift detection covers query-embedding distribution only, not retrieval quality drift (whether the same query now retrieves
   worse chunks) or generation-quality drift over time, both real gaps, both future scope, RAGAS's golden-set gate is the closest thing this repo has to the second one, run manually rather than on a schedule.
+- Langfuse observability runs on the free Hobby tier, which caps monthly trace volume,
+  and the current Langfuse version has no public trace sharing link, so the dashboard
+  itself is only viewable to project members, not linkable here, see "Observability"
+  above for the screenshots used instead.
+- Per stage spans (`retrieval`, `crag.grade_relevance`, `gemini.generate_answer`,
+  `output_checks`) capture input/output by setting `langfuse.observation.input` and
+  `langfuse.observation.output` attributes directly rather than through a Langfuse SDK
+  decorator. If a future refactor adopts the Langfuse Python SDK directly, this manual
+  attribute setting can be replaced with `@observe(capture_input=True, capture_output=True)`.
 
 ## License
 MIT, see LICENSE.md.
