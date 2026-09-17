@@ -73,6 +73,19 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 markers = ["asyncio: marks tests as asyncio"]
 asyncio_mode = "auto"
+filterwarnings = [
+    # Traced to source, not guessed: HF's modeling_deberta_v2.py decorates
+    # c2p_dynamic_expand/p2c_dynamic_expand/pos_dynamic_expand with
+    # @torch.jit.script at module-import time (mDeBERTa-v3 is Prompt
+    # Guard 2's base architecture). Confirmed still present as of
+    # huggingface/transformers#44916 (Sep 2026), which only moved a
+    # comment to fix Python 3.13 parsing — the decorator itself stays.
+    # No call site in our code triggers this; nothing here to fix upstream
+    # of an HF release. Scoped to that exact message + emitting module so
+    # it doesn't mask any other warning, including future ones in our own
+    # code.
+    "ignore:`torch\\.jit\\.script` is deprecated.*:DeprecationWarning:torch\\.jit\\._script",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rag_engine"]

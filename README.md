@@ -9,7 +9,7 @@
 
 *Single user latency, measured locally without third party throttling. See "Load testing" below for why concurrent p95 isn't published yet.*
 
-**Fazle Rabbi, Secure Production AI Systems Engineer.** Available for freelance engagements and full time roles. Contact: mfrabbi.ai@gmail.com | Loom walkthrough: [link] | Swagger, once running locally: http://localhost:8000/docs
+**Fazle Rabbi, Secure Production AI Systems Engineer.** Available for freelance engagements and full time roles. Contact: mfrabbi.ai@gmail.com | Loom walkthrough (watch without setup): [link] | Swagger, after you run it locally: http://localhost:8000/docs
 
 ## Read this first
 - "SOC2-aligned" means built following SOC2 principles, not SOC2 certification. Certification requires a third party auditor.

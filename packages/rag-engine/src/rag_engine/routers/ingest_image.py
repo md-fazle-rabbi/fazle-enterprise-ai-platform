@@ -61,7 +61,7 @@ async def ingest_image(
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
-    assessment = assess(text)
+    assessment = await assess(text)
     if assessment.action == "block":
         logger.warning(
             "firewall.blocked",

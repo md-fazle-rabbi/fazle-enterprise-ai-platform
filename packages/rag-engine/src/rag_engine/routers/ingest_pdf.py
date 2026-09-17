@@ -81,7 +81,7 @@ async def ingest_pdf(
             )
             continue
 
-        assessment = assess(text)
+        assessment = await assess(text)
         if assessment.action == "block":
             logger.warning("firewall.blocked", path="/ingest/pdf", page=page_number)
             continue

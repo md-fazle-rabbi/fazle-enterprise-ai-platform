@@ -74,7 +74,7 @@ def mock_injection_firewall(monkeypatch):
     keeps tests independent of HF availability and account state."""
     from rag_engine.security.firewall import InjectionAssessment
 
-    def _fake_assess(text: str) -> InjectionAssessment:
+    async def _fake_assess(text: str) -> InjectionAssessment:
         return InjectionAssessment(
             pattern_hit=False, classifier_score=0.0, action="allow"
         )

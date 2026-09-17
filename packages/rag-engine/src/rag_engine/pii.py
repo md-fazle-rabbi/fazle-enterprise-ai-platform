@@ -56,6 +56,25 @@ def _get_anonymizer() -> AnonymizerEngine:
     return AnonymizerEngine()  # type: ignore[no-untyped-call]
 
 
+def _is_acronym_false_positive(span: str) -> bool:
+    """
+    Presidio's spaCy-backed PERSON recognizer assigns a flat 0.85
+    confidence to every NER-tagged PERSON span, regardless of the
+    underlying model's actual certainty (en_core_web_sm exposes no
+    per-entity confidence for Presidio to use instead) — so a
+    score_threshold can't separate a real name from a false positive,
+    they score identically. In practice en_core_web_sm regularly tags
+    single, fully-uppercase technical acronyms ("RAG", "RRF", "API") as
+    PERSON. A lone all-caps alphabetic token is essentially never a real
+    person's name in running English text, so this heuristic drops it.
+
+    Known limitation, not a guarantee: a name genuinely written in full
+    caps (e.g. "SMITH, JOHN" on a scanned intake form) would also be
+    missed by this filter.
+    """
+    return span.isalpha() and span.isupper()
+
+
 def redact_pii(text: str) -> tuple[str, list[str]]:
     """
     Returns (redacted_text, entity_types_found). Default anonymizer
@@ -66,6 +85,14 @@ def redact_pii(text: str) -> tuple[str, list[str]]:
     configurable and the default has shifted across major versions before.
     """
     results = _get_analyzer().analyze(text=text, entities=PII_ENTITIES, language="en")
+    results = [
+        r
+        for r in results
+        if not (
+            r.entity_type == "PERSON"
+            and _is_acronym_false_positive(text[r.start : r.end])
+        )
+    ]
     if not results:
         return text, []
 
