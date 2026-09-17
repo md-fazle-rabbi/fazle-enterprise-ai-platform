@@ -1394,9 +1394,11 @@ name = "governance"
 version = "0.1.0"
 source = { editable = "packages/governance" }
 dependencies = [
+    { name = "asyncpg" },
     { name = "core" },
     { name = "google-genai" },
     { name = "pydantic" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 
 [package.dev-dependencies]
@@ -1408,9 +1410,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "asyncpg", specifier = ">=0.30" },
     { name = "core", editable = "packages/core" },
     { name = "google-genai", specifier = ">=2.20.0" },
     { name = "pydantic", specifier = ">=2.9" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
 ]
 
 [package.metadata.requires-dev]
@@ -3522,6 +3526,7 @@ dependencies = [
     { name = "google-genai" },
     { name = "governance" },
     { name = "httpx" },
+    { name = "observability" },
     { name = "pgvector" },
     { name = "pillow" },
     { name = "presidio-analyzer" },
@@ -3566,6 +3571,7 @@ requires-dist = [
     { name = "google-genai", specifier = ">=2.20.0" },
     { name = "governance", editable = "packages/governance" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "observability", editable = "packages/observability" },
     { name = "pgvector", specifier = ">=0.3.6" },
     { name = "pillow", specifier = ">=11.0" },
     { name = "presidio-analyzer", specifier = ">=2.2" },

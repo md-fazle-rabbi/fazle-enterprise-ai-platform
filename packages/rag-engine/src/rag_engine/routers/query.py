@@ -15,6 +15,7 @@ from typing import Annotated, Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
+from governance.audit_log import append_entry
 from observability.alerts import send_slack_alert
 from opentelemetry import trace
 from pydantic import BaseModel
@@ -294,6 +295,24 @@ async def query(
             "langfuse.observation.output",
             json.dumps({"flag_reasons": reasons}),
         )
+
+        # -----------------------------------------------------
+        # 6e. Hash-chained audit log entry, only for flagged
+        # queries -- an entry per clean query would flood the
+        # log with nothing worth reviewing later. trace_id links
+        # each entry back to its full Langfuse trace.
+        # -----------------------------------------------------
+        if reasons:
+            current_trace_id = format(
+                trace.get_current_span().get_span_context().trace_id, "032x"
+            )
+            await append_entry(
+                session,
+                tenant_id=str(tenant_id),
+                event_type="query.flagged",
+                event_data={"reasons": reasons, "question": body.question},
+                trace_id=current_trace_id,
+            )
 
     # ---------------------------------------------------------
     # 6d. Quota check + cache write
