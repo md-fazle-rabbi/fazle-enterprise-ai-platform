@@ -1395,10 +1395,30 @@ version = "0.1.0"
 source = { editable = "packages/governance" }
 dependencies = [
     { name = "core" },
+    { name = "google-genai" },
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "core", editable = "packages/core" }]
+requires-dist = [
+    { name = "core", editable = "packages/core" },
+    { name = "google-genai", specifier = ">=2.20.0" },
+    { name = "pydantic", specifier = ">=2.9" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "pytest-asyncio", specifier = ">=0.24" },
+    { name = "pytest-cov", specifier = ">=6.0" },
+]
 
 [[package]]
 name = "greenlet"
@@ -3500,6 +3520,7 @@ dependencies = [
     { name = "core" },
     { name = "fastapi" },
     { name = "google-genai" },
+    { name = "governance" },
     { name = "httpx" },
     { name = "pgvector" },
     { name = "pillow" },
@@ -3543,6 +3564,7 @@ requires-dist = [
     { name = "core", editable = "packages/core" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "google-genai", specifier = ">=2.20.0" },
+    { name = "governance", editable = "packages/governance" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pgvector", specifier = ">=0.3.6" },
     { name = "pillow", specifier = ">=11.0" },

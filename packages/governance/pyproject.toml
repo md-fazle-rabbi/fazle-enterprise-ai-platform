@@ -1,10 +1,19 @@
 [project]
 name = "governance"
 version = "0.1.0"
-description = "Empty stub, filled later"
+description = "EU AI Act classification, SOC2-aligned audit logging, compliance documentation"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "core",
+    "google-genai>=2.20.0",
+    "pydantic>=2.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-asyncio>=0.24",
 ]
 
 [tool.uv.sources]
