@@ -1,0 +1,28 @@
+# Data Protection Impact Assessment
+
+**System:** {{ system_name }} | **Date:** {{ date }} | **Assessor:** {{ assessor }}
+
+## 1. Description of processing
+{{ processing_description }}
+
+## 2. Necessity and proportionality
+- Purpose limitation: does the processing go beyond what's needed for the stated purpose?
+- Data minimization: is every field collected actually necessary?
+- Storage limitation: is there a defined retention period, enforced technically?
+
+## 3. Risk assessment
+| Risk | Likelihood | Severity | Mitigation |
+|---|---|---|---|
+| Unauthorized access | | | |
+| Re-identification of anonymized data | | | |
+| Discriminatory outcome from automated processing | | | |
+| Data breach | | | |
+
+## 4. Measures to address risks
+(To be completed based on section 3)
+
+## 5. DPO consultation
+Consulted: {{ "Yes" if dpo_consulted else "No" }} | Date: {{ dpo_consultation_date or "N/A" }}
+
+*This is a structured template, not a completed assessment. Sections 2-4 require genuine
+judgment from someone accountable for the processing, not an LLM's best guess.*

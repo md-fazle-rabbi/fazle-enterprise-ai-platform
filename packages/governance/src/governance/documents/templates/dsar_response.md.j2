@@ -1,0 +1,22 @@
+# Data Subject Access Request Response
+
+**Request received:** {{ request_date }} | **Response due:** {{ due_date }} (30 days, GDPR Art. 12(3))
+**Data subject:** {{ subject_identifier }}
+
+## Data held
+{% for category in data_categories -%}
+- **{{ category.name }}**: {{ category.description }} (source: {{ category.source }}, retained until: {{ category.retention }})
+{% endfor %}
+
+## Processing purposes
+{{ processing_purposes }}
+
+## Recipients
+{{ recipients }}
+
+## Your rights
+You have the right to rectification, erasure, restriction of processing, data portability,
+and to lodge a complaint with a supervisory authority.
+
+*Verify the requester's identity before sending this response. This template does not
+perform identity verification.*

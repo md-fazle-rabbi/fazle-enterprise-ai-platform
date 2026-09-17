@@ -14,6 +14,7 @@ from core.db import make_engine
 from fastapi import FastAPI, HTTPException, Request
 from governance.documents.router import router as governance_documents_router
 from governance.router import router as classify_router
+from governance.vendor_router import router as vendor_router
 from observability.logging import configure_logging
 from observability.tracing import configure_tracing, instrument_app
 from redis.asyncio import Redis as AsyncRedis
@@ -93,6 +94,7 @@ app.include_router(admin_router)
 app.include_router(audit_router)
 app.include_router(classify_router)
 app.include_router(governance_documents_router)
+app.include_router(vendor_router)
 
 
 @app.get("/")

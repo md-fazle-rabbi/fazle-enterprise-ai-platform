@@ -1,0 +1,25 @@
+# Erasure Request Workflow
+
+**Request ID:** {{ request_id }} | **Received:** {{ request_date }}
+
+## Step 1: Verify the legal basis for erasure
+- [ ] No overriding legitimate ground for continued processing
+- [ ] Not required for legal compliance (check retention obligations first, e.g. this
+      project's own audit_log is INSERT-only and NOT subject to this workflow, hash-chain
+      integrity depends on it, this is a stated, deliberate exception)
+
+## Step 2: Locate all instances
+{% for location in data_locations -%}
+- [ ] {{ location }}
+{% endfor %}
+
+## Step 3: Execute
+- [ ] Primary database records deleted
+- [ ] Backups scheduled for deletion per retention schedule (note: cannot be immediate
+      for backups still within their retention window, document the actual deletion date)
+- [ ] Confirm deletion to data subject within 30 days
+
+## Step 4: Log completion
+Logged in audit_log as event_type="erasure.completed" (metadata only, never the
+erased data itself, an audit log entry describing an erasure must not itself become
+a copy of what was erased).
