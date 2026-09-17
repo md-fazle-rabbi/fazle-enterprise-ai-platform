@@ -12,6 +12,7 @@ import structlog
 from core import settings
 from core.db import make_engine
 from fastapi import FastAPI, HTTPException, Request
+from governance.colorado_admt_router import router as colorado_admt_router
 from governance.documents.router import router as governance_documents_router
 from governance.router import router as classify_router
 from governance.vendor_router import router as vendor_router
@@ -49,20 +50,11 @@ except ValueError:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    # Connects as app_user, the least-privilege role, not the fazle owner
-    # role — deliberate change from the original roadmap text.
     engine = make_engine(settings.app_database_url)
     app.state.engine = engine
     app.state.session_factory = async_sessionmaker(engine, expire_on_commit=False)
     app.state.redis = AsyncRedis.from_url(settings.redis_url)
 
-    # Force the injection-detection model to load now, during startup,
-    # instead of lazily on the first /query or /ingest request. Without
-    # this, the first real request after every container start pays the
-    # full model-load cost (and, without a persistent HF cache volume,
-    # a full re-download) synchronously inside the request path — a
-    # silent multi-second-to-multi-minute hang with no user-facing signal
-    # that anything is happening.
     logger.info("rag_engine.loading_injection_classifier")
     _get_pipeline()
     logger.info("rag_engine.injection_classifier_ready")
@@ -95,6 +87,7 @@ app.include_router(audit_router)
 app.include_router(classify_router)
 app.include_router(governance_documents_router)
 app.include_router(vendor_router)
+app.include_router(colorado_admt_router)
 
 
 @app.get("/")

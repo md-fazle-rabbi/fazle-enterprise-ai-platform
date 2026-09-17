@@ -5,203 +5,91 @@
 ![Python](https://img.shields.io/badge/python-3.13.15-blue)
 ![RAGAS Faithfulness](https://img.shields.io/badge/RAGAS_faithfulness-100%25-blue)
 ![p95 latency (single user)](https://img.shields.io/badge/query_p95_single_user-1900ms-blue)
+![Security-Reviewed](https://img.shields.io/badge/security_review-pending_Repo_2-lightgrey)
 
-*Single user latency, measured without third party throttling. Concurrent load p95 is
-not published; see "Load test methodology and current limitation" below for why.*
+*Single user latency, measured locally without third party throttling. See "Load testing" below for why concurrent p95 isn't published yet.*
 
-## Hire me
-I build production AI systems that pass security audits, not demos: enterprise RAG that
-does not hallucinate across text and visual input, agent meshes with signed inter agent
-messaging, and GDPR/HIPAA/EU AI Act compliance tooling. This repo is the proof.
-Contact: mfrabbi.ai@gmail.com. Loom walkthrough: [link]
+**Fazle Rabbi, Secure Production AI Systems Engineer.** Available for freelance engagements and full time roles. Contact: mfrabbi.ai@gmail.com | Loom walkthrough: [link] | Swagger, once running locally: http://localhost:8000/docs
 
-## 30 second read
-RAG chatbots hallucinate and leak data across tenants. This system enforces both problems
-shut at the infrastructure layer: Postgres Row Level Security for tenant isolation (not
-app code filtering, proof from a local run: [`proof/rls-api-isolation.png`](proof/rls-api-isolation.png)
-showing a cross tenant query blocked at the API, and
-[`proof/rls-db-state.png`](proof/rls-db-state.png) showing the underlying RLS policy state
-in Postgres), enforced citation tags so every claim traces to a retrieved chunk, a
-two layer prompt injection firewall, PII redaction before anything reaches storage, and an
-automated RAGAS gate in CI that fails the build if answer faithfulness regresses. An agent
-mesh sits alongside it: sandboxed code execution, a kill switch measured under 5 seconds
-against a simulated runaway loop, RS256 signed inter agent messaging, and OAuth/OPA backed
-identity and authorization, all reachable through this same merged API.
+## Read this first
+- "SOC2-aligned" means built following SOC2 principles, not SOC2 certification. Certification requires a third party auditor.
+- Nothing here is legal advice. Governance module outputs (risk classifications, HIPAA/GDPR documents, vendor questionnaires) are drafting aids and coverage assessments, not legal determinations.
+- Security testing against a live instance requires prior written authorization.
+- Every control here reduces risk. None of them, alone or combined, eliminate it.
+- This project runs locally by design, no remote deployment. See "Run it locally" for why, and what to expect from Swagger at localhost:8000.
 
-## Architecture
+## The business problem this solves
+Two things kill enterprise AI adoption before it reaches production: the system makes things up with confidence, and it leaks one customer's data into another customer's answer. Legal, security, and procurement teams block launches over exactly these two failure modes.
 
-```mermaid
-graph TB
-    subgraph "External"
-        User[API Client]
-        Gemini[Gemini API<br/>generation + vision + agent]
-        Voyage[Voyage AI<br/>embeddings]
-        KC[Keycloak]
-        OPA[OPA]
-    end
+This platform answers both at the infrastructure layer, not with prompting tricks. Tenant isolation is enforced by Postgres itself (Row Level Security), not application code a future engineer can accidentally bypass. Every claim in a generated answer traces back to a retrieved, citable source, and a CI gate fails the build automatically if answer faithfulness regresses. A governance layer sits on top, speaking the language procurement and DPO teams actually use: EU AI Act classification, HIPAA and GDPR document generation, and a vendor risk questionnaire, current on the regulatory timeline, not a training era snapshot of it.
 
-    subgraph "rag-engine (merged API surface)"
-        API[FastAPI Service]
-        FW[Injection Firewall<br/>pattern + classifier]
-        PII[Presidio<br/>PII redaction]
-        Agents["/agents/research"]
-        Admin["/admin/kill-switch"]
-    end
+The result is a system built to survive a real security and compliance review, not just a demo.
 
-    subgraph "agent-mesh (packages)"
-        RA[Research Agent<br/>tenant bound server-side]
-        MCP[MCP Tool Interface]
-        KS[Kill Switch]
-        SB[Code Sandbox]
-    end
+## Skills demonstrated
+FastAPI, Python 3.13, PostgreSQL, pgvector, Row Level Security, Redis, LangGraph, Retrieval Augmented Generation, prompt injection defense, PII redaction (Presidio), OWASP LLM Top 10, agentic AI security, multi tenant architecture, RS256 signed messaging, OAuth2/Keycloak, OPA policy as code, Docker, Docker Compose, GitHub Actions CI/CD, Trivy, CodeQL, OpenTelemetry, Langfuse, Locust load testing, RAGAS evaluation, EU AI Act, GDPR, HIPAA compliance tooling.
 
-    subgraph "Data"
-        PG[(Postgres + pgvector<br/>RLS enforced)]
-        Redis[(Redis: rate limit, streams, kill switch)]
-    end
+## What this is
+Four packages, one merged API, each solving a distinct part of the adoption problem above.
 
-    User -->|X-Tenant-ID or demo key| API
-    API --> FW
-    FW --> PII
-    PII --> PG
-    API -->|embed| Voyage
-    API -->|generate| Gemini
-    API --> Redis
-    Agents --> RA
-    RA -->|tenant-bound, server-side| API
-    RA -.->|generation| Gemini
-    Admin --> KS
-    RA -.->|JWT verified| KC
-    SB -.->|policy check| OPA
-```
+**rag-engine, the trust layer.** Hybrid search (dense pgvector plus Postgres full text, RRF fused), enforced citation tags so answers are checkable rather than trusted blindly, a CRAG router that grades retrieved context before generation runs, a two layer prompt injection firewall, PII redaction across text, image, and PDF ingestion, semantic caching, and an automated RAGAS gate in CI.
 
-## CI & evals
-Every push runs lint, `mypy --strict`, the chunking test suite (90% coverage gate),
-agent-mesh's test suite, a Trivy image scan, CodeQL, and a RAGAS quality gate, all in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml). Terminal output from a local run
-of that full suite: [`proof/ci-log.png`](proof/ci-log.png).
+**agent-mesh, the control layer.** LangGraph agents, RS256 signed inter agent messaging, Keycloak identity, OPA policy authorization, a two layer code sandbox, and a kill switch measured under 5 seconds against a simulated runaway loop, for teams that need agentic AI without losing the ability to stop it.
 
-The RAGAS badge reflects a real local eval run against this repo's own thresholds
-(faithfulness >= 0.90, answer relevancy >= 0.85, context precision >= 0.80), scoring
-100% faithfulness. Screenshot of that run: [`proof/ragas-scores.png`](proof/ragas-scores.png).
-Like the latency badge above, this is a static image and does not auto update on every
-push, `shields.io` badges just render whatever string is in the URL. For the latest
-numbers from CI rather than that local run, open the
-[Actions tab](https://github.com/md-fazle-rabbi/fazle-enterprise-ai-platform/actions/workflows/ci.yml),
-open the relevant run, and expand the **ragas-gate** job's **"Run RAGAS gate"** step,
-that is where RAGAS prints its actual scores. See
-[`packages/rag-engine/evals/run_ragas.py`](packages/rag-engine/evals/run_ragas.py) for
-the gate's exact threshold logic.
+**observability, the accountability layer.** Full request tracing correlated with structured logs, cost and latency dashboards, real load test numbers instead of estimates, exfiltration detection, and drift monitoring, so performance and cost claims are demonstrated, not asserted.
+
+**governance, the compliance layer.** EU AI Act classification verified against the current post Digital Omnibus timeline, Colorado SB26-189 ADMT assessment, hash chained insert only audit logging, HIPAA Safe Harbor and GDPR RoPA document generation, DPIA/DSAR/erasure templates, and a 20 question vendor risk questionnaire.
 
 ## Observability
-This repo instruments `/query` with Langfuse for trace level visibility, per stage
-latency (retrieval, CRAG grading, generation, output side checks), token usage, and
-prompt/response capture for debugging, via OpenTelemetry spans exported to Langfuse's
-OTel endpoint.
+Every `/query` call is traced end to end with OpenTelemetry, exported to Langfuse: retrieval, CRAG grading, generation, and output checks each carry their own span with real prompt and response content, not just timing.
 
-- **Live dashboard:** private, viewable only to project members, Langfuse's current
-  version does not offer a public trace sharing link (an older doc snapshot describes
-  one, but it is absent from the current UI and docs), so the two screenshots below are
-  the available proof rather than a live link
-- **Per stage spans and prompt/response capture:** each of the four stages above now
-  carries its own span (`retrieval`, `crag.grade_relevance`, `gemini.generate_answer`,
-  `output_checks`), with `langfuse.observation.input` and `langfuse.observation.output`
-  set explicitly so Langfuse's Preview panel shows real prompt and response content
-  instead of a blank Input and an `undefined` Output. Earlier, only the generation
-  stage had its own span, and it carried model name and token counts but never the
-  actual prompt or answer text, which is why Langfuse showed nothing there. Model cost
-  reads $0.00 throughout since generation and grading both run on Gemini's free tier,
-  not because cost tracking is broken. Screenshots from a local run:
-  [`proof/langfuse-home-overview.png`](proof/langfuse-home-overview.png) (the tracing
-  list across ingest and query calls, all four stage spans present with real Input and
-  Output columns populated, no `GET /health` noise mixed in) and
-  [`proof/langfuse-trace-detail.png`](proof/langfuse-trace-detail.png) (a single trace
-  with the four stage spans expanded and populated Input/Output).
-- **p95 latency (full `/query` pipeline):** 1900ms, single user, same measurement
-  described in "Load test methodology and current limitation" below, not a separate
-  number, listed here as well since it is also what Langfuse's own per trace timing
-  corroborates locally.
-- **RAGAS faithfulness:** 100%, see "CI & evals" above for methodology, thresholds,
-  and how to pull the latest number from CI rather than this static badge.
+- p95 latency: 1900ms, single user, unthrottled, measured with Locust ([`proof/langfuse-trace-detail.png`](proof/langfuse-trace-detail.png))
+- Concurrent load p95 is not published. The embedding provider's free tier caps throughput at 3 requests per minute, publishing a number above that would measure a third party limit, not this application.
+- Demo API key is rate limited to 20 requests per hour at the application layer, proven with a live 429 on request 21 ([`proof/demo-rate-limit.png`](proof/demo-rate-limit.png))
+- Dashboard access is limited to project members on Langfuse's free tier, screenshots stand in for a public link
 
-### API rate limiting
-The public demo Bearer token (`fazle-demo-key`) is protected by a Redis backed rate
-limiter, 20 requests per hour, returning `429` immediately once exceeded rather than
-queueing or degrading. See
-[`packages/rag-engine/src/rag_engine/demo_auth.py`](packages/rag-engine/src/rag_engine/demo_auth.py).
-This limit applies only to the public demo key, not to authenticated tenant traffic via
-`X-Tenant-ID`. Terminal proof from a local run, 20 requests returning `200` followed by a
-`429` on request 21, all fired within the same hour: [`proof/demo-rate-limit.png`](proof/demo-rate-limit.png).
-This is an intentional protection for the public demo path and is separate from the
-Voyage embedding provider limit described below, which is a third party ceiling, not
-something this app enforces.
+## Governance and compliance
+Built for the teams that actually block AI launches: legal, security, and procurement.
 
-### Load test methodology and current limitation
-The p95 badge above comes from a Locust run against `/query` with a single sequential
-user (28 requests over 12 minutes, 0 failures, p50 1100ms, p95 1900ms, p99 4800ms). It is
-labeled "single user" on purpose: the embedding provider (Voyage AI) is currently on its
-free tier, which caps throughput at 3 requests per minute. Concurrent load testing above
-that ceiling produces retry backoff, not application slowness, so a concurrent p95 number
-is not published yet rather than publishing one that would misrepresent third party
-throttling as system performance. The single user number above reflects real, unthrottled
-application latency. This repo intentionally stays on Voyage's free tier since it is a portfolio demo, not a
-paying deployment, so a concurrent load p95 is not published here. The 3 RPM ceiling is a
-property of this specific demo account's tier, not of the application: nothing in the
-`/query` code path assumes or requires the free tier, and the single user results above
-(0 failures, no errors, consistent sub 2 second p95) show no application level bottleneck
-at the concurrency levels this tier allows testing. A production deployment on a paid
-Voyage tier, or any embedding provider without this ceiling, would remove this specific
-constraint; that has not been measured in this repo and is not claimed as a benchmark. `InfraOnlyUser` in
-[`packages/rag-engine/loadtest/locustfile.py`](packages/rag-engine/loadtest/locustfile.py)
-exercises `/health` at higher volume and is unaffected by this limit.
+| Endpoint | Business purpose |
+|---|---|
+| POST /classify | EU AI Act risk tier classification, current on the post Digital Omnibus deadlines |
+| POST /classify/colorado-admt | Colorado SB26-189 automated decision technology assessment |
+| POST /governance/documents/hipaa-report | HIPAA Safe Harbor coverage report, honest gap reporting (10 of 18 identifiers detected today, gaps named, not hidden) |
+| GET /vendor-risk/questions, POST /vendor-risk/score | 20 question vendor AI risk questionnaire, auto scored 0-100, a triage signal for follow up, not a pass/fail verdict |
+| GET /audit/query, GET /audit/verify | Hash chained, insert only audit log, tamper resistance proven at the database level |
 
-### GitHub repo secrets required
-Set these under **Settings, Secrets and variables, Actions**:
+DPIA, DSAR response, and erasure workflow templates are deliberately not LLM automated. A Data Protection Impact Assessment requires human judgment about proportionality this project has no basis to replace, so these ship as structured templates a qualified person completes, not an AI generated final answer.
 
-| Secret | Used by | Required for |
-|---|---|---|
-| `VOYAGE_API_KEY` | `test`, `ragas-gate` | embeddings |
-| `GEMINI_API_KEY` | `ragas-gate` | RAGAS judge model + generation, also the research agent's own model at runtime |
-| `HF_TOKEN` | `test` | Hugging Face model downloads (Presidio/transformers) |
+## Proof, not claims
+- Tenant isolation: proven at the API and in Postgres directly ([`proof/rls-api-isolation.png`](proof/rls-api-isolation.png), [`proof/rls-db-state.png`](proof/rls-db-state.png))
+- RAGAS gate: 100% faithfulness locally, thresholds 0.90/0.85/0.80, enforced automatically in CI ([`proof/ragas-scores.png`](proof/ragas-scores.png))
+- Kill switch: under 5 seconds against a simulated runaway agent loop
+- Audit log tamper resistance: database level UPDATE and DELETE block, demonstrated live ([`proof/day7-audit-log-tamper-resistant.png`](proof/day7-audit-log-tamper-resistant.png))
 
-No CI job invokes the live `/agents/research` endpoint (the `build-and-scan` smoke test
-only imports `rag_engine.main` without calling it, and agent-mesh's own test suite tests
-the research agent's tool directly rather than through the LLM), so `GEMINI_API_KEY`
-is not strictly required for CI to pass, but it does need to be set as a deployment env
-var wherever this service serves real traffic to `/agents/research`.
+## Architecture
+```mermaid
+graph TB
+    User[API Client] --> API[FastAPI Service]
+    API --> FW[Injection Firewall]
+    FW --> PII[PII Redaction]
+    PII --> PG[(Postgres + pgvector, RLS)]
+    API --> Redis[(Redis)]
+    API -->|embed| Voyage[Voyage AI]
+    API -->|generate| Gemini[Gemini API]
+    API --> Agents[Agent Mesh]
+    API --> Governance["Governance: classify, documents, vendor-risk, audit"]
+```
 
-## Demo
-This system runs on Postgres+pgvector, Redis, and a FastAPI service, infrastructure
-that does not fit a free public hosting tier without compromising the security model
-it is built to demonstrate. Rather than run a stripped down version publicly, the demo
-is a Loom walkthrough of the full stack running locally end to end (ingestion,
-tenant isolated retrieval, injection firewall, PII redaction, citation backed answers):
+## Run it locally
+This project intentionally runs locally, not on a public remote host. The stack (Postgres, pgvector, Redis, a FastAPI service) needs real infrastructure to demonstrate the security model honestly, a stripped down public demo would compromise the exact thing it's meant to prove.
 
-**Loom walkthrough:** [link]
-
-### Run it yourself
 ```bash
 git clone https://github.com/md-fazle-rabbi/fazle-enterprise-ai-platform.git
 cd fazle-enterprise-ai-platform
 docker compose up --build -d
 ```
+Migrations run automatically before the app starts, no manual step needed.
 
-A one-off `migrate` service runs `alembic upgrade head` automatically before `app`
-starts, `app` will not come up until migrations apply cleanly, so there is no separate
-manual migration step to remember.
-
-`buildkitd.toml` in the repo root configures a BuildKit garbage collection policy
-(cache capped around 20GB, least-recently-used entries evicted first) for the local
-`prod-builder` instance created with:
-```bash
-docker buildx create --name prod-builder --config buildkitd.toml --use
-```
-It is not copied into any image, the Dockerfile only ever does targeted `COPY`s of
-`pyproject.toml`, `uv.lock`, and specific `packages/*` paths, never a broad `COPY . .`,
-so this file has no effect on build output either way. It exists purely to keep this
-repo's build cache from growing unbounded on a long lived dev machine or CI runner.
-
-Then query it:
 ```bash
 curl -X POST http://localhost:8000/query \
   -H "Authorization: Bearer fazle-demo-key" \
@@ -209,46 +97,23 @@ curl -X POST http://localhost:8000/query \
   -d '{"question": "How does this system enforce tenant isolation?"}'
 ```
 
-Or invoke the research agent directly:
-```bash
-curl -X POST http://localhost:8000/agents/research \
-  -H "X-Tenant-ID: <uuid>" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "How does this system enforce tenant isolation?"}'
-```
-
-Swagger/OpenAPI docs at `http://localhost:8000/docs` once running.
+**Swagger and full API docs: http://localhost:8000/docs, once the stack is running.** A recorded Loom walkthrough of the same stack running end to end is linked above for anyone who wants to see it without setting it up.
 
 ## Known limitations
-- Tenant identification via header/demo key only, no signed auth yet
-- BM25 family ranking via Postgres native `ts_rank_cd`, not exact Okapi BM25
+Stated plainly, not left for a client to discover.
+
+- Tenant identification via header/demo key only, no signed per user auth yet
+- Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
-- PDF pages process sequentially, not concurrently
-- `/admin/kill-switch/*` has no network restriction or auth yet, local only until that is
-  added, same stated gap as the Day 3 review queue endpoints
-- The MCP tool interface (`agent_mesh.mcp_server`) still takes `tenant_id` as an
-  LLM visible tool argument, unlike the HTTP facing `/agents/research` path, which binds
-  it server side. Proper fix is deriving tenant/scope from the caller's OAuth token via
-  Keycloak, not a tool parameter, tracked as a dedicated follow up, not bolted onto the
-  tenant binding fix already shipped
-- `test_authz.py` (agent-mesh's OPA gated tests) is not wired into CI yet, needs a live
-  OPA instance, which GitHub Actions' `services:` block cannot bind mount policies into
-  before checkout runs, needs a manual `docker run` step post checkout instead
-- Concurrent load p95 for `/query` is not yet published, see "Load test methodology and
-  current limitation" above
-- tokens_used estimate in the quota check is character-count-divided-by-4, a rough approximation, not the real usage
-  output_tokens from the Anthropic response, wiring that through cleanly is a quick follow-up, noted here rather than silently left approximate.
-- Drift detection covers query-embedding distribution only, not retrieval quality drift (whether the same query now retrieves
-  worse chunks) or generation-quality drift over time, both real gaps, both future scope, RAGAS's golden-set gate is the closest thing this repo has to the second one, run manually rather than on a schedule.
-- Langfuse observability runs on the free Hobby tier, which caps monthly trace volume,
-  and the current Langfuse version has no public trace sharing link, so the dashboard
-  itself is only viewable to project members, not linkable here, see "Observability"
-  above for the screenshots used instead.
-- Per stage spans (`retrieval`, `crag.grade_relevance`, `gemini.generate_answer`,
-  `output_checks`) capture input/output by setting `langfuse.observation.input` and
-  `langfuse.observation.output` attributes directly rather than through a Langfuse SDK
-  decorator. If a future refactor adopts the Langfuse Python SDK directly, this manual
-  attribute setting can be replaced with `@observe(capture_input=True, capture_output=True)`.
+- Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time
+- `/admin/kill-switch/*` has no network restriction yet, local only
+- MCP tool interface still takes tenant_id as an LLM visible argument, unlike the HTTP facing agent path, which binds it server side
+- HIPAA Safe Harbor coverage is 10 of 18 identifiers today, see the live report endpoint for the current breakdown
+
+## About
+Freelance AI backend engineer specializing in secure production AI systems, based in Bangladesh. This repo is Repo 1 of a multi repo portfolio; Repo 2 is a red team toolkit that attacks the controls built here.
+
+Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabbi-ai/
 
 ## License
 MIT, see LICENSE.md.
