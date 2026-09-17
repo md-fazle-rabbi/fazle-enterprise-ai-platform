@@ -85,7 +85,7 @@ async def test_tampered_entry_is_detected(session: AsyncSession):
 
     async with session.begin():
         await _set_tenant(session, tenant)
-        is_valid, broken_at = await verify_chain(session)
+        is_valid, _broken_at = await verify_chain(session)
 
     # If the RULE-based UPDATE block is actually working, that UPDATE
     # was a silent no-op and the chain is still valid -- that itself IS

@@ -7,7 +7,7 @@ from governance.vendor_questionnaire import (
 
 
 def test_all_good_answers_scores_100():
-    answers = [False if i in {7} else True for i in range(len(QUESTIONS))]
+    answers = [i not in {7} for i in range(len(QUESTIONS))]
     result = score_questionnaire(QuestionnaireResponse(answers=answers))
     assert result.normalized_score == 100
     assert result.risk_tier == "low_risk"
@@ -15,7 +15,7 @@ def test_all_good_answers_scores_100():
 
 
 def test_all_bad_answers_scores_zero():
-    answers = [True if i in {7} else False for i in range(len(QUESTIONS))]
+    answers = [i in {7} for i in range(len(QUESTIONS))]
     result = score_questionnaire(QuestionnaireResponse(answers=answers))
     assert result.normalized_score == 0
     assert result.risk_tier == "high_risk"

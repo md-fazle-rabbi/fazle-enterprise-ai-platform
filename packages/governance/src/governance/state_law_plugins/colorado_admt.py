@@ -52,8 +52,10 @@ STATUTORY_EXCLUSIONS = [
     "firewalls",
     "spell-checking",
     "non-ML spreadsheets requiring human analysis",
-    "a tool used by an individual solely to summarize, organize, translate, "
-    "draft, route, or present information for human review",
+    (
+        "a tool used by an individual solely to summarize, organize, translate, "
+        "draft, route, or present information for human review"
+    ),
 ]
 
 OBLIGATIONS_IF_COVERED = [
