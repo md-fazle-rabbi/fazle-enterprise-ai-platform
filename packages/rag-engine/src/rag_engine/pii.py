@@ -24,6 +24,9 @@ PII_ENTITIES = [
     "MEDICAL_LICENSE",
     "US_PASSPORT",
     "US_DRIVER_LICENSE",
+    "DATE_TIME",
+    "URL",
+    "IP_ADDRESS",
 ]
 
 # Presidio's own AnalyzerEngine() default pulls in en_core_web_lg, a

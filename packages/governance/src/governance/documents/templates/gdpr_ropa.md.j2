@@ -1,0 +1,27 @@
+# Record of Processing Activities (GDPR Article 30)
+
+**Controller:** {{ controller_name }}
+**Contact:** {{ controller_contact }}
+**DPO:** {{ dpo_contact or "Not designated" }}
+
+## Processing activity: {{ activity_name }}
+
+**Purpose of processing:** {{ purpose }}
+
+**Categories of data subjects:** {{ data_subject_categories }}
+
+**Categories of personal data:** {{ personal_data_categories }}
+
+**Categories of recipients:** {{ recipient_categories }}
+
+**Third-country transfers:** {{ third_country_transfers or "None" }}
+{% if third_country_transfers %}**Safeguards:** {{ transfer_safeguards }}{% endif %}
+
+**Retention period:** {{ retention_period }}
+
+**Technical and organizational security measures:**
+{% for measure in security_measures -%}
+- {{ measure }}
+{% endfor %}
+
+*Generated {{ generation_date }}. Review and update whenever processing activities change materially.*

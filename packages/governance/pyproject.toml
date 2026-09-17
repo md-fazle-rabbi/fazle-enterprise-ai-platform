@@ -9,6 +9,9 @@ dependencies = [
     "pydantic>=2.9",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
+    "jinja2>=3.1",
+    "markdown>=3.7",
+    "weasyprint>=63.0",
 ]
 
 [dependency-groups]

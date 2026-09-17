@@ -1,0 +1,22 @@
+# HIPAA Safe Harbor De-Identification Report
+
+**System:** {{ system_name }}
+**Assessment date:** {{ assessment_date }}
+**Coverage:** {{ covered_count }} of 18 identifier categories
+
+This is a de-identification coverage report, not a HIPAA compliance certification.
+"Safe Harbor" status requires all 18 categories addressed; partial coverage is stated
+plainly below, not implied as complete.
+
+| Identifier | Covered | Detection method |
+|---|---|---|
+{% for item in identifiers -%}
+| {{ item.identifier }} | {{ "Yes" if item.covered else "No" }} | {{ item.presidio_entity or "Not yet implemented" }} |
+{% endfor %}
+
+## Known gaps
+{% for item in identifiers if not item.covered -%}
+- {{ item.identifier }}: not currently detected. Requires custom recognizer development, not covered by Presidio's built-in entities.
+{% endfor %}
+
+*This report is not legal advice. Consult qualified counsel for a formal HIPAA compliance determination.*

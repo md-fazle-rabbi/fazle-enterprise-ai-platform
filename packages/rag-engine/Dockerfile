@@ -57,7 +57,9 @@ FROM python:3.13.15-slim-bookworm AS runtime
 # stays cache-stable across source edits instead of re-running
 # apt-get update/install over the network every time application code
 # changes, which is what happened when this install lived after the
-# COPY --from=builder steps.
+# COPY --from=builder steps. libpango/libpangocairo/libcairo are added
+# here for the same reason: WeasyPrint (pulled in transitively via the
+# governance workspace dependency) needs them at runtime, not build time.
 # Then strip pip/setuptools/wheel: ensurepip puts them in every fresh
 # base image's system site-packages, invisible to uv.lock, and they
 # were the real source of the CVEs, not this project's dependencies.
@@ -65,7 +67,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends tesseract-ocr \
+    && apt-get install -y --no-install-recommends \
+        tesseract-ocr libpango-1.0-0 libpangocairo-1.0-0 libcairo2 \
     && find /usr/local/lib/python3.13/site-packages -maxdepth 1 \
         \( -name 'pip*' -o -name 'setuptools*' -o -name 'wheel*' \) \
         -exec rm -rf {} +
