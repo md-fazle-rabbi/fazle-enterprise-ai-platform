@@ -1,5 +1,5 @@
 """
-Semantic cache: skips a full Claude call when a new question is highly
+Semantic cache: skips a full Gemini call when a new question is highly
 similar (cosine >=0.95) to one already answered for this tenant recently.
 Caches (question_embedding, answer) pairs so paraphrases hit the cache,
 not just exact repeats. Bounded to the 50 most recent entries per tenant,
@@ -36,7 +36,7 @@ async def get_cached_answer(
             cosine_similarity(query_vector, entry["embedding"])
             >= CACHE_SIMILARITY_THRESHOLD
         ):
-            return entry["answer"]
+            return str(entry["answer"])
     return None
 
 

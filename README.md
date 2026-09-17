@@ -111,7 +111,7 @@ Stated plainly, not left for a client to discover.
 - HIPAA Safe Harbor coverage is 10 of 18 identifiers today, see the live report endpoint for the current breakdown
 
 ## About
-Freelance AI backend engineer specializing in secure production AI systems, based in Bangladesh. This repo is Repo 1 of a multi repo portfolio; Repo 2 is a red team toolkit that attacks the controls built here.
+Freelance AI engineer specializing in secure production AI systems, based in Bangladesh. This repo is Repo 1 of a multi repo portfolio; Repo 2 is a red team toolkit that attacks the controls built here.
 
 Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabbi-ai/
 

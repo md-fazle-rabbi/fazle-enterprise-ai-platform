@@ -10,7 +10,7 @@ every other tenant-owned table uses. /audit/verify walks the whole
 table it can see (i.e. still tenant-scoped) and recomputes every hash.
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 from governance.audit_log import verify_chain
@@ -27,9 +27,9 @@ async def query_audit_log(
     session: Annotated[AsyncSession, Depends(get_session)],
     event_type: str | None = None,
     limit: int = 100,
-):
+) -> dict[str, Any]:
     query = "SELECT id, event_type, event_data, trace_id, created_at FROM audit_log"
-    params: dict = {"limit": limit}
+    params: dict[str, Any] = {"limit": limit}
     if event_type:
         query += " WHERE event_type = :event_type"
         params["event_type"] = event_type
@@ -39,6 +39,8 @@ async def query_audit_log(
 
 
 @router.get("/verify")
-async def verify_audit_chain(session: Annotated[AsyncSession, Depends(get_session)]):
+async def verify_audit_chain(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
     is_valid, broken_at = await verify_chain(session)
     return {"valid": is_valid, "broken_at_index": broken_at}

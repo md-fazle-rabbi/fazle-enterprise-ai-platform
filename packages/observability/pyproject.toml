@@ -30,3 +30,4 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/observability"]
+include = ["src/observability/py.typed"]

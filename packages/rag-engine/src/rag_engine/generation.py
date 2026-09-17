@@ -65,11 +65,11 @@ async def generate_answer(question: str, chunks: list[dict[str, Any]]) -> str:
         if response.usage_metadata:
             span.set_attribute(
                 "gen_ai.usage.input_tokens",
-                response.usage_metadata.prompt_token_count,
+                response.usage_metadata.prompt_token_count or 0,
             )
             span.set_attribute(
                 "gen_ai.usage.output_tokens",
-                response.usage_metadata.candidates_token_count,
+                response.usage_metadata.candidates_token_count or 0,
             )
             logger.info(
                 "rag_engine.generation.usage",
