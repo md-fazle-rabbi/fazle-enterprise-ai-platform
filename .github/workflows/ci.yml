@@ -76,7 +76,7 @@ jobs:
             --cov-report=xml \
             --cov-fail-under=90
       - name: Upload coverage report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-report
           path: packages/rag-engine/coverage.xml
@@ -117,11 +117,11 @@ jobs:
         # non-blocking for now: findings get triaged on the first real run,
         # tighten to a hard fail once that first pass is reviewed by hand
       - name: CodeQL init
-        uses: github/codeql-action/init@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           languages: python
       - name: CodeQL analyze
-        uses: github/codeql-action/analyze@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
 
   build-and-scan:
     runs-on: ubuntu-latest
@@ -151,7 +151,7 @@ jobs:
           exit-code: "1"
       - name: Upload Trivy results to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           sarif_file: trivy-results.sarif
 
@@ -169,8 +169,15 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U fazle -d fazle"
           --health-interval 5s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 5
     env:
       DATABASE_URL: postgresql+asyncpg://fazle:fazle_ci_password@localhost:5432/fazle
+      REDIS_URL: redis://localhost:6379/0
       APP_DATABASE_URL: postgresql+asyncpg://app_user:ci_app_password@localhost:5432/fazle
       APP_DB_PASSWORD: ci_app_password
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}

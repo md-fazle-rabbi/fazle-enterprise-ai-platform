@@ -38,6 +38,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY packages/core packages/core
 COPY packages/rag-engine packages/rag-engine
 COPY packages/agent-mesh packages/agent-mesh
+COPY packages/observability packages/observability
+COPY packages/governance packages/governance
 
 # --inexact matters here: uv sync's default is to make the environment
 # match uv.lock exactly, which means removing anything it doesn't
