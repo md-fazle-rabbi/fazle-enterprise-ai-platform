@@ -2,6 +2,33 @@
   "realm": "agent-mesh",
   "enabled": true,
   "defaultSignatureAlgorithm": "RS256",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "platform-admin",
+        "description": "Can use the admin view of the web UI"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "tenants",
+      "path": "/tenants",
+      "subGroups": [
+        {
+          "name": "00000000-0000-0000-0000-000000000001",
+          "path": "/tenants/00000000-0000-0000-0000-000000000001"
+        },
+        {
+          "name": "00000000-0000-0000-0000-000000000002",
+          "path": "/tenants/00000000-0000-0000-0000-000000000002"
+        }
+      ]
+    }
+  ],
   "clientScopes": [
     {
       "name": "agent-mesh-audience",
@@ -15,6 +42,82 @@
             "included.custom.audience": "agent-mesh",
             "access.token.claim": "true",
             "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rag-engine-web",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "rag-engine-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "rag-engine-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "tenant-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "full.path": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        },
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "realm_access.roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
           }
         }
       ]
@@ -42,6 +145,81 @@
       "directAccessGrantsEnabled": false,
       "protocol": "openid-connect",
       "defaultClientScopes": ["agent-mesh-audience"]
+    },
+    {
+      "clientId": "fazle-web",
+      "name": "Fazle Enterprise AI Platform web UI",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KEYCLOAK_WEB_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3000/api/auth/callback"],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "defaultClientScopes": ["rag-engine-web"],
+      "optionalClientScopes": []
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@acme.example",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Acme",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_USER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "groups": ["/tenants/00000000-0000-0000-0000-000000000001"]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@globex.example",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Globex",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_USER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "groups": ["/tenants/00000000-0000-0000-0000-000000000002"]
+    },
+    {
+      "username": "carol",
+      "enabled": true,
+      "email": "carol@platform.example",
+      "emailVerified": true,
+      "firstName": "Carol",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${DEMO_USER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/tenants/00000000-0000-0000-0000-000000000001",
+        "/tenants/00000000-0000-0000-0000-000000000002"
+      ],
+      "realmRoles": ["platform-admin"]
     }
   ]
 }

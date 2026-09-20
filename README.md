@@ -66,6 +66,7 @@ DPIA, DSAR response, and erasure workflow templates are deliberately not LLM aut
 - Kill switch: under 5 seconds against a simulated runaway agent loop
 - Audit log tamper resistance: database level UPDATE and DELETE block, demonstrated live ([`proof/day7-audit-log-tamper-resistant.png`](proof/day7-audit-log-tamper-resistant.png))
 - User JWT verification: forged, expired and wrong audience tokens get 401, and a valid token asking for a foreign tenant gets 403, covered by `tests/test_user_auth.py` ([`proof/web-auth-2-user-jwt-tests.png`](proof/web-auth-2-user-jwt-tests.png), [`proof/web-auth-2-red-team.txt`](proof/web-auth-2-red-team.txt))
+- Keycloak issues access tokens carrying the tenant groups and the rag-engine-api audience, and the web client requires PKCE, checked in the admin console ([`proof/web-auth-3-alice-access-token.png`](proof/web-auth-3-alice-access-token.png), [`proof/web-auth-3-carol-access-token.png`](proof/web-auth-3-carol-access-token.png))
 
 ## Architecture
 ```mermaid
@@ -103,8 +104,9 @@ curl -X POST http://localhost:8000/query \
 ## Known limitations
 Stated plainly, not left for a client to discover.
 
-- Signed per user auth exists on the backend (Keycloak JWT, tenant taken from token groups) but is only tested with generated keys so far. It is not wired to a UI and has not been checked against a real Keycloak token yet
-- The raw `X-Tenant-ID` header path is still on by default for tests and curl. Set `ALLOW_UNAUTHENTICATED_TENANT_HEADER=false` to refuse it. The compose file does not set that yet. While it is on, an empty or malformed `Authorization` header is treated as no token at all and falls through to this path
+- Signed per user auth exists on the backend (Keycloak JWT, tenant taken from token groups) and is tested with generated keys. The Keycloak realm now issues tokens with the tenant groups, checked in the Keycloak admin console, but the backend has not verified a real Keycloak token yet and no UI uses it
+- The raw `X-Tenant-ID` header path is still on by default in compose because the load test, the RAGAS run and the research agent use it. Set `ALLOW_UNAUTHENTICATED_TENANT_HEADER=false` to refuse it. While it is on, an empty or malformed `Authorization` header behaves like no token at all
+- Keycloak runs in `start-dev` mode with an embedded database inside the container, so realm data resets when the container is recreated. Local showcase only. The demo users (alice, bob, carol) are synthetic
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time

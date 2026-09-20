@@ -23,6 +23,10 @@ agent to agent identity.
 4. The demo key and the raw X-Tenant-ID header stay for tests and curl. The
    setting ALLOW_UNAUTHENTICATED_TENANT_HEADER turns the raw header off.
 5. No CORS middleware. The browser only talks to Next.js.
+6. Realm shape. The web client is confidential, uses PKCE and exact
+   redirect URIs, and gets one explicit client scope (rag-engine-web) that
+   holds every claim the backend needs. Its secret and the demo password
+   come from .env through placeholders. KC_HOSTNAME pins the issuer.
 
 ## Options considered
 - Session built on the demo key: rejected. Login would be cosmetic, it pins
@@ -38,6 +42,11 @@ agent to agent identity.
 - Keycloak Organizations: not chosen. Not verified for realm import here.
 - Reuse agent_mesh.identity.jwt_auth: rejected. It is pinned to the
   agent-mesh audience, and agent-mesh is out of scope for this work.
+- Rely on Keycloak's built-in scopes (basic, profile, roles): rejected. The
+  import file defines its own clientScopes array, and community reports say
+  that suppresses the built-in ones, which would leave tokens without sub.
+  This comes from those reports, not the official docs, so the token check
+  in the admin console is the proof.
 
 ## Consequences
 Positive: closes the header trust gap on the UI path. A forged tenant header
@@ -63,3 +72,8 @@ Risks and mitigations:
 - A group with extra path segments under /tenants/ fails closed (401).
 - Verification is tested with generated keys first. Real Keycloak tokens are
   verified when the login flow is wired.
+- Env placeholders in realm files are documented, but older issues report
+  failures. Mitigation: the manual login check proves the password and
+  secret were substituted.
+- start-dev keeps data inside the container, so a recreate resets the
+  realm. Acceptable for a local showcase, listed in Known limitations.

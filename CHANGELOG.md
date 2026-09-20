@@ -12,6 +12,14 @@
   compare.
 - Added `ALLOW_UNAUTHENTICATED_TENANT_HEADER` (default true) to let a
   deployment refuse the raw header path.
+- Added a confidential `fazle-web` Keycloak client: authorization code flow
+  with PKCE required, no password grant, no implicit flow, exact redirect
+  URI. Secret and demo password come from `.env`, not git.
+- Added tenant groups (`/tenants/<uuid>`), a `platform-admin` role, and
+  three synthetic users. One explicit client scope (`rag-engine-web`) puts
+  `sub`, the `rag-engine-api` audience, groups, roles, username and email
+  in the token.
+- Turned on brute force protection for the realm.
 
 ## Fixed
 - An empty `Authorization: Bearer` header was wrongly rejected with 401
@@ -27,6 +35,13 @@
 ## Build
 - Bumped PyJWT to 2.14 (limits repeated JWKS refreshes, rejects JWKS
   redirects, tighter HMAC checks).
+
+## Infra
+- Pinned the Keycloak issuer to `http://localhost:8080` with dynamic
+  backchannel, so tokens carry the same issuer inside and outside Docker.
+- `app` now gets `KEYCLOAK_URL`/`KEYCLOAK_PUBLIC_URL`; the raw-header
+  switch (`ALLOW_UNAUTHENTICATED_TENANT_HEADER`) stays true by default
+  since the load test, RAGAS run and research agent still use it.
 
 ## 2026-09-16
 

@@ -31,6 +31,14 @@ services:
       LANGFUSE_HOST: ${LANGFUSE_HOST}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+      # Why: inside compose Keycloak is reachable as keycloak:8080, used to
+      # fetch signing keys. Tokens carry the public issuer, localhost:8080.
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_PUBLIC_URL: http://localhost:8080
+      # Why: the load test, the RAGAS run and the research agent still send the
+      # raw X-Tenant-ID header, so this stays true by default. Set it to false
+      # in .env to show that only a Keycloak token or the demo key gets in.
+      ALLOW_UNAUTHENTICATED_TENANT_HEADER: ${ALLOW_UNAUTHENTICATED_TENANT_HEADER:-true}
     volumes:
       # Read-only socket mount: this service spins up throwaway sandbox
       # containers (agent_mesh.sandbox.runner) and destroys them immediately.
@@ -85,6 +93,16 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_change_me}
+      # Why: pins the issuer every token carries, whatever address was used to
+      # reach Keycloak. Dynamic backchannel lets other containers still call it
+      # as keycloak:8080. hostname must be a full URL for that to work.
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      # Why: filled into the realm import file as ${...} placeholders, so
+      # neither value is committed. The :? stops compose with a clear message
+      # when one is missing from .env.
+      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET:?set KEYCLOAK_WEB_CLIENT_SECRET in .env}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:?set DEMO_USER_PASSWORD in .env}
     ports:
       - "8080:8080"
     volumes:
