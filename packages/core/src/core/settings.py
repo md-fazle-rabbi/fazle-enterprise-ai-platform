@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     demo_api_key: str = Field(default="fazle-demo-key")
     rag_engine_url: str = Field(default="http://localhost:8000")
     keycloak_url: str = Field(default="http://localhost:8080")
+    keycloak_public_url: str = Field(default="http://localhost:8080")
+    keycloak_realm: str = Field(default="agent-mesh")
+    web_api_audience: str = Field(default="rag-engine-api")
+    tenant_group_prefix: str = Field(default="/tenants/")
+    allow_unauthenticated_tenant_header: bool = Field(default=True)
     opa_url: str = Field(default="http://localhost:8181")
     langfuse_host: str = Field(default="https://cloud.langfuse.com")
     langfuse_public_key: str = Field(default="")
@@ -62,6 +67,22 @@ class Settings(BaseSettings):
 
         creds = f"{self.langfuse_public_key}:{self.langfuse_secret_key}"
         return base64.b64encode(creds.encode()).decode()
+
+    @property
+    def keycloak_issuer(self) -> str:
+        # Why: PyJWT compares `iss` as an exact string. The issuer is the PUBLIC
+        # url the browser used, not the internal Docker hostname, and a stray
+        # trailing slash would make every token fail.
+        base = self.keycloak_public_url.rstrip("/")
+        return f"{base}/realms/{self.keycloak_realm}"
+
+    @property
+    def keycloak_jwks_url(self) -> str:
+        # Why: this call is server to server, so it uses the internal url
+        # (http://keycloak:8080 inside compose), not the public one.
+        base = self.keycloak_url.rstrip("/")
+        realm_url = f"{base}/realms/{self.keycloak_realm}"
+        return f"{realm_url}/protocol/openid-connect/certs"
 
 
 settings = Settings()
