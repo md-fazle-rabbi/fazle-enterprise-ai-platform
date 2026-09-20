@@ -43,6 +43,14 @@
   switch (`ALLOW_UNAUTHENTICATED_TENANT_HEADER`) stays true by default
   since the load test, RAGAS run and research agent still use it.
 
+## Web
+- Added `apps/web`: Next.js 16 (App Router), TypeScript strict, Tailwind 4,
+  ESLint flat config, Prettier, Vitest and Testing Library. The environment is
+  validated with zod. The home page shows whether the backend is reachable,
+  and `/api/health` reports that the web process is alive.
+- Added basic security headers and removed the X-Powered-By header.
+- The app targets Node 24 LTS. Node 20 reached end of life in April 2026.
+
 ## 2026-09-16
 
 ## Observability

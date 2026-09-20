@@ -107,6 +107,8 @@ Stated plainly, not left for a client to discover.
 - Signed per user auth exists on the backend (Keycloak JWT, tenant taken from token groups) and is tested with generated keys. The Keycloak realm now issues tokens with the tenant groups, checked in the Keycloak admin console, but the backend has not verified a real Keycloak token yet and no UI uses it
 - The raw `X-Tenant-ID` header path is still on by default in compose because the load test, the RAGAS run and the research agent use it. Set `ALLOW_UNAUTHENTICATED_TENANT_HEADER=false` to refuse it. While it is on, an empty or malformed `Authorization` header behaves like no token at all
 - Keycloak runs in `start-dev` mode with an embedded database inside the container, so realm data resets when the container is recreated. Local showcase only. The demo users (alice, bob, carol) are synthetic
+- The web UI (`apps/web`) is a scaffold. It shows whether the backend is reachable and nothing else yet. Login, chat, citations, the tenant selector and the admin view are planned, not implemented
+- The web UI sends basic security headers but no Content Security Policy yet. Its home page is not covered by unit tests because Vitest cannot render async Server Components. The end to end test that would cover it is planned, not implemented
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time
