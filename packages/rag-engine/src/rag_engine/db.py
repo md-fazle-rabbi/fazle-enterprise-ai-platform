@@ -53,7 +53,12 @@ async def get_tenant_id(
     x_tenant_id: Annotated[str | None, Header()] = None,
 ) -> UUID:
     token = bearer_token(request)
-    if token is not None and not _is_demo_key(token):
+    # Why: an empty Bearer value ("Authorization: Bearer ") is not an
+    # authentication attempt, it's the absence of one. `is not None` would
+    # treat "" as a token and send it into authenticate_token, which
+    # correctly rejects it with 401 instead of falling back to the
+    # demo-key/header path the way a genuinely missing header does.
+    if token and not _is_demo_key(token):
         user = await authenticate_token(token)
         tenant_id = select_tenant(user, x_tenant_id)
         structlog.contextvars.bind_contextvars(user_id=user.subject)

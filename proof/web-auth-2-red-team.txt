@@ -1,0 +1,5 @@
+1 no auth, no header       : 400
+2 garbage bearer + header  : 401
+3 forged alg none token    : 401
+4 raw header only          : 200
+5 empty bearer + header    : 200

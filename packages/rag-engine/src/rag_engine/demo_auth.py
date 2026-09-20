@@ -21,7 +21,13 @@ async def resolve_demo_tenant(request: Request) -> uuid.UUID | None:
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         return None
-    if auth_header.removeprefix("Bearer ") != settings.demo_api_key:
+    token = auth_header.removeprefix("Bearer ").strip()
+    # Why: an empty Bearer value is the absence of an attempt, not a wrong
+    # demo key. Rejecting it here would stop it from ever reaching the
+    # X-Tenant-ID fallback in db.py's _demo_or_header_tenant.
+    if not token:
+        return None
+    if token != settings.demo_api_key:
         raise HTTPException(status_code=401, detail="Invalid demo API key")
 
     redis: Redis = request.app.state.redis

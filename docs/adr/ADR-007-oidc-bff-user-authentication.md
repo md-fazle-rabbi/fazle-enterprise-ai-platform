@@ -47,12 +47,17 @@ Negative: one more moving part (Keycloak must be up). Groups must be kept
 per user.
 Risks and mitigations:
 - JWKS endpoint unreachable: 503 instead of 401, key set cached 5 minutes.
-  PyJWT issue 1162 (a failed refresh wiping the cache) is fixed on master. I
-  did not check whether 2.13.0 has the fix. Worst case is 503s until
-  Keycloak returns, not a bypass.
-- Unknown key id: as far as I know PyJWKClient re-fetches the key set for a
-  kid it does not know, so a flood of random kids could cause repeated
-  fetches. Mitigation: 5 second timeout now, edge rate limiting later.
+  PyJWT 2.13.0 and later keep the cached key set when a refresh fails
+  (GHSA-fhv5-28vv-h8m8), so a short outage does not log everyone out.
+- Unknown key id: PyJWKClient re-fetches the key set for a kid it does not
+  know. PyJWT 2.14.0 limits those repeated refreshes (GHSA-2gx3-rcp4-g85q),
+  so rag-engine requires pyjwt>=2.14. Edge rate limiting is still a later
+  item.
+- Empty Bearer token: an `Authorization: Bearer` header with nothing after
+  it must be treated as no token, not a failed login attempt, or it blocks
+  the fallback paths (`X-Tenant-ID`, demo key) that are supposed to catch
+  exactly that case. Both `get_tenant_id` and `resolve_demo_tenant` now
+  check for this explicitly rather than relying on truthiness alone.
 - Raw header path is on by default. Mitigation: the switch above, set to
   false in compose in a later step.
 - A group with extra path segments under /tenants/ fails closed (401).

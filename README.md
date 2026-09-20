@@ -65,6 +65,7 @@ DPIA, DSAR response, and erasure workflow templates are deliberately not LLM aut
 - RAGAS gate: 100% faithfulness locally, thresholds 0.90/0.85/0.80, enforced automatically in CI ([`proof/ragas-scores.png`](proof/ragas-scores.png))
 - Kill switch: under 5 seconds against a simulated runaway agent loop
 - Audit log tamper resistance: database level UPDATE and DELETE block, demonstrated live ([`proof/day7-audit-log-tamper-resistant.png`](proof/day7-audit-log-tamper-resistant.png))
+- User JWT verification: forged, expired and wrong audience tokens get 401, and a valid token asking for a foreign tenant gets 403, covered by `tests/test_user_auth.py` ([`proof/web-auth-2-user-jwt-tests.png`](proof/web-auth-2-user-jwt-tests.png), [`proof/web-auth-2-red-team.txt`](proof/web-auth-2-red-team.txt))
 
 ## Architecture
 ```mermaid
@@ -102,7 +103,8 @@ curl -X POST http://localhost:8000/query \
 ## Known limitations
 Stated plainly, not left for a client to discover.
 
-- Tenant identification via header/demo key only, no signed per user auth yet
+- Signed per user auth exists on the backend (Keycloak JWT, tenant taken from token groups) but is only tested with generated keys so far. It is not wired to a UI and has not been checked against a real Keycloak token yet
+- The raw `X-Tenant-ID` header path is still on by default for tests and curl. Set `ALLOW_UNAUTHENTICATED_TENANT_HEADER=false` to refuse it. The compose file does not set that yet. While it is on, an empty or malformed `Authorization` header is treated as no token at all and falls through to this path
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time

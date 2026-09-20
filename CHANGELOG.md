@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## 2026-09-20
+
+## Security
+- Added Keycloak JWT verification for end users (RS256 only, issuer and
+  audience pinned). Tenant comes from the token's `/tenants/<uuid>` groups;
+  `X-Tenant-ID` only selects among tenants the token already grants (403
+  otherwise). Demo key path unchanged, now checked with a constant-time
+  compare.
+- Added `ALLOW_UNAUTHENTICATED_TENANT_HEADER` (default true) to let a
+  deployment refuse the raw header path.
+
+## Fixed
+- An empty `Authorization: Bearer` header was wrongly rejected with 401
+  instead of falling through to the `X-Tenant-ID`/demo-key path, in both
+  `db.py` and `demo_auth.py`. Caught by the red-team script; now covered
+  by a test.
+
+## Tests
+- Added `tests/test_user_auth.py`: forged/expired/wrong-audience tokens,
+  malformed groups, JWKS outage, tenant selection, all three login paths,
+  and the empty-bearer fallback. 29 tests, no Keycloak or DB needed.
+
+## Build
+- Bumped PyJWT to 2.14 (limits repeated JWKS refreshes, rejects JWKS
+  redirects, tighter HMAC checks).
+
 ## 2026-09-16
 
 ## Observability
