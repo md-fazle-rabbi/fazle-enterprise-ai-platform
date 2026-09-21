@@ -68,5 +68,11 @@ export function createRedisLike(client: RedisClient): RedisLike {
     async del(key) {
       await client.del(key);
     },
+    async getDel(key) {
+      // Why: GETDEL reads and deletes in one atomic step. It is what makes a login
+      // transaction single use.
+      const value = await client.getDel(key);
+      return typeof value === "string" ? value : null;
+    },
   };
 }

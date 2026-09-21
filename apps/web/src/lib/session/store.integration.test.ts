@@ -3,6 +3,7 @@ import { createClient } from "redis";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRedisLike } from "@/lib/redis";
 import { makeSession } from "./fixtures";
+import { loginKeyFor, LoginTransactionStore } from "./login-transaction";
 import { RedisSessionStore, sessionKeyFor } from "./store";
 
 // Why: runs only against Redis database 15, so it can never touch the backend's data in
@@ -10,9 +11,11 @@ import { RedisSessionStore, sessionKeyFor } from "./store";
 // REDIS_TEST_URL=redis://localhost:6379/15 npx vitest run src/lib/session/store.integration.test.ts
 const redisUrl = process.env.REDIS_TEST_URL;
 
-describe.skipIf(!redisUrl?.endsWith("/15"))("RedisSessionStore on a real Redis", () => {
+describe.skipIf(!redisUrl?.endsWith("/15"))("Session stores on a real Redis", () => {
   const client = createClient({ url: redisUrl });
-  const store = new RedisSessionStore(createRedisLike(client), 60);
+  const redisLike = createRedisLike(client);
+  const store = new RedisSessionStore(redisLike, 60);
+  const loginStore = new LoginTransactionStore(redisLike, 60);
   const created: string[] = [];
 
   async function newSession(data = makeSession()) {
@@ -20,6 +23,8 @@ describe.skipIf(!redisUrl?.endsWith("/15"))("RedisSessionStore on a real Redis",
     created.push(sid);
     return sid;
   }
+
+  const transaction = { state: "s", nonce: "n", codeVerifier: "v", returnTo: "/" };
 
   beforeAll(async () => {
     client.on("error", () => undefined);
@@ -60,5 +65,20 @@ describe.skipIf(!redisUrl?.endsWith("/15"))("RedisSessionStore on a real Redis",
     await client.setEx(sessionKeyFor(sid), 60, "{not json");
     await expect(store.get(sid)).resolves.toBeNull();
     await expect(client.exists(sessionKeyFor(sid))).resolves.toBe(0);
+  });
+
+  it("hands a login transaction over exactly once", async () => {
+    const txid = await loginStore.begin(transaction);
+    await expect(loginStore.consume(txid)).resolves.toEqual(transaction);
+    await expect(loginStore.consume(txid)).resolves.toBeNull();
+    await expect(client.exists(loginKeyFor(txid))).resolves.toBe(0);
+  });
+
+  it("gives a login transaction a short lifetime", async () => {
+    const txid = await loginStore.begin(transaction);
+    const ttl = await client.ttl(loginKeyFor(txid));
+    expect(ttl).toBeGreaterThan(0);
+    expect(ttl).toBeLessThanOrEqual(60);
+    await loginStore.consume(txid);
   });
 });

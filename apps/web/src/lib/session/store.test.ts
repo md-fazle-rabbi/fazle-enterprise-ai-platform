@@ -1,32 +1,8 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it } from "vitest";
+import { FakeRedis } from "./fake-redis";
 import { makeSession } from "./fixtures";
-import { RedisSessionStore, sessionKeyFor, type RedisLike } from "./store";
-
-class FakeRedis implements RedisLike {
-  readonly entries = new Map<string, { value: string; ttl: number }>();
-
-  async get(key: string) {
-    return this.entries.get(key)?.value ?? null;
-  }
-
-  async setEx(key: string, seconds: number, value: string) {
-    this.entries.set(key, { value, ttl: seconds });
-  }
-
-  async setIfExistsKeepTtl(key: string, value: string) {
-    const entry = this.entries.get(key);
-    if (!entry) {
-      return false;
-    }
-    entry.value = value;
-    return true;
-  }
-
-  async del(key: string) {
-    this.entries.delete(key);
-  }
-}
+import { RedisSessionStore, sessionKeyFor } from "./store";
 
 const TTL_SECONDS = 3_600;
 let redis: FakeRedis;

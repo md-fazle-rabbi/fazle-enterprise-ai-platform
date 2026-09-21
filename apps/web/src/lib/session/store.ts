@@ -8,6 +8,7 @@ export type RedisLike = {
   setEx(key: string, seconds: number, value: string): Promise<void>;
   setIfExistsKeepTtl(key: string, value: string): Promise<boolean>;
   del(key: string): Promise<void>;
+  getDel(key: string): Promise<string | null>;
 };
 
 const KEY_PREFIX = "web:session:";

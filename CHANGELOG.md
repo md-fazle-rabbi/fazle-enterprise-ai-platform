@@ -4,6 +4,20 @@
 
 ## 2026-09-20
 
+## Web
+- Added a Redis backed session store for the web app: 256 bit random session
+  ids, Redis keys hold only the hash of the id, data is validated on every read,
+  and updates cannot revive or extend a session. Web sessions use Redis
+  database 1. Not connected to a login yet.
+- Added REDIS_URL and SESSION_TTL_SECONDS settings with bounds.
+- Added the pieces the login flow will stand on: cookie rules (httpOnly, SameSite
+  Lax, `__Host-` names over https), a return path check that only allows local
+  paths, a single use login transaction store for PKCE, state and nonce, and
+  strict extraction of the user, tenants and roles from the tokens. Not
+  connected to a login route yet.
+
+## 2026-09-20
+
 ## Security
 - Added Keycloak JWT verification for end users (RS256 only, issuer and
   audience pinned). Tenant comes from the token's `/tenants/<uuid>` groups;
@@ -50,11 +64,6 @@
   and `/api/health` reports that the web process is alive.
 - Added basic security headers and removed the X-Powered-By header.
 - The app targets Node 24 LTS. Node 20 reached end of life in April 2026.
-- Added a Redis backed session store for the web app: 256 bit random session
-  ids, Redis keys hold only the hash of the id, data is validated on every read,
-  and updates cannot revive or extend a session. Web sessions use Redis
-  database 1. Not connected to a login yet.
-- Added REDIS_URL and SESSION_TTL_SECONDS settings with bounds.
 
 ## 2026-09-16
 
