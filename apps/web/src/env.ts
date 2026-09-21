@@ -18,11 +18,20 @@ const schema = z.object({
       }
     }, "must be an origin such as http://localhost:8000")
     .default("http://localhost:8000"),
+  // Why: database 1 keeps web sessions apart from the backend's data in database 0.
+  REDIS_URL: z.url({ protocol: /^rediss?$/ }).default("redis://localhost:6379/1"),
+  // Why: bounds of 5 minutes and 7 days stop a typo from making sessions that expire at once
+  // or live for months. Environment values are strings, so the number is coerced.
+  SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(604_800).default(28_800),
 });
 
 export function parseEnv(source: Record<string, string | undefined>) {
   const result = schema.safeParse(source);
   if (!result.success) {
+    // Why: z.prettifyError() renders some issue types (like a bare invalid-URL
+    // failure) without the field path attached, which breaks callers that match
+    // on the variable name. Building the message from result.error.issues
+    // guarantees every line names its field, whichever validator produced it.
     const message = result.error.issues
       .map((issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`)
       .join("\n");

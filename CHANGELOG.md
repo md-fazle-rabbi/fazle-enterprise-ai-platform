@@ -50,6 +50,11 @@
   and `/api/health` reports that the web process is alive.
 - Added basic security headers and removed the X-Powered-By header.
 - The app targets Node 24 LTS. Node 20 reached end of life in April 2026.
+- Added a Redis backed session store for the web app: 256 bit random session
+  ids, Redis keys hold only the hash of the id, data is validated on every read,
+  and updates cannot revive or extend a session. Web sessions use Redis
+  database 1. Not connected to a login yet.
+- Added REDIS_URL and SESSION_TTL_SECONDS settings with bounds.
 
 ## 2026-09-16
 
