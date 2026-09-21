@@ -112,6 +112,7 @@ Stated plainly, not left for a client to discover.
 - The web UI (`apps/web`) is a scaffold. It shows whether the backend is reachable and nothing else yet. Login, chat, citations, the tenant selector and the admin view are planned, not implemented
 - The web UI sends basic security headers but no Content Security Policy yet. Its home page is not covered by unit tests because Vitest cannot render async Server Components. The end to end test that would cover it is planned, not implemented
 - Web session data, including the Keycloak tokens, is stored unencrypted in Redis, and the compose Redis has no password or TLS. Local showcase only. The session store is built and tested but not wired to a login yet
+- The web app's OIDC code (`apps/web/src/lib/auth/oidc.ts`) is tested against a simulated Keycloak. It has not yet completed a login against the real Keycloak, and there are no login routes yet
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time

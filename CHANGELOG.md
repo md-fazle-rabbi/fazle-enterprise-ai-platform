@@ -15,6 +15,14 @@
   paths, a single use login transaction store for PKCE, state and nonce, and
   strict extraction of the user, tenants and roles from the tokens. Not
   connected to a login route yet.
+- Added the OIDC client for the web app (openid-client): login request with
+  PKCE, state and nonce, callback completion with ID token signature checking,
+  and the logout URL. Built without discovery so browser facing and server
+  facing Keycloak addresses stay separate. Tested against a simulated Keycloak
+  (state, nonce, wrong key, error response, missing refresh token).
+- Added APP_URL, KEYCLOAK_PUBLIC_URL, KEYCLOAK_INTERNAL_URL, KEYCLOAK_REALM,
+  KEYCLOAK_CLIENT_ID and KEYCLOAK_WEB_CLIENT_SECRET settings. The client
+  secret is required and has no default.
 
 ## 2026-09-20
 
