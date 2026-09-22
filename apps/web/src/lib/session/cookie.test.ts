@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loginCookie, sessionCookie } from "./cookie";
+import { loginCookie, SESSION_COOKIE_NAMES, sessionCookie } from "./cookie";
 
 describe("cookie settings", () => {
   it("uses plain names and no Secure flag over http", () => {
@@ -31,5 +31,10 @@ describe("cookie settings", () => {
     const { options } = make("https://app.example", 120);
     expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 120 });
     expect(options).not.toHaveProperty("domain");
+  });
+
+  it("keeps SESSION_COOKIE_NAMES in step with the real names", () => {
+    expect(SESSION_COOKIE_NAMES).toContain(sessionCookie("http://localhost:3000", 60).name);
+    expect(SESSION_COOKIE_NAMES).toContain(sessionCookie("https://app.example", 60).name);
   });
 });

@@ -1,0 +1,40 @@
+Web login self red-team, apps/web
+
+1. Open redirect
+Attempted URL: http://localhost:3000/api/auth/login?returnTo=//evil.example
+Result: after login, landed on http://localhost:3000/, not on evil.example
+PASS
+
+2. Bare callback
+Attempted URL: http://localhost:3000/api/auth/callback?code=x&state=y (no prior login started)
+Result: redirected to /login?error=expired, showed the "took too long or was already used" message
+PASS
+
+3. Forged session cookie
+Action: manually set fazle_sid=abc in the browser while signed out, reloaded /
+Result: proxy.ts let the request through (cookie exists), but getSession found no matching
+session in Redis, so the request landed on /login. Confirms the proxy is only an
+optimistic gate and the real check happens against Redis on every page.
+PASS
+
+4. Deleted session
+Action: signed in as alice, found the web:session: key with redis-cli --scan, deleted it
+directly with redis-cli del, then reloaded / with the browser cookie unchanged
+Result: landed on /login. A cookie pointing at a session no longer in Redis is treated
+as logged out.
+PASS
+
+5. Logout without Origin
+Command: curl -i -X POST http://localhost:3000/api/auth/logout
+Result: 403 Forbidden. No Origin header means the request is refused before touching
+the session.
+PASS
+
+6. Redis unavailable during login
+Action: ran docker compose stop redis, then clicked "Sign in with Keycloak"
+Result: showed "Sign in is not available right now. Please try again in a moment."
+No stack trace or raw error page. Restarted Redis with docker compose start redis
+afterward.
+PASS
+
+All six checks passed as expected.

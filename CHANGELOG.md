@@ -23,6 +23,13 @@
 - Added APP_URL, KEYCLOAK_PUBLIC_URL, KEYCLOAK_INTERNAL_URL, KEYCLOAK_REALM,
   KEYCLOAK_CLIENT_ID and KEYCLOAK_WEB_CLIENT_SECRET settings. The client
   secret is required and has no default.
+- Added login, callback and logout routes, a login page and a proxy gate. A
+  login creates a Redis session and an opaque httpOnly cookie, replaces any
+  older session of the browser, and works once per login. Logout is a POST with
+  an Origin check that ends the session and Keycloak's own session. The home
+  page requires a session and shows the user, tenants and roles.
+- Pages check the session in Redis themselves (getSession). proxy.ts is only an
+  optimistic cookie check.
 
 ## 2026-09-20
 

@@ -9,6 +9,14 @@ export type CookieSpec = {
   };
 };
 
+const SESSION_BASE_NAME = "fazle_sid";
+const LOGIN_BASE_NAME = "fazle_login";
+
+// Why: proxy.ts cannot read the environment, so it checks for both names the session
+// cookie can have (plain over http, __Host- prefixed over https). A test keeps this list in
+// step with the real names.
+export const SESSION_COOKIE_NAMES = [SESSION_BASE_NAME, `__Host-${SESSION_BASE_NAME}`];
+
 // Why: httpOnly keeps scripts away from the cookie. SameSite Lax is required because the
 // redirect back from Keycloak is a cross site navigation, and Strict cookies are not sent
 // on it. There is no Domain, path is "/", and over https the name gets the __Host- prefix,
@@ -24,9 +32,9 @@ function cookieSpec(baseName: string, appUrl: string, maxAgeSeconds: number): Co
 }
 
 export function sessionCookie(appUrl: string, maxAgeSeconds: number): CookieSpec {
-  return cookieSpec("fazle_sid", appUrl, maxAgeSeconds);
+  return cookieSpec(SESSION_BASE_NAME, appUrl, maxAgeSeconds);
 }
 
 export function loginCookie(appUrl: string, maxAgeSeconds: number): CookieSpec {
-  return cookieSpec("fazle_login", appUrl, maxAgeSeconds);
+  return cookieSpec(LOGIN_BASE_NAME, appUrl, maxAgeSeconds);
 }

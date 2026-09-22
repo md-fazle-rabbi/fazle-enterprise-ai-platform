@@ -69,6 +69,7 @@ DPIA, DSAR response, and erasure workflow templates are deliberately not LLM aut
 - Keycloak issues access tokens carrying the tenant groups and the rag-engine-api audience, and the web client requires PKCE, checked in the admin console ([`proof/web-auth-3-alice-access-token.png`](proof/web-auth-3-alice-access-token.png), [`proof/web-auth-3-carol-access-token.png`](proof/web-auth-3-carol-access-token.png))
 - Web scaffold builds cleanly, passes lint, typecheck, format check and all 13 tests ([`proof/web-scaffold-checks.png`](proof/web-scaffold-checks.png))
 - Web session store: hashed keys, validated reads and an update that cannot revive a session, tested on a real Redis ([`proof/web-session-store-tests.png`](proof/web-session-store-tests.png))
+- Web login through Keycloak with a Redis session behind an opaque cookie ([`proof/web-login-home.png`](proof/web-login-home.png), [`proof/web-login-redis-session.png`](proof/web-login-redis-session.png), [`proof/web-login-cookie-flags.png`](proof/web-login-cookie-flags.png))
 
 ## Architecture
 ```mermaid
@@ -113,6 +114,8 @@ Stated plainly, not left for a client to discover.
 - The web UI sends basic security headers but no Content Security Policy yet. Its home page is not covered by unit tests because Vitest cannot render async Server Components. The end to end test that would cover it is planned, not implemented
 - Web session data, including the Keycloak tokens, is stored unencrypted in Redis, and the compose Redis has no password or TLS. Local showcase only. The session store is built and tested but not wired to a login yet
 - The web app's OIDC code (`apps/web/src/lib/auth/oidc.ts`) is tested against a simulated Keycloak. It has not yet completed a login against the real Keycloak, and there are no login routes yet
+- The web app logs users in through the real Keycloak (see the proof line below). The login flow is covered by unit tests with a simulated Keycloak and by one manual run. The end to end test is planned, not implemented. The backend has not received a real token from the web app yet
+- `proxy.ts` only checks that a session cookie exists. The real check happens in each page (`getSession`), so a new page must call it. If Redis is down, pages that need a session return an error page, and only the login page shows a message
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time
