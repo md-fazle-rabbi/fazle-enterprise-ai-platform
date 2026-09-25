@@ -1,7 +1,10 @@
 """
 The real ingestion entry point: raw text in, chunked + embedded + stored.
 Idempotent by content hash, re-ingesting the same content for the same
-tenant is a no-op that returns the existing document, not a duplicate.
+tenant is a no-op that returns the existing document, not a duplicate --
+UNLESS pii.PII_ANALYZER_VERSION has moved on since that document was
+ingested, in which case it's re-redacted and re-chunked under the current
+rules (see _reprocess_stale_document).
 """
 
 import hashlib
@@ -11,7 +14,7 @@ from typing import Annotated
 import structlog
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +22,7 @@ from rag_engine.chunking import chunk_markdown
 from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
-from rag_engine.pii import redact_pii
+from rag_engine.pii import PII_ANALYZER_VERSION, redact_pii
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 logger = structlog.get_logger()
@@ -63,6 +66,61 @@ async def _existing_response(
     )
 
 
+async def _reprocess_stale_document(
+    session: AsyncSession,
+    document: Document,
+    original_text: str,
+    tenant_id: uuid.UUID,
+) -> IngestResponse:
+    """
+    Same content_hash as an existing document, but that document's
+    pii_analyzer_version is behind pii.PII_ANALYZER_VERSION -- its chunks
+    were redacted under an older, less accurate rule (e.g. before the
+    relative-duration exclusion existed) and content_hash intentionally
+    never changes to signal that on its own (see the comment on
+    content_hash in ingest() below). Re-derive redacted_text from the
+    original, unredacted text under the CURRENT rules, replace the
+    document's chunks, and stamp the new version, so a recognizer fix
+    self-heals previously over- or under-redacted content the next time
+    matching content is posted, instead of silently serving stale,
+    incorrectly-redacted chunks forever.
+    """
+    redacted_text, pii_types_found = redact_pii(original_text)
+
+    await session.execute(delete(Chunk).where(Chunk.document_id == document.id))
+
+    document.pii_analyzer_version = PII_ANALYZER_VERSION
+    document.pii_entity_types = pii_types_found or None
+    logger.info(
+        "pii.reredacted",
+        entity_types=pii_types_found,
+        document_id=str(document.id),
+        source_path=document.source_path,
+    )
+
+    chunks = chunk_markdown(redacted_text)
+    if not chunks:
+        return IngestResponse(document_id=document.id, chunk_count=0, deduplicated=True)
+
+    vectors = await embed_documents([c.text for c in chunks])
+    for chunk, vector in zip(chunks, vectors, strict=True):
+        session.add(
+            Chunk(
+                tenant_id=tenant_id,
+                document_id=document.id,
+                chunk_index=chunk.chunk_index,
+                heading_path=chunk.heading_path,
+                text=chunk.text,
+                token_count=chunk.token_count,
+                embedding=vector,
+            )
+        )
+
+    return IngestResponse(
+        document_id=document.id, chunk_count=len(chunks), deduplicated=True
+    )
+
+
 @router.post("", response_model=IngestResponse, status_code=201)
 async def ingest(
     body: IngestRequest,
@@ -82,7 +140,16 @@ async def ingest(
         select(Document).where(Document.content_hash == content_hash)
     )
     if already_exists is not None:
-        return await _existing_response(session, content_hash)
+        # Why: content_hash intentionally never changes when redact_pii's
+        # logic changes, so an unchanged hash does NOT mean the stored
+        # chunks reflect the current redaction rules. Re-process only when
+        # the stamped version actually differs, so a normal duplicate POST
+        # (nothing about redaction has changed) stays a cheap no-op.
+        if already_exists.pii_analyzer_version == PII_ANALYZER_VERSION:
+            return await _existing_response(session, content_hash)
+        return await _reprocess_stale_document(
+            session, already_exists, body.text, tenant_id
+        )
 
     redacted_text, pii_types_found = redact_pii(body.text)
     if pii_types_found:
@@ -95,6 +162,7 @@ async def ingest(
         content_hash=content_hash,
         source_path=body.source_path,
         pii_entity_types=pii_types_found or None,
+        pii_analyzer_version=PII_ANALYZER_VERSION,
     )
     try:
         async with session.begin_nested():
@@ -105,6 +173,13 @@ async def ingest(
         # content_hash) between the SELECT above and this INSERT, the
         # SAVEPOINT rolled back just this insert, the outer transaction
         # from get_session is still fine to keep querying on
+        #
+        # Known limitation: this path returns the winning request's
+        # document as-is without checking ITS pii_analyzer_version. In the
+        # rare case where the winner was itself stale, this loser won't
+        # trigger a re-process; a subsequent /ingest of the same content
+        # will. Acceptable given how narrow this race window is, but
+        # worth stating rather than silently assuming it's covered.
         return await _existing_response(session, content_hash)
 
     # chunking runs on the REDACTED text, the original unredacted text

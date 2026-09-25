@@ -103,6 +103,14 @@ curl -X POST http://localhost:8000/query \
   -d '{"question": "How does this system enforce tenant isolation?"}'
 ```
 
+The same pipeline can be streamed as Server-Sent Events. It reports each stage as it starts and then sends the checked answer, or an error event. It streams progress, not model tokens, because the output checks can rewrite the answer:
+
+​```bash
+curl -N -X POST http://localhost:8000/query/stream \
+  -H "Authorization: Bearer fazle-demo-key" -H "Content-Type: application/json" \
+  -d '{"question":"How long do customers have to request a refund?"}'
+​```
+
 **Swagger and full API docs: http://localhost:8000/docs, once the stack is running.** A recorded Loom walkthrough of the same stack running end to end is linked above for anyone who wants to see it without setting it up.
 
 ## Known limitations
@@ -118,6 +126,8 @@ Stated plainly, not left for a client to discover.
 - The web app's OIDC code (`apps/web/src/lib/auth/oidc.ts`) is tested against a simulated Keycloak. It has not yet completed a login against the real Keycloak, and there are no login routes yet
 - The web app logs users in through the real Keycloak (see the proof line below). The login flow is covered by unit tests with a simulated Keycloak and by one manual run. The end to end test is planned, not implemented. The backend has not received a real token from the web app yet
 - `proxy.ts` only checks that a session cookie exists. The real check happens in each page (`getSession`), so a new page must call it. If Redis is down, pages that need a session return an error page, and only the login page shows a message
+- `POST /query/stream` streams stage events and the final checked answer, not model tokens. If the client disconnects before the result event, the request's database writes (its query log entry, audit entry and review queue item) are rolled back, while the quota use and cache write in Redis may already have happened. A client must not retry an error event blindly, because a retry runs generation and uses quota again
+- The injection firewall matches request paths exactly, so every new endpoint that takes free text has to be added to its list by hand. `/query/stream` is covered and tested. The image and PDF ingest endpoints are not in that list
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time

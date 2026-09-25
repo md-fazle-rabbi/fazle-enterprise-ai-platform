@@ -1,0 +1,66 @@
+Query Stream Red-Team — 2026-09-26
+
+1. Firewall parity
+   /query        -> HTTP 400 (log: firewall.blocked, pattern_hit=true, path=/query)
+   /query/stream -> HTTP 400 {"detail":"Request blocked: possible prompt injection detected."}
+                    (log: firewall.blocked, pattern_hit=true, path=/query/stream)
+   Result: PASS
+
+2. Auth before stream
+   curl -i .../query/stream with Authorization: Bearer garbage
+   -> HTTP/1.1 401 Unauthorized, www-authenticate: Bearer, content-type: application/json
+   (log: user_auth.token_rejected, reason=DecodeError)
+   No event-stream headers, no stream opened.
+   Result: PASS
+
+3. Disconnect mid-pipeline
+   First attempt (2026-09-25, before the fix): a genuine mid-stream
+   disconnect during the pipeline produced a CancelledError traceback in
+   SQLAlchemy/asyncpg connection teardown (do_terminate). Root cause:
+   worker.cancel() interrupted the DB session's own rollback/close while
+   it was mid-await, and -- because the surrounding cancellation kept
+   re-arriving at every checkpoint, not just once -- a single
+   asyncio.shield()+retry around the cleanup was not enough to let it
+   finish either.
+
+   Fix: routers/query.py now enters/exits the session context manager
+   manually and runs its __aexit__ (rollback/commit + connection close)
+   through _close_session_safely(), which runs cleanup as its own task
+   and loops on a shielded await until that task actually reports done,
+   only then re-raising the cancellation. Verified locally (outside the
+   real stack) that a single retry still lets cleanup get cut off under
+   repeated cancellation, while the loop version lets it finish every
+   time -- see the two isolated simulations run during development.
+
+   Retest (2026-09-26, after the fix, question: "How does this system
+   verify tenant data cannot leak to another tenant?", --max-time 4):
+   client received:
+     event: stage {"stage": "cache_lookup"}
+     event: stage {"stage": "retrieval"}
+   then disconnected (curl: (28) Operation timed out, 89 bytes received).
+   At the moment of disconnect the worker was mid-retry on a Voyage
+   embeddings 429 (rate limit), scheduled to retry after a 25s backoff --
+   a realistic, non-trivial cancellation window.
+   `docker compose logs app --no-color | grep -E "<trace_id>|CancelledError|
+   Traceback|Exception terminating"` over the full container log
+   (well past the 25s retry) returned only the original
+   voyage.rate_limited line -- no CancelledError, no Traceback, no
+   "Exception terminating connection" anywhere in the log.
+   Result: PASS
+
+4. Cache (same question twice)
+   Both runs of "How long do customers have to request a refund?" returned:
+     event: stage  {"stage": "cache_lookup"}
+     event: result {"flag_reasons": ["cache_hit"], ...}
+   No retrieval/grading/generation stages fired on either run (question was
+   already cached from the earlier sample run).
+   Result: PASS
+
+Surprises:
+- Voyage embeddings API is rate-limited to 3 RPM / 10K TPM on the current
+  key (no payment method on file), causing occasional ~25s retry delays
+  during testing. Unrelated to this fix; worth adding a payment method
+  before further load/latency testing.
+- A container restart mid-testing caused a few curl attempts to fail with
+  "Connection reset by peer" / 0 bytes received -- not a code issue, just
+  bad timing against the restart window.

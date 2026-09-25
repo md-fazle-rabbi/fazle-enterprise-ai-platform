@@ -1,0 +1,18 @@
+event: stage
+data: {"stage": "cache_lookup"}
+
+event: stage
+data: {"stage": "retrieval"}
+
+event: stage
+data: {"stage": "grading"}
+
+event: stage
+data: {"stage": "generation"}
+
+event: stage
+data: {"stage": "output_checks"}
+
+event: result
+data: {"answer": "Customers have up to 30 days from the date of purchase to request a full refund [5].", "citations": [{"chunk_id": "88597a04-1ccb-4356-9f10-3cf87fade6c1", "document_id": "8ac9459d-fcdf-4a22-ba46-94a474474dcc", "heading_path": ["Refund policy"], "text": "Customers can request a full refund within 30 days of purchase."}], "retrieved_context": [{"chunk_id": "8b5154c9-1aa9-490e-9a07-378158ac7434", "document_id": "42d84cc1-21a0-410d-bd3d-8ab0524a0c02", "heading_path": [], "text": "This system enforces tenant isolation using Postgres Row Level Security."}, {"chunk_id": "f8167e35-40ef-4872-a1ae-d23598e057e5", "document_id": "5791eb29-f936-4630-8b11-407ab304c0fa", "heading_path": [], "text": "This system enforces tenant isolation using Postgres Row Level Security, not application-level filtering."}, {"chunk_id": "c93de040-6448-4534-9504-f9d77bc62aff", "document_id": "c66d5472-6596-40c9-b269-0f8c44fac55e", "heading_path": [], "text": "The injection firewall runs a two layer check on retrieved content: a pattern based classifier followed by a lightweight model based classifier, before any retrieved text reaches the generation prompt."}, {"chunk_id": "377c9a72-f069-43eb-bd76-e332eafb8bac", "document_id": "da1f0c05-380c-4d73-9d56-15b1b843cd49", "heading_path": [], "text": "The agent mesh kill switch halts a running agent sandbox within five seconds of a runaway loop being detected, verified against a simulated infinite loop scenario."}, {"chunk_id": "88597a04-1ccb-4356-9f10-3cf87fade6c1", "document_id": "8ac9459d-fcdf-4a22-ba46-94a474474dcc", "heading_path": ["Refund policy"], "text": "Customers can request a full refund within 30 days of purchase."}], "retrieved_but_uncited_count": 4, "flagged": true, "flag_reasons": ["low_grounding"]}
+

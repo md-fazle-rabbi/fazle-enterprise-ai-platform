@@ -40,6 +40,14 @@ class Document(Base):
     pii_entity_types: Mapped[list[str] | None] = mapped_column(
         ARRAY(Text), nullable=True
     )
+    # No default, same reasoning as tenant_id above: content_hash never
+    # changes when pii.PII_ANALYZER_VERSION bumps (see ingest.py's
+    # docstring on content_hash), so this column is the only signal that a
+    # stored document's chunks were redacted under a stale rule. Every
+    # insert path (fresh ingest and re-ingest-after-rule-change) must set
+    # it explicitly -- a forgotten default here would silently make every
+    # document look "current" forever, defeating the whole mechanism.
+    pii_analyzer_version: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class Chunk(Base):

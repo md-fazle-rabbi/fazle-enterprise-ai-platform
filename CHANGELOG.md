@@ -10,6 +10,28 @@
   after a 401. Only an invalid_grant answer signs the user out, so a Keycloak
   outage does not. The home page lists the documents of the signed in tenant.
 
+## Query
+- Added `POST /query/stream`: the same pipeline as `/query`, streamed as
+  Server-Sent Events (one `stage` event per pipeline stage, then one `result`
+  or `error` event). The pipeline now lives in one function (`run_query`) that
+  both endpoints call, so they cannot drift apart.
+- The injection firewall now also inspects `/query/stream`. Its path list is
+  matched exactly, so without this line the new endpoint would have skipped the
+  firewall.
+- Raised the FastAPI floor to 0.135, the first version with native SSE.
+
+## PII Redaction
+- Fixed DATE_TIME over-redaction of relative durations ("30 days", "up to
+  30 days", "at least 2 hours") in ingested documents and generated
+  answers. Absolute dates are still redacted as before.
+- Added `pii_analyzer_version` to `documents` so a future redaction rule
+  change can auto re-process previously (mis)redacted content on the next
+  matching `/ingest` or `/ingest/image` call, instead of `content_hash`
+  dedup silently serving stale redaction forever.
+- Known limitation: the Redis semantic answer cache has no version
+  tracking, so a cached answer from before a redaction rule change keeps
+  serving stale text until the cache is flushed manually.
+
 ## 2026-09-20
 
 ## Web

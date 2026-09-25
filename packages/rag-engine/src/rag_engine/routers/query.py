@@ -7,18 +7,28 @@ OpenTelemetry span here; CRAG grading and generation carry theirs inside
 crag.py and generation.py respectively, next to the Gemini call each one
 makes, so Langfuse shows all four pipeline stages with real latency and
 captured input/output rather than just the outer HTTP span.
+
+POST /query/stream runs the very same pipeline (run_query) and reports each
+stage as a Server-Sent Event, then the final checked answer. It streams
+progress, not model tokens: the output checks can rewrite the answer (PII
+redaction), so nothing that was generated is shown before they have run.
 """
 
+import asyncio
+import contextlib
 import json
 import uuid
-from typing import Annotated, Any
+from collections.abc import AsyncIterable, Awaitable, Callable
+from typing import Annotated, Any, Literal
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from governance.audit_log import append_entry
 from observability.alerts import send_slack_alert
 from opentelemetry import trace
 from pydantic import BaseModel
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rag_engine.cache import get_cached_answer, store_cached_answer
@@ -38,6 +48,14 @@ from rag_engine.security.trifecta import assess_trifecta
 router = APIRouter(prefix="/query", tags=["query"])
 logger = structlog.get_logger()
 _tracer = trace.get_tracer(__name__)
+
+# Why: these names are what a streaming client sees, one event per stage start.
+Stage = Literal["cache_lookup", "retrieval", "grading", "generation", "output_checks"]
+StageCallback = Callable[[Stage], Awaitable[None]]
+
+
+async def _ignore_stage(stage: Stage) -> None:
+    """The plain /query endpoint reports no progress."""
 
 
 class QueryRequest(BaseModel):
@@ -94,28 +112,31 @@ def _to_citation(p: dict[str, Any]) -> Citation:
     )
 
 
-@router.post("", response_model=QueryResponse)
-async def query(
+async def run_query(
     body: QueryRequest,
-    tenant_id: Annotated[uuid.UUID, Depends(get_tenant_id)],
-    session: Annotated[AsyncSession, Depends(get_session)],
-    request: Request,
+    tenant_id: uuid.UUID,
+    session: AsyncSession,
+    redis: Redis,
+    on_stage: StageCallback = _ignore_stage,
 ) -> QueryResponse:
+    """
+    The whole pipeline, shared by /query and /query/stream so the two can
+    never drift apart. on_stage is told when each stage starts.
+    """
     # ---------------------------------------------------------
     # 0. Semantic cache check
     #
     # Same Redis instance Day 3's rate limiter and Day 5's kill
-    # switch already use, via request.app.state.redis.
+    # switch already use.
     # ---------------------------------------------------------
+    await on_stage("cache_lookup")
     query_vector = await embed_query(body.question)
 
     session.add(
         QueryLog(tenant_id=tenant_id, question=body.question, embedding=query_vector)
     )
 
-    cached = await get_cached_answer(
-        request.app.state.redis, str(tenant_id), query_vector
-    )
+    cached = await get_cached_answer(redis, str(tenant_id), query_vector)
     if cached is not None:
         return QueryResponse(
             answer=cached,
@@ -133,6 +154,7 @@ async def query(
     # single retrieval latency, matching how the README describes
     # the four pipeline stages.
     # ---------------------------------------------------------
+    await on_stage("retrieval")
     with _tracer.start_as_current_span("retrieval") as span:
         span.set_attribute(
             "langfuse.observation.input",
@@ -187,6 +209,7 @@ async def query(
     # answer generation. Per-stage span lives inside
     # crag.grade_relevance itself, alongside the Gemini call.
     # ---------------------------------------------------------
+    await on_stage("grading")
     is_relevant = await grade_relevance(
         body.question,
         parents,
@@ -219,6 +242,7 @@ async def query(
     #    is relevant. Per-stage span lives inside generate_answer
     #    itself, alongside the Gemini call.
     # ---------------------------------------------------------
+    await on_stage("generation")
     answer = await generate_answer(
         body.question,
         [{"text": p["text"]} for p in parents],
@@ -236,6 +260,7 @@ async def query(
     # trifecta checks, grouped under one "output_checks" span so
     # Langfuse shows this as its own pipeline stage.
     # ---------------------------------------------------------
+    await on_stage("output_checks")
     with _tracer.start_as_current_span("output_checks") as span:
         answer, reasons = _flag_reasons(
             answer,
@@ -324,16 +349,14 @@ async def query(
     # ---------------------------------------------------------
     try:
         quota_state = await check_and_consume(
-            request.app.state.redis,
+            redis,
             str(tenant_id),
             tokens_used=len(answer) // 4,
         )
     except QuotaExceeded as e:
         raise HTTPException(status_code=429, detail=str(e)) from e
 
-    await store_cached_answer(
-        request.app.state.redis, str(tenant_id), query_vector, answer
-    )
+    await store_cached_answer(redis, str(tenant_id), query_vector, answer)
     if quota_state != "ok":
         reasons.append(f"quota_{quota_state}")
 
@@ -366,3 +389,129 @@ async def query(
         flagged=bool(reasons),
         flag_reasons=reasons,
     )
+
+
+@router.post("", response_model=QueryResponse)
+async def query(
+    body: QueryRequest,
+    tenant_id: Annotated[uuid.UUID, Depends(get_tenant_id)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    request: Request,
+) -> QueryResponse:
+    return await run_query(body, tenant_id, session, request.app.state.redis)
+
+
+async def _close_session_safely(
+    session_cm: contextlib.AbstractAsyncContextManager[AsyncSession],
+    exc: BaseException | None,
+) -> None:
+    """
+    Runs session_cm.__aexit__ (transaction commit/rollback + connection
+    close) as its own task, so it completes even if the task calling this
+    function is itself being cancelled (the client disconnected mid-
+    pipeline). A single `asyncio.shield()` + one retry is not enough:
+    verified locally that when cancellation keeps arriving at every
+    checkpoint (matching the repeated "Cancelled via cancel scope ..."
+    seen in production, most likely Starlette/anyio re-cancelling this
+    task until its own scope is dismissed), a single retry can itself be
+    cancelled before the cleanup task finishes. So this loops, re-awaiting
+    the shield, until the cleanup task itself reports done -- only then is
+    the cancellation (if any arrived) let through. Without this, the
+    rollback/connection-close runs unshielded inside the already-
+    cancelled task and the DB driver's own internal await gets cancelled
+    again mid-cleanup -- surfacing as the misleading "Exception
+    terminating connection" / CancelledError traceback from SQLAlchemy's
+    connection pool (do_terminate) we saw in the red-team run.
+    See https://github.com/sqlalchemy/sqlalchemy/issues/8145.
+    """
+    exc_info = (type(exc), exc, exc.__traceback__) if exc else (None, None, None)
+    cleanup = asyncio.create_task(session_cm.__aexit__(*exc_info))
+    was_cancelled = False
+    while True:
+        try:
+            await asyncio.shield(cleanup)
+            break
+        except asyncio.CancelledError:
+            was_cancelled = True
+            if cleanup.done():
+                break
+    if was_cancelled:
+        raise asyncio.CancelledError()
+
+
+@router.post("/stream", response_class=EventSourceResponse)
+async def query_stream(
+    body: QueryRequest,
+    tenant_id: Annotated[uuid.UUID, Depends(get_tenant_id)],
+    request: Request,
+) -> AsyncIterable[ServerSentEvent]:
+    """
+    Same pipeline as POST /query, as Server-Sent Events: one "stage" event per
+    stage start, then exactly one "result" (the QueryResponse) or "error"
+    event. There is no reconnect: a retry would run generation again and use
+    quota again, so clients must not retry blindly.
+    """
+    events: asyncio.Queue[ServerSentEvent | None] = asyncio.Queue()
+
+    async def on_stage(stage: Stage) -> None:
+        await events.put(ServerSentEvent(data={"stage": stage}, event="stage"))
+
+    async def work() -> None:
+        # Why: entered/exited manually instead of `async with`, so cleanup
+        # can be run cancel-safely (see _close_session_safely) rather than
+        # running inside whatever cancellation is already unwinding an
+        # `async with` block.
+        session_cm = contextlib.asynccontextmanager(get_session)(request, tenant_id)
+        session = await session_cm.__aenter__()
+
+        try:
+            response = await run_query(
+                body, tenant_id, session, request.app.state.redis, on_stage
+            )
+        except HTTPException as exc:
+            await _close_session_safely(session_cm, exc)
+            await events.put(
+                ServerSentEvent(
+                    data={"status": exc.status_code, "detail": exc.detail},
+                    event="error",
+                )
+            )
+        except asyncio.CancelledError as exc:
+            # Why: the task is already being cancelled here (client
+            # disconnected mid-pipeline). See _close_session_safely's
+            # docstring for why the cleanup must run this way rather than
+            # inline.
+            await _close_session_safely(session_cm, exc)
+            raise
+        except Exception as exc:
+            # Why: once the stream has started the HTTP status can no longer
+            # change, so failures become an error event. The reason stays in
+            # the log, never in the event.
+            logger.exception("query.stream_failed")
+            await _close_session_safely(session_cm, exc)
+            await events.put(
+                ServerSentEvent(
+                    data={"status": 500, "detail": "Internal server error"},
+                    event="error",
+                )
+            )
+        else:
+            # Why: the result is sent only after the transaction has committed.
+            await _close_session_safely(session_cm, None)
+            await events.put(
+                ServerSentEvent(data=response.model_dump(mode="json"), event="result")
+            )
+        finally:
+            await events.put(None)
+
+    worker = asyncio.create_task(work())
+    try:
+        while (event := await events.get()) is not None:
+            yield event
+    finally:
+        # Why: reached on normal end and when the client disconnects. Cancelling
+        # stops pipeline work nobody is waiting for; _close_session_safely inside
+        # work() handles the transaction rollback cancel-safely.
+        worker.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await worker
