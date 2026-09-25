@@ -2,7 +2,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { exportJWK, generateKeyPair, SignJWT, type JWK } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildLogoutUrl, buildOidcConfig, completeLogin, createLoginRequest } from "./oidc";
+import { RefreshRejectedError } from "./errors";
+import {
+  buildLogoutUrl,
+  buildOidcConfig,
+  completeLogin,
+  createLoginRequest,
+  refreshAccessToken,
+} from "./oidc";
 
 const ISSUER = "http://idp.test:8080/realms/agent-mesh";
 const OIDC_PATH = "/realms/agent-mesh/protocol/openid-connect";
@@ -188,5 +195,54 @@ describe("completeLogin", () => {
     await expect(
       completeLogin(callback(`code=the-code&state=${transaction.state}`), transaction, config),
     ).rejects.toThrow(/Incomplete/);
+  });
+});
+
+describe("refreshAccessToken", () => {
+  it("exchanges a refresh token for new tokens", async () => {
+    const requests: URLSearchParams[] = [];
+    vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
+      expect(String(input instanceof Request ? input.url : input)).toBe(TOKEN_URL);
+      requests.push(new URLSearchParams(init?.body as string | URLSearchParams));
+      return Response.json({
+        access_token: "new-access",
+        token_type: "Bearer",
+        expires_in: 300,
+        refresh_token: "new-refresh",
+      });
+    });
+
+    const tokens = await refreshAccessToken("old-refresh", buildOidcConfig());
+
+    expect(tokens).toEqual({
+      accessToken: "new-access",
+      refreshToken: "new-refresh",
+      idToken: undefined,
+    });
+    expect(requests[0]?.get("grant_type")).toBe("refresh_token");
+    expect(requests[0]?.get("refresh_token")).toBe("old-refresh");
+    expect(requests[0]?.get("client_id")).toBe("fazle-web");
+    expect(requests[0]?.get("client_secret")).toBe(SECRET);
+  });
+
+  it("turns invalid_grant into RefreshRejectedError", async () => {
+    vi.stubGlobal("fetch", async () =>
+      Response.json(
+        { error: "invalid_grant", error_description: "Token is not active" },
+        { status: 400 },
+      ),
+    );
+    await expect(refreshAccessToken("dead", buildOidcConfig())).rejects.toBeInstanceOf(
+      RefreshRejectedError,
+    );
+  });
+
+  it("lets other failures through untouched", async () => {
+    vi.stubGlobal("fetch", async () => {
+      throw new TypeError("fetch failed");
+    });
+    const failure = refreshAccessToken("any", buildOidcConfig());
+    await expect(failure).rejects.not.toBeInstanceOf(RefreshRejectedError);
+    await expect(failure).rejects.toBeDefined();
   });
 });

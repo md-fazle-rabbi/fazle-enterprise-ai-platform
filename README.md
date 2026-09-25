@@ -70,6 +70,7 @@ DPIA, DSAR response, and erasure workflow templates are deliberately not LLM aut
 - Web scaffold builds cleanly, passes lint, typecheck, format check and all 13 tests ([`proof/web-scaffold-checks.png`](proof/web-scaffold-checks.png))
 - Web session store: hashed keys, validated reads and an update that cannot revive a session, tested on a real Redis ([`proof/web-session-store-tests.png`](proof/web-session-store-tests.png))
 - Web login through Keycloak with a Redis session behind an opaque cookie ([`proof/web-login-home.png`](proof/web-login-home.png), [`proof/web-login-redis-session.png`](proof/web-login-redis-session.png), [`proof/web-login-cookie-flags.png`](proof/web-login-cookie-flags.png))
+- The backend accepts a real Keycloak token from the web app and returns only the signed in tenant's documents ([`proof/web-documents-alice.png`](proof/web-documents-alice.png), [`proof/web-documents-bob-empty.png`](proof/web-documents-bob-empty.png), [`proof/web-token-refresh.txt`](proof/web-token-refresh.txt))
 
 ## Architecture
 ```mermaid
@@ -107,7 +108,8 @@ curl -X POST http://localhost:8000/query \
 ## Known limitations
 Stated plainly, not left for a client to discover.
 
-- Signed per user auth exists on the backend (Keycloak JWT, tenant taken from token groups) and is tested with generated keys. The Keycloak realm now issues tokens with the tenant groups, checked in the Keycloak admin console, but the backend has not verified a real Keycloak token yet and no UI uses it
+- Signed per user auth exists on the backend (Keycloak JWT, tenant taken from token groups) and is tested with generated keys. 
+- The web app calls the backend with the signed in user's Keycloak access token and refreshes it before it expires (see the proof line). Parallel requests can refresh at the same time, which is safe only while Keycloak's refresh token rotation is off. Until the tenant selector exists, the first tenant of the user is used. The end to end test is planned, not implemented
 - The raw `X-Tenant-ID` header path is still on by default in compose because the load test, the RAGAS run and the research agent use it. Set `ALLOW_UNAUTHENTICATED_TENANT_HEADER=false` to refuse it. While it is on, an empty or malformed `Authorization` header behaves like no token at all
 - Keycloak runs in `start-dev` mode with an embedded database inside the container, so realm data resets when the container is recreated. Local showcase only. The demo users (alice, bob, carol) are synthetic
 - The web UI (`apps/web`) is a scaffold. It shows whether the backend is reachable and nothing else yet. Login, chat, citations, the tenant selector and the admin view are planned, not implemented

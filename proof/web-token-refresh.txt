@@ -1,0 +1,9 @@
+First check (right after alice login):
+date +%s        -> 1790361619
+accessTokenExpiresAt -> 1790361823
+
+Second check (after home page reload, token refreshed):
+date +%s        -> 1790362276
+accessTokenExpiresAt -> 1790362527
+
+Delta in accessTokenExpiresAt: 1790362527 - 1790361823 = 704 seconds (>= 300s threshold), confirming the access token was refreshed by authedFetch on the page reload.

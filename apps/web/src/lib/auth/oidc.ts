@@ -1,10 +1,11 @@
 import "server-only";
 import * as client from "openid-client";
 import { env } from "@/env";
-import { buildSessionData } from "@/lib/auth/claims";
+import { buildSessionData, type RefreshedTokens } from "@/lib/auth/claims";
 import { safeReturnTo } from "@/lib/auth/return-to";
 import type { SessionData } from "@/lib/session/data";
 import type { LoginTransaction } from "@/lib/session/login-transaction";
+import { RefreshRejectedError } from "@/lib/auth/errors";
 
 // Why: the scope stays "openid". Every claim the app needs comes from the rag-engine-web
 // client scope in the realm, so asking for more scopes would only widen the token.
@@ -123,4 +124,26 @@ export function buildLogoutUrl(
     id_token_hint: idToken,
     post_logout_redirect_uri: `${env.APP_URL}/login`,
   });
+}
+
+export async function refreshAccessToken(
+  refreshToken: string,
+  config: client.Configuration = getOidcConfig(),
+): Promise<RefreshedTokens> {
+  try {
+    const tokens = await client.refreshTokenGrant(config, refreshToken);
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      idToken: tokens.id_token,
+    };
+  } catch (error) {
+    // Why: invalid_grant is Keycloak saying this refresh token is finished. Only that means
+    // "sign in again". Any other failure, such as Keycloak being down, must not sign
+    // anybody out.
+    if (error instanceof client.ResponseBodyError && error.error === "invalid_grant") {
+      throw new RefreshRejectedError("Keycloak rejected the refresh token", { cause: error });
+    }
+    throw error;
+  }
 }

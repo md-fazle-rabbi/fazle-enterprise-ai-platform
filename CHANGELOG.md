@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 2026-09-26
+
+## Web
+- The web app now calls the backend with the user's Keycloak access token
+  (Bearer plus X-Tenant-ID). Tokens are refreshed 30 seconds early and once
+  after a 401. Only an invalid_grant answer signs the user out, so a Keycloak
+  outage does not. The home page lists the documents of the signed in tenant.
+
 ## 2026-09-20
 
 ## Web
