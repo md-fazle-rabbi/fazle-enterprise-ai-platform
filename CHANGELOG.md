@@ -9,6 +9,13 @@
   (Bearer plus X-Tenant-ID). Tokens are refreshed 30 seconds early and once
   after a 401. Only an invalid_grant answer signs the user out, so a Keycloak
   outage does not. The home page lists the documents of the signed in tenant.
+- Added `POST /api/chat`: it forwards the question with the user's token and
+  tenant to the backend's `/query/stream`, reads the event stream, validates
+  every event with zod and passes stage, result and error events to the
+  browser. Errors use fixed messages, and backend text is never forwarded. A
+  browser that leaves aborts the request to the backend.
+- Added a small SSE parser shared by the server and, later, the browser.
+- `backendFetch` accepts a caller's abort signal and a longer deadline.
 
 ## Query
 - Added `POST /query/stream`: the same pipeline as `/query`, streamed as

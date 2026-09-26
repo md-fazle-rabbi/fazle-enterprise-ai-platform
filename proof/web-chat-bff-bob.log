@@ -1,0 +1,33 @@
+forward-logs-shared.ts:120 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+forward-logs-shared.ts:120 [HMR] connected
+bootstrap-autofill-overlay.js:7612 Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('chrome-extension://nngceckbapebfimnlniiiahkandclblb') does not match the recipient window's origin ('http://localhost:3000').
+sendMessageToNotificationBarIframe @ bootstrap-autofill-overlay.js:7612
+bootstrap-autofill-overlay.js:7612 Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('chrome-extension://nngceckbapebfimnlniiiahkandclblb') does not match the recipient window's origin ('http://localhost:3000').
+sendMessageToNotificationBarIframe @ bootstrap-autofill-overlay.js:7612
+const r = await fetch("/api/chat", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ question: "How long do customers have to request a refund?" }),
+});
+console.log(r.status, r.headers.get("content-type"));
+const reader = r.body.getReader();
+const decoder = new TextDecoder();
+for (;;) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  console.log(decoder.decode(value));
+}
+VM332:6 200 'text/event-stream; charset=utf-8'
+VM332:12 event: stage
+data: {"stage":"cache_lookup"}
+
+
+VM332:12 event: stage
+data: {"stage":"retrieval"}
+
+
+VM332:12 event: result
+data: {"answer":"I don't have any relevant information to answer this question.","citations":[],"retrieved_context":[],"retrieved_but_uncited_count":0,"flagged":false,"flag_reasons":[]}
+
+
+undefined

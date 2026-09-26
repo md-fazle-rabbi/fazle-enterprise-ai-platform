@@ -128,6 +128,7 @@ Stated plainly, not left for a client to discover.
 - `proxy.ts` only checks that a session cookie exists. The real check happens in each page (`getSession`), so a new page must call it. If Redis is down, pages that need a session return an error page, and only the login page shows a message
 - `POST /query/stream` streams stage events and the final checked answer, not model tokens. If the client disconnects before the result event, the request's database writes (its query log entry, audit entry and review queue item) are rolled back, while the quota use and cache write in Redis may already have happened. A client must not retry an error event blindly, because a retry runs generation and uses quota again
 - The injection firewall matches request paths exactly, so every new endpoint that takes free text has to be added to its list by hand. `/query/stream` is covered and tested. The image and PDF ingest endpoints are not in that list
+- The web chat route (`/api/chat`) has no per user rate limit and no cap on parallel streams. Only the backend's per tenant daily quota limits usage. It sends no keepalive of its own, so a proxy with a short idle timeout could cut a long silent generation. The chat screen itself is planned, not implemented
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time

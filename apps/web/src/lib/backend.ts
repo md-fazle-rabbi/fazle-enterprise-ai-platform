@@ -3,17 +3,25 @@ import { env } from "@/env";
 
 const BACKEND_TIMEOUT_MS = 5_000;
 
-export type BackendInit = Omit<RequestInit, "signal" | "cache">;
+export type BackendInit = Omit<RequestInit, "signal" | "cache"> & {
+  // Why: a caller can add its own abort signal (a browser that went away) and a longer
+  // deadline (a streamed answer). Both are combined with the default, so a call can never
+  // wait forever.
+  signal?: AbortSignal;
+  timeoutMs?: number;
+};
 
 // Why: the single door to FastAPI. The URL is built from the validated env value and a
 // path chosen by our own code, never from anything a browser sent. A timeout stops a hung
 // backend from hanging the page, and no-store keeps answers out of Next's fetch cache.
 export async function backendFetch(path: string, init: BackendInit = {}): Promise<Response> {
+  const { signal, timeoutMs = BACKEND_TIMEOUT_MS, ...rest } = init;
+  const deadline = AbortSignal.timeout(timeoutMs);
   const url = new URL(path, env.BACKEND_URL);
   return fetch(url.href, {
-    ...init,
+    ...rest,
     cache: "no-store",
-    signal: AbortSignal.timeout(BACKEND_TIMEOUT_MS),
+    signal: signal ? AbortSignal.any([deadline, signal]) : deadline,
   });
 }
 

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isBackendReachable } from "./backend";
+import { backendFetch, isBackendReachable } from "./backend";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -30,5 +30,18 @@ describe("isBackendReachable", () => {
       "http://backend.test:8000/health",
       expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }),
     );
+  });
+
+  it("passes on a caller's abort signal", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const caller = new AbortController();
+
+    await backendFetch("/query/stream", { signal: caller.signal });
+
+    const sent = fetchMock.mock.lastCall?.[1] as RequestInit;
+    expect(sent.signal?.aborted).toBe(false);
+    caller.abort();
+    expect(sent.signal?.aborted).toBe(true);
   });
 });
