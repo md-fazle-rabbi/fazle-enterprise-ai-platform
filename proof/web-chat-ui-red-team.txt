@@ -1,0 +1,23 @@
+Chat UI Red-Team Checklist — Step 12
+
+1. Keyboard only
+   Tab -> question field -> type -> Enter to send -> Tab to Stop while streaming -> Enter/Space to activate.
+   Result: PASS — fully operable via keyboard, no mouse required.
+
+2. Screen reader spot check
+   Chrome DevTools -> Elements -> Accessibility panel on the conversation history container.
+   Result: PASS — role reported as "log".
+
+3. Real cancellation
+   Network tab open, question sent, Stop clicked mid-stream.
+   Result: PASS — /api/chat request shown as canceled, not completed early.
+
+4. Client-side length limit
+   Pasted a question over 2000 characters and attempted to send.
+   Result: PASS — refused locally with an inline error; no request appeared in the Network tab.
+
+5. Bob sees nothing
+   Asked a question as bob (tenant with no ingested documents).
+   Result: PASS — answer indicated no relevant information was found.
+
+No surprises encountered during this pass.
