@@ -130,6 +130,7 @@ Stated plainly, not left for a client to discover.
 - The injection firewall matches request paths exactly, so every new endpoint that takes free text has to be added to its list by hand. `/query/stream` is covered and tested. The image and PDF ingest endpoints are not in that list
 - The web chat route (`/api/chat`) has no per user rate limit and no cap on parallel streams. Only the backend's per tenant daily quota limits usage. It sends no keepalive of its own, so a proxy with a short idle timeout could cut a long silent generation. The chat screen itself is planned, not implemented
 - The chat UI keeps its conversation only in the browser's memory. A page refresh loses it, and there is no cap on how long a session can grow. One question runs at a time by design. The citation viewer (clicking `[1]` to see its source) is planned, not implemented; the chat only shows how many sources were used
+- Each source in the citation viewer shows its full retrieved text with no length cap, so a long chunk makes the sources list long. There is no link back from a source to where in the answer it was cited, only forward from the marker to the source
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time

@@ -3,21 +3,41 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { encodeSse } from "@/lib/sse";
 import { ChatPanel } from "./chat-panel";
 
+const SOURCE = {
+  chunk_id: "11111111-1111-4111-8111-111111111111",
+  document_id: "22222222-2222-4222-8222-222222222222",
+  heading_path: ["Refunds"],
+  text: "Customers can request a refund within 30 days.",
+};
+
+// Why: retrieved_context must include the source a [1] marker resolves against, or
+// AnswerText renders it as an unresolved, muted marker instead of a link (ADR-017).
 const RESULT = {
   answer: "Within 30 days [1]",
-  citations: [
-    {
-      chunk_id: "11111111-1111-4111-8111-111111111111",
-      document_id: "22222222-2222-4222-8222-222222222222",
-      heading_path: ["Refunds"],
-      text: "...",
-    },
-  ],
-  retrieved_context: [],
+  citations: [SOURCE],
+  retrieved_context: [SOURCE],
   retrieved_but_uncited_count: 0,
   flagged: false,
   flag_reasons: [],
 };
+
+// Why: the answer text is no longer one text node — AnswerText splits it into a <span>
+// for plain text and an <a> for each citation marker. Testing Library's own recommended
+// pattern for text split across elements: match on the parent whose combined textContent
+// equals the target, but whose children individually do not (see Testing Library docs,
+// "an alternative for finding by text content matching multiple elements").
+function hasText(text: string) {
+  return (_content: string, element: Element | null): boolean => {
+    if (!element) {
+      return false;
+    }
+    const ownTextMatches = element.textContent === text;
+    const noChildMatches = Array.from(element.children).every(
+      (child) => child.textContent !== text,
+    );
+    return ownTextMatches && noChildMatches;
+  };
+}
 
 function sseResponse(chunks: string[], status = 200): Response {
   const encoder = new TextEncoder();
@@ -65,8 +85,10 @@ describe("ChatPanel", () => {
     ask("How long is the refund window?");
 
     expect(screen.getByText(/How long is the refund window/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("Within 30 days [1]")).toBeInTheDocument());
-    expect(screen.getByText(/1 source used/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(hasText("Within 30 days [1]"))).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("link", { name: "Jump to source 1" })).toBeInTheDocument();
   });
 
   it("clears the input and re-enables it once the answer arrives", async () => {
@@ -75,7 +97,9 @@ describe("ChatPanel", () => {
 
     ask("First question?");
 
-    await waitFor(() => expect(screen.getByText("Within 30 days [1]")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(hasText("Within 30 days [1]"))).toBeInTheDocument(),
+    );
     expect(screen.getByLabelText("Ask a question")).toHaveValue("");
     expect(screen.getByLabelText("Ask a question")).not.toHaveAttribute("readonly");
   });
@@ -98,7 +122,9 @@ describe("ChatPanel", () => {
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
 
     releaseFetch?.();
-    await waitFor(() => expect(screen.getByText("Within 30 days [1]")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(hasText("Within 30 days [1]"))).toBeInTheDocument(),
+    );
   });
 
   it("shows the fixed message for a blocked question", async () => {
@@ -175,7 +201,9 @@ describe("ChatPanel", () => {
     render(<ChatPanel />);
 
     ask("First question?");
-    await waitFor(() => expect(screen.getByText("Within 30 days [1]")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(hasText("Within 30 days [1]"))).toBeInTheDocument(),
+    );
     ask("Second question?");
     await waitFor(() => expect(screen.getByText("Second answer")).toBeInTheDocument());
 

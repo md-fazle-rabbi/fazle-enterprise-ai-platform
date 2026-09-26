@@ -23,6 +23,12 @@
   Flag reasons are never shown to the user, only a generic flagged note.
 - The SSE parser and the chat event schemas now serve both the server
   (`/api/chat`) and the browser, since neither carries server-only code.
+- Added the citation viewer: `[N]` in an answer links to its matching entry in a numbered
+  Sources list, resolved against `retrieved_context` (not the `citations` array, whose order
+  the backend cannot guarantee — it comes from a Python set). Out-of-range markers, including
+  ones left over in a cached answer with no retrieved context, render as plain muted text with
+  a note instead of a broken link. Each source is marked cited or considered-but-not-cited by
+  checking citation membership, not order.
 
 ## Query
 - Added `POST /query/stream`: the same pipeline as `/query`, streamed as

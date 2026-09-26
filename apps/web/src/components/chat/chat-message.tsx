@@ -1,3 +1,5 @@
+import { AnswerText } from "./answer-text";
+import { SourcesList } from "./sources-list";
 import type { Turn } from "./use-chat";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -22,15 +24,14 @@ export function ChatMessage({ turn }: { turn: Turn }) {
       ) : null}
       {turn.status === "done" && turn.result ? (
         <div className="text-sm">
-          <p>
-            <span className="font-medium">Assistant: </span>
-            {turn.result.answer}
-          </p>
-          <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-            {turn.result.citations.length} source{turn.result.citations.length === 1 ? "" : "s"}{" "}
-            used
-            {turn.result.flagged ? " · Flagged for review" : ""}
-          </p>
+          <p className="font-medium">Assistant:</p>
+          <AnswerText turnId={turn.id} result={turn.result} />
+          {turn.result.flagged ? (
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Flagged for review
+            </p>
+          ) : null}
+          <SourcesList turnId={turn.id} result={turn.result} />
         </div>
       ) : null}
       {turn.status === "error" && turn.error ? (

@@ -1,0 +1,5 @@
+repeat click: PASS — clicked [1] marker twice in a row, scrollIntoView + focus fired both times, source item scrolled into view and got the focus outline ring on each click
+cache hit: PASS — asked the same question twice; second /query response had retrieved_context: [] and citations: [], and the UI showed [1] as muted non-clickable text with the "don't have a matching source" note
+no-js: SKIPPED (client component) — confirmed via curl that the chat page ships no server-rendered content without JS (Next.js client component), so a no-JS pass cannot be genuinely captured
+keyboard only: PASS — tabbed to the [1] link, pressed Enter, the matching Sources item received visible focus with the outline ring
+surprise: none

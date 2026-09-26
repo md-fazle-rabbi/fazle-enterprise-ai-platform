@@ -16,7 +16,7 @@ const CITATION = {
   chunk_id: "11111111-1111-4111-8111-111111111111",
   document_id: "22222222-2222-4222-8222-222222222222",
   heading_path: ["Refunds"],
-  text: "...",
+  text: "Customers can request a refund within 30 days.",
 };
 
 describe("ChatMessage", () => {
@@ -35,22 +35,22 @@ describe("ChatMessage", () => {
     expect(screen.getByText(/^Thinking/)).toBeInTheDocument();
   });
 
-  it("shows the answer and how many sources it used", () => {
+  it("renders the answer and its sources once done", () => {
     const turn: Turn = {
       ...BASE,
       status: "done",
       result: {
-        answer: "Within 30 days.",
+        answer: "Within 30 days [1].",
         citations: [CITATION],
-        retrieved_context: [],
+        retrieved_context: [CITATION],
         retrieved_but_uncited_count: 0,
         flagged: false,
         flag_reasons: [],
       },
     };
     render(<ChatMessage turn={turn} />);
-    expect(screen.getByText("Within 30 days.")).toBeInTheDocument();
-    expect(screen.getByText(/1 source used/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Jump to source 1" })).toBeInTheDocument();
+    expect(screen.getByText("Customers can request a refund within 30 days.")).toBeInTheDocument();
   });
 
   it("notes when an answer was flagged, without naming why", () => {
