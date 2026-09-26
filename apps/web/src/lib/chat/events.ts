@@ -1,4 +1,5 @@
 import * as z from "zod";
+import type { SseMessage } from "@/lib/sse";
 
 // Why: this file has no server code, so the browser can use the same types and schemas.
 export const STAGES = [
@@ -63,3 +64,40 @@ export type ChatEvent =
   | { type: "stage"; data: { stage: Stage } }
   | { type: "result"; data: ChatResult }
   | { type: "error"; data: ChatError };
+
+// Why: no server code here either, so the browser can validate what /api/chat sends it with
+// the exact same rules the server used to build it.
+export const chatErrorSchema = z.object({
+  code: chatErrorCodeSchema,
+  message: z.string(),
+});
+
+const stageEventDataSchema = z.object({ stage: stageSchema });
+
+// Why: /api/chat has already translated the backend's events into this shape (see
+// lib/chat/handler.ts), so this parser is far smaller than the server's: it only has to
+// validate, never map a backend status or a thrown error to a code.
+export function parseChatEvent(message: SseMessage): ChatEvent | null {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(message.data);
+  } catch {
+    return null;
+  }
+  switch (message.event) {
+    case "stage": {
+      const parsed = stageEventDataSchema.safeParse(payload);
+      return parsed.success ? { type: "stage", data: parsed.data } : null;
+    }
+    case "result": {
+      const parsed = chatResultSchema.safeParse(payload);
+      return parsed.success ? { type: "result", data: parsed.data } : null;
+    }
+    case "error": {
+      const parsed = chatErrorSchema.safeParse(payload);
+      return parsed.success ? { type: "error", data: parsed.data } : null;
+    }
+    default:
+      return null;
+  }
+}

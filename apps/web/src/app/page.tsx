@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { primaryButtonClass } from "@/components/styles";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { BackendStatus } from "@/components/backend-status";
@@ -29,6 +31,9 @@ export default async function HomePage() {
         tenants={session.data.user.tenants}
         roles={session.data.user.roles}
       />
+      <Link href="/chat" className={primaryButtonClass}>
+        Go to chat
+      </Link>
       <DocumentsPanel result={documents} />
       <BackendStatus reachable={reachable} />
     </main>

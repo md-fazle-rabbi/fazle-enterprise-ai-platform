@@ -16,6 +16,13 @@
   browser that leaves aborts the request to the backend.
 - Added a small SSE parser shared by the server and, later, the browser.
 - `backendFetch` accepts a caller's abort signal and a longer deadline.
+- Added the chat UI at `/chat`: a form (Enter to send, Shift+Enter for a new
+  line, IME safe), a live conversation history (`role="log"`), per-stage
+  progress text, and a Stop button that reuses the abort chain already built
+  into `/api/chat`. The model's answer renders as plain text, never as HTML.
+  Flag reasons are never shown to the user, only a generic flagged note.
+- The SSE parser and the chat event schemas now serve both the server
+  (`/api/chat`) and the browser, since neither carries server-only code.
 
 ## Query
 - Added `POST /query/stream`: the same pipeline as `/query`, streamed as
