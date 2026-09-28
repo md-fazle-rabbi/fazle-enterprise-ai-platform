@@ -14,6 +14,7 @@ export function makeSession(overrides: Partial<SessionData> = {}): SessionData {
       tenants: ["00000000-0000-0000-0000-000000000001"],
       roles: [],
     },
+    currentTenantId: "00000000-0000-0000-0000-000000000001",
     ...overrides,
   };
 }

@@ -1,0 +1,4 @@
+Test 1, forged tenant id (expected 403): 403
+Test 2, no Origin header / CSRF (expected 403): 403
+Test 3, alice (one tenant), selector hidden: yes
+Test 4, removed from tenant in Keycloak, fell back to first tenant after refresh: yes

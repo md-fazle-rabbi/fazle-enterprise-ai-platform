@@ -37,6 +37,7 @@ function session(expiresIn: number, tenants = [TENANT_A, TENANT_B]) {
     accessToken: "old-access",
     accessTokenExpiresAt: NOW + expiresIn,
     user: { ...base.user, tenants },
+    currentTenantId: tenants[0] ?? null,
   });
 }
 
@@ -134,6 +135,14 @@ describe("authedFetch", () => {
 
   it("does not call the backend for a user without a tenant", async () => {
     await expect(authedFetch(deps, "sid", session(300, []), "/documents")).rejects.toBeInstanceOf(
+      NoTenantError,
+    );
+    expect(backendFetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses a tenant selection the token no longer grants, even if stored", async () => {
+    const inconsistent = { ...session(300, [TENANT_A]), currentTenantId: TENANT_B };
+    await expect(authedFetch(deps, "sid", inconsistent, "/documents")).rejects.toBeInstanceOf(
       NoTenantError,
     );
     expect(backendFetch).not.toHaveBeenCalled();

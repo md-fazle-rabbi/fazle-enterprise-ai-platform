@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { BackendStatus } from "@/components/backend-status";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { UserPanel } from "@/components/user-panel";
+import { TenantSwitcher } from "@/components/tenant-switcher";
 import { requireSession } from "@/lib/auth/session";
 import { isBackendReachable } from "@/lib/backend";
 import { listDocuments } from "@/lib/documents";
@@ -30,6 +31,10 @@ export default async function HomePage() {
         email={session.data.user.email}
         tenants={session.data.user.tenants}
         roles={session.data.user.roles}
+      />
+      <TenantSwitcher
+        tenants={session.data.user.tenants}
+        currentTenantId={session.data.currentTenantId}
       />
       <Link href="/chat" className={primaryButtonClass}>
         Go to chat

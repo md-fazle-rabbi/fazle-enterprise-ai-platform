@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 2026-09-28
+
+## Web
+- Added a workspace (tenant) selector for users who belong to more than one, such as carol.
+  The choice lives in the session and is re-validated against the token on every refresh, so
+  a tenant removed in Keycloak cannot stay selected. Switching posts to `/api/tenant`, which
+  the backend's own `select_tenant` (Keycloak groups) validates independently, then refreshes
+  the page's data without a full reload.
+
 ## 2026-09-26
 
 ## Web

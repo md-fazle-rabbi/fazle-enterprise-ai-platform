@@ -63,11 +63,13 @@ export async function authedFetch(
   path: string,
   init: BackendInit = {},
 ): Promise<Response> {
-  // Why: until the tenant selector exists, the first tenant of the user is used. The backend
-  // still checks that the token grants it, so this can only ever narrow access.
-  const tenantId = session.user.tenants[0];
-  if (tenantId === undefined) {
-    throw new NoTenantError("The signed in user has no tenant");
+  // Why: currentTenantId is what the tenant switcher sets. The membership re-check exists
+  // because this is the boundary between "what the session says" and "what the token
+  // actually grants" — a defense that costs nothing if the two always agree, and matters if
+  // they ever don't (a failed session update, a stale fixture in a test).
+  const tenantId = session.currentTenantId;
+  if (tenantId === null || !session.user.tenants.includes(tenantId)) {
+    throw new NoTenantError("No tenant currently selected for this user");
   }
 
   let current = session;

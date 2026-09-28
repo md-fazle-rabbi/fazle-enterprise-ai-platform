@@ -39,6 +39,7 @@ describe("buildSessionData", () => {
         tenants: [TENANT_A],
         roles: ["platform-admin"],
       },
+      currentTenantId: TENANT_A,
     });
   });
 
@@ -75,6 +76,10 @@ describe("buildSessionData", () => {
   it("treats the email as optional", () => {
     const { email: _email, ...withoutEmail } = idClaims;
     expect(buildSessionData(tokens({}), withoutEmail, NOW).user.email).toBeUndefined();
+  });
+
+  it("has no current tenant when the user belongs to none", () => {
+    expect(buildSessionData(tokens({}), idClaims, NOW).currentTenantId).toBeNull();
   });
 });
 
@@ -119,5 +124,20 @@ describe("applyRefresh", () => {
   it("refuses a refreshed access token with a malformed tenant group", () => {
     const fresh = jwt({ exp: NOW + 900, groups: ["/tenants/not-a-uuid"] });
     expect(() => applyRefresh(previous, { accessToken: fresh })).toThrow();
+  });
+
+  it("falls back to the first tenant when the previously selected one is no longer granted", () => {
+    const switched: typeof previous = { ...previous, currentTenantId: TENANT_B };
+    const fresh = jwt({ exp: NOW + 900, groups: [`/tenants/${TENANT_A}`] });
+    expect(applyRefresh(switched, { accessToken: fresh }).currentTenantId).toBe(TENANT_A);
+  });
+
+  it("keeps the selected tenant when the refreshed token still grants it", () => {
+    const switched: typeof previous = { ...previous, currentTenantId: TENANT_B };
+    const fresh = jwt({
+      exp: NOW + 900,
+      groups: [`/tenants/${TENANT_A}`, `/tenants/${TENANT_B}`],
+    });
+    expect(applyRefresh(switched, { accessToken: fresh }).currentTenantId).toBe(TENANT_B);
   });
 });

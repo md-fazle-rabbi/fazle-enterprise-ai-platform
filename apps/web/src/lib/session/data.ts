@@ -16,6 +16,9 @@ export const sessionDataSchema = z.object({
     tenants: z.array(z.guid()),
     roles: z.array(z.string()),
   }),
+  // Why: nullable, not optional — a session always has an explicit current tenant (or
+  // explicitly none), never an unset value that would need a fallback guess at read time.
+  currentTenantId: z.guid().nullable(),
 });
 
 export type SessionData = z.infer<typeof sessionDataSchema>;

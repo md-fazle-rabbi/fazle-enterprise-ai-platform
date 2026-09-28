@@ -57,6 +57,7 @@ export function buildSessionData(
 ): SessionData {
   const access = accessTokenSchema.parse(decodeJwtPayload(tokens.accessToken));
   const id = idClaimsSchema.parse(idClaims);
+  const tenants = tenantsFromGroups(access.groups);
   return sessionDataSchema.parse({
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
@@ -67,9 +68,10 @@ export function buildSessionData(
       id: id.sub,
       username: id.preferred_username,
       email: id.email,
-      tenants: tenantsFromGroups(access.groups),
+      tenants,
       roles: access.realm_access?.roles ?? [],
     },
+    currentTenantId: tenants[0] ?? null,
   });
 }
 
@@ -77,6 +79,15 @@ export function buildSessionData(
 // from the new access token. Who the user is and when the session began stay as they were.
 export function applyRefresh(previous: SessionData, refreshed: RefreshedTokens): SessionData {
   const access = accessTokenSchema.parse(decodeJwtPayload(refreshed.accessToken));
+  const tenants = tenantsFromGroups(access.groups);
+  // Why: if the tenant the user had selected is no longer one this refreshed token grants
+  // (removed in Keycloak since the last refresh), it is not kept just because it used to be
+  // valid. It falls back the same way a fresh login does, mirroring the backend's own
+  // select_tenant, which never trusts a stale selection either.
+  const currentTenantId =
+    previous.currentTenantId && tenants.includes(previous.currentTenantId)
+      ? previous.currentTenantId
+      : (tenants[0] ?? null);
   return sessionDataSchema.parse({
     ...previous,
     accessToken: refreshed.accessToken,
@@ -85,8 +96,9 @@ export function applyRefresh(previous: SessionData, refreshed: RefreshedTokens):
     accessTokenExpiresAt: access.exp,
     user: {
       ...previous.user,
-      tenants: tenantsFromGroups(access.groups),
+      tenants,
       roles: access.realm_access?.roles ?? [],
     },
+    currentTenantId,
   });
 }

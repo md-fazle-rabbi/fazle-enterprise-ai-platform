@@ -1,6 +1,6 @@
 # ADR-013: Token refresh and backend calls from the web app
 
-Status: Accepted (2026-09-26)
+Status: Accepted (2026-09-26). Decision 5 amended when the tenant selector was added.
 
 ## Context
 The web app calls FastAPI with the user's access token, which lives 5 minutes.
@@ -17,8 +17,11 @@ Keycloak had a bad minute.
    keeps it and is shown as "could not be reached".
 4. A refresh updates the stored session in place and cannot revive a deleted or
    expired one. Tenants and roles are re-read from the new access token.
-5. Until the tenant selector exists, the first tenant of the user is sent. The
-   backend still checks that the token grants it.
+5. The tenant sent is the session's currentTenantId, which the Workspace selector
+   sets. A new session starts on the first tenant in the token. authedFetch
+   refuses the call if currentTenantId is null or not among the user's tenants.
+   The backend checks again that the token grants it, so the web app can only
+   ever narrow access.
 
 ## Options considered
 - Refreshing only after a 401: rejected. Every expiry would cost a failed call.
@@ -37,5 +40,7 @@ Risks and mitigations:
 - Parallel requests can refresh at the same time. This is harmless while
   Keycloak's refresh token rotation is off, which as far as I know is its
   default. If rotation is switched on, a lock per session is needed.
-- The default tenant is the first one in the token. Mitigation: the tenant
-  selector in a later step.
+- The starting tenant is the first one in the token, and Keycloak does not
+  guarantee the order of its group list. Mitigation: the user can switch
+  explicitly with the Workspace selector, and both authedFetch and the backend
+  re-check the tenant on every call.
