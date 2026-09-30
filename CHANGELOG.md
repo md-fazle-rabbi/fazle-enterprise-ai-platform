@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 2026-09-30
+
+## Security
+- `/admin/kill-switch/*` and `/review-queue` now require a Keycloak JWT carrying the
+  `platform-admin` realm role. The demo key and the raw tenant header are refused outright.
+  Mounted `/review-queue` in main.py for the first time; it answered 404 before this.
+- `AuthenticatedUser` now carries `roles` from the token's `realm_access.roles` claim.
+- Kill switch activation and deactivation are logged with the acting admin's subject.
+
 ## 2026-09-28
 
 ## Web

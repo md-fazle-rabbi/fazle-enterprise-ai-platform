@@ -29,6 +29,7 @@ from rag_engine.routers.audit import router as audit_router
 from rag_engine.routers.documents import router as documents_router
 from rag_engine.routers.ingest import router as ingest_router
 from rag_engine.routers.query import router as query_router
+from rag_engine.routers.review import router as review_router
 from rag_engine.routers.search import router as search_router
 from rag_engine.security.classifier import _get_pipeline
 from rag_engine.security.middleware import InjectionFirewallMiddleware
@@ -84,6 +85,7 @@ app.include_router(ingest_pdf.router)
 app.include_router(agents_router)
 app.include_router(admin_router)
 app.include_router(audit_router)
+app.include_router(review_router)
 app.include_router(classify_router)
 app.include_router(governance_documents_router)
 app.include_router(vendor_router)

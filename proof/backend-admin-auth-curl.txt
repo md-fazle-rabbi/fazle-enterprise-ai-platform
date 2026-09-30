@@ -1,0 +1,8 @@
+# backend admin auth curl proof, 2026-09-30
+# tokens obtained via temporary public client 'fazle-cli-proof' (OAuth 2.0 Device Authorization Grant, password grant disabled), deleted afterwards
+no-token kill-switch status | expected 401 | got 401
+no-token review-queue | expected 401 | got 401
+alice kill-switch status | expected 403 | got 403
+alice review-queue tenant A | expected 403 | got 403
+carol kill-switch status | expected 200 | got 200
+carol review-queue tenant A | expected 200 | got 200

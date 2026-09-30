@@ -135,7 +135,7 @@ Stated plainly, not left for a client to discover.
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time
-- `/admin/kill-switch/*` has no network restriction yet, local only
+- `/admin/kill-switch/*` and `/review-queue` now require a real Keycloak token carrying the `platform-admin` realm role. Neither has a network restriction yet (no IP allowlist or firewall rule), local only
 - MCP tool interface still takes tenant_id as an LLM visible argument, unlike the HTTP facing agent path, which binds it server side
 - HIPAA Safe Harbor coverage is 10 of 18 identifiers today, see the live report endpoint for the current breakdown
 

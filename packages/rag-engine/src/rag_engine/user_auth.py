@@ -33,6 +33,7 @@ _REQUIRED_CLAIMS = ["exp", "iat", "iss", "aud", "sub"]
 class AuthenticatedUser:
     subject: str
     tenants: frozenset[uuid.UUID]
+    roles: frozenset[str]
 
 
 def bearer_token(request: Request) -> str | None:
@@ -102,12 +103,25 @@ def _tenants_from_groups(raw: object) -> frozenset[uuid.UUID]:
     )
 
 
+def _roles_from_claims(claims: dict[str, Any]) -> frozenset[str]:
+    realm_access = claims.get("realm_access")
+    if realm_access is None:
+        return frozenset()
+    if not isinstance(realm_access, dict):
+        raise TypeError("realm_access claim must be an object")
+    roles = realm_access.get("roles", [])
+    if not isinstance(roles, list) or not all(isinstance(r, str) for r in roles):
+        raise TypeError("realm_access.roles claim must be a list of strings")
+    return frozenset(roles)
+
+
 async def authenticate_token(token: str) -> AuthenticatedUser:
     try:
         # Why: PyJWKClient does blocking network I/O on a cache miss. A worker
         # thread keeps that off the event loop.
         claims = await asyncio.to_thread(_verify, token)
         tenants = _tenants_from_groups(claims.get("groups"))
+        roles = _roles_from_claims(claims)
     except jwt.exceptions.PyJWKClientConnectionError as exc:
         # Why: 503, not 401. The token may be fine, the identity provider is down.
         logger.error("user_auth.jwks_unreachable", error=str(exc))
@@ -115,10 +129,10 @@ async def authenticate_token(token: str) -> AuthenticatedUser:
             status_code=503,
             detail="Identity provider unavailable",
         ) from exc
-    except (jwt.PyJWTError, ValueError) as exc:
+    except (jwt.PyJWTError, ValueError, TypeError) as exc:
         logger.info("user_auth.token_rejected", reason=type(exc).__name__)
         raise _unauthorized() from exc
-    return AuthenticatedUser(subject=str(claims["sub"]), tenants=tenants)
+    return AuthenticatedUser(subject=str(claims["sub"]), tenants=tenants, roles=roles)
 
 
 def select_tenant(user: AuthenticatedUser, requested: str | None) -> uuid.UUID:

@@ -85,6 +85,20 @@ async def test_valid_token_yields_user_and_only_tenant_groups(private_key):
     assert user.tenants == {TENANT_A, TENANT_B}
 
 
+async def test_valid_token_yields_roles_from_realm_access(private_key):
+    user = await authenticate_token(
+        make_token(
+            private_key, realm_access={"roles": ["platform-admin", "other-role"]}
+        )
+    )
+    assert user.roles == frozenset({"platform-admin", "other-role"})
+
+
+async def test_token_without_realm_access_has_no_roles(private_key):
+    user = await authenticate_token(make_token(private_key))
+    assert user.roles == frozenset()
+
+
 @pytest.mark.parametrize(
     ("overrides", "drop"),
     [
@@ -95,6 +109,14 @@ async def test_valid_token_yields_user_and_only_tenant_groups(private_key):
         pytest.param({}, ("sub",), id="missing-sub"),
         pytest.param({"groups": "not-a-list"}, (), id="groups-not-a-list"),
         pytest.param({"groups": ["/tenants/not-a-uuid"]}, (), id="bad-tenant-uuid"),
+        pytest.param(
+            {"realm_access": "not-an-object"}, (), id="realm-access-not-an-object"
+        ),
+        pytest.param(
+            {"realm_access": {"roles": "not-a-list"}},
+            (),
+            id="realm-access-roles-not-a-list",
+        ),
     ],
 )
 async def test_bad_claims_are_rejected_with_401(private_key, overrides, drop):
@@ -148,7 +170,9 @@ def test_jwks_client_points_at_the_internal_keycloak_url():
 
 
 def _user(*tenants: uuid.UUID) -> AuthenticatedUser:
-    return AuthenticatedUser(subject="user-1", tenants=frozenset(tenants))
+    return AuthenticatedUser(
+        subject="user-1", tenants=frozenset(tenants), roles=frozenset()
+    )
 
 
 def test_single_tenant_needs_no_header():

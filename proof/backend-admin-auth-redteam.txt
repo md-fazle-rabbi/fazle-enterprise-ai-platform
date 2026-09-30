@@ -1,0 +1,6 @@
+# backend admin auth self-red-team, 2026-09-30
+redteam demo-key kill-switch | expected 401 | got 401
+redteam demo-key review-queue | expected 401 | got 401
+redteam raw-header-only review-queue | expected 401 | got 401
+redteam garbage-jwt kill-switch | expected 401 | got 401
+redteam cross-tenant admin (test_review_queue_admin_role_does_not_bypass_tenant_membership, test_review_queue_resolve_is_hidden_by_rls_for_the_wrong_tenant) | expected pass | got pass
