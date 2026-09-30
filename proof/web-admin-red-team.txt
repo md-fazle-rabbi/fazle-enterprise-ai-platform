@@ -1,0 +1,12 @@
+== backend gate, 2026-09-30T14:28:08Z ==
+carol (platform-admin) GET status      : 200  (expect 200)
+alice (no role)        GET status      : 403  (expect 403)
+alice (no role)        POST activate   : 403  (expect 403)
+alice (no role)        POST deactivate : 403  (expect 403)
+kill switch state after                : {"active":false}  (expect active=false)
+RESULT: PASS
+
+== web layer ==
+CSRF, POST /api/admin/kill-switch with Origin http://evil.example : 403  (expect 403)
+Direct URL /admin as alice (browser)                              : redirected to /, panel never shown
+Empty reason in UI (browser)                                      : refused client side, no request in Network tab

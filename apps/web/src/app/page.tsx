@@ -36,6 +36,14 @@ export default async function HomePage() {
         tenants={session.data.user.tenants}
         currentTenantId={session.data.currentTenantId}
       />
+      {session.data.user.roles.includes("platform-admin") ? (
+        <Link
+          href="/admin"
+          className="w-fit text-sm text-neutral-600 hover:underline dark:text-neutral-300"
+        >
+          Admin
+        </Link>
+      ) : null}
       <Link href="/chat" className={primaryButtonClass}>
         Go to chat
       </Link>

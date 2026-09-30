@@ -4,7 +4,7 @@ import { NoTenantError, NotSignedInError, RefreshRejectedError } from "@/lib/aut
 import { FakeRedis } from "@/lib/session/fake-redis";
 import { makeSession } from "@/lib/session/fixtures";
 import { RedisSessionStore } from "@/lib/session/store";
-import { authedFetch, type AuthedFetchDeps } from "./authed-fetch";
+import { authedFetch, adminFetch, type AuthedFetchDeps } from "./authed-fetch";
 
 const NOW = 1_800_000_000;
 const TENANT_A = "00000000-0000-0000-0000-000000000001";
@@ -146,5 +146,44 @@ describe("authedFetch", () => {
       NoTenantError,
     );
     expect(backendFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("adminFetch", () => {
+  it("sends the access token without a tenant header by default", async () => {
+    const { sid, data } = await signedIn(300);
+    await adminFetch(deps, sid, data, "/admin/kill-switch/status");
+    const headers = new Headers(backendFetch.mock.lastCall?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer old-access");
+    expect(headers.has("x-tenant-id")).toBe(false);
+  });
+
+  it("attaches a tenant header when a tenant the user belongs to is passed", async () => {
+    const { sid, data } = await signedIn(300);
+    await adminFetch(deps, sid, data, "/review-queue", undefined, TENANT_A);
+    const headers = new Headers(backendFetch.mock.lastCall?.[1]?.headers);
+    expect(headers.get("x-tenant-id")).toBe(TENANT_A);
+  });
+
+  it("refuses a tenant id the user does not belong to", async () => {
+    const { sid, data } = await signedIn(300);
+    await expect(
+      adminFetch(deps, sid, data, "/review-queue", undefined, "not-my-tenant"),
+    ).rejects.toBeInstanceOf(NoTenantError);
+    expect(backendFetch).not.toHaveBeenCalled();
+  });
+
+  it("still refreshes and retries once on a 401, like authedFetch", async () => {
+    const fresh = jwt(NOW + 600);
+    refreshTokens.mockResolvedValue({ accessToken: fresh });
+    backendFetch
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ active: false }));
+    const { sid, data } = await signedIn(300);
+
+    const response = await adminFetch(deps, sid, data, "/admin/kill-switch/status");
+
+    expect(response.status).toBe(200);
+    expect(backendFetch).toHaveBeenCalledTimes(2);
   });
 });

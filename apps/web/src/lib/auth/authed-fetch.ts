@@ -5,8 +5,6 @@ import type { BackendInit } from "@/lib/backend";
 import type { SessionData } from "@/lib/session/data";
 import type { RedisSessionStore } from "@/lib/session/store";
 
-// Why: new tokens are fetched a little early, so a token is never sent that runs out on
-// the way.
 const REFRESH_MARGIN_SECONDS = 30;
 
 export type AuthedFetchDeps = {
@@ -29,14 +27,10 @@ async function refresh(
       await deps.sessionStore.destroy(sid);
       throw new NotSignedInError("The session can no longer be refreshed", { cause: error });
     }
-    // Why: anything else (Keycloak down, a network error) may pass. The session stays, so a
-    // short outage does not sign everybody out.
     throw error;
   }
 
   const next = applyRefresh(session, refreshed);
-  // Why: update refuses when the session is gone (logged out, expired), so a refresh that
-  // finishes late cannot bring a dead session back.
   if (!(await deps.sessionStore.update(sid, next))) {
     throw new NotSignedInError("The session no longer exists");
   }
@@ -46,14 +40,41 @@ async function refresh(
 function send(
   deps: AuthedFetchDeps,
   session: SessionData,
-  tenantId: string,
+  tenantId: string | null,
   path: string,
   init: BackendInit,
 ): Promise<Response> {
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${session.accessToken}`);
-  headers.set("X-Tenant-ID", tenantId);
+  if (tenantId !== null) {
+    headers.set("X-Tenant-ID", tenantId);
+  }
   return deps.backendFetch(path, { ...init, headers });
+}
+
+// Why: the piece authedFetch and adminFetch share -- refresh a token that is about to
+// expire, send, and retry once on a 401. Neither this function nor send() knows or cares
+// whether a tenant header was attached; that decision belongs to each caller.
+async function fetchWithRefresh(
+  deps: AuthedFetchDeps,
+  sid: string,
+  session: SessionData,
+  tenantId: string | null,
+  path: string,
+  init: BackendInit,
+): Promise<Response> {
+  let current = session;
+  if (current.accessTokenExpiresAt - deps.nowSeconds() <= REFRESH_MARGIN_SECONDS) {
+    current = await refresh(deps, sid, current);
+  }
+
+  let response = await send(deps, current, tenantId, path, init);
+  if (response.status === 401) {
+    await response.body?.cancel();
+    current = await refresh(deps, sid, current);
+    response = await send(deps, current, tenantId, path, init);
+  }
+  return response;
 }
 
 export async function authedFetch(
@@ -63,27 +84,28 @@ export async function authedFetch(
   path: string,
   init: BackendInit = {},
 ): Promise<Response> {
-  // Why: currentTenantId is what the tenant switcher sets. The membership re-check exists
-  // because this is the boundary between "what the session says" and "what the token
-  // actually grants" — a defense that costs nothing if the two always agree, and matters if
-  // they ever don't (a failed session update, a stale fixture in a test).
   const tenantId = session.currentTenantId;
   if (tenantId === null || !session.user.tenants.includes(tenantId)) {
     throw new NoTenantError("No tenant currently selected for this user");
   }
+  return fetchWithRefresh(deps, sid, session, tenantId, path, init);
+}
 
-  let current = session;
-  if (current.accessTokenExpiresAt - deps.nowSeconds() <= REFRESH_MARGIN_SECONDS) {
-    current = await refresh(deps, sid, current);
+// Why: admin routes need the same refresh-and-retry behaviour, but not every one of them
+// has a tenant of its own -- the kill switch is platform-wide. A tenant is attached only
+// when the caller passes one, and it is still checked against the user's own tenants, the
+// same defense authedFetch applies, so a stale or forged tenant id can never be sent even
+// for an admin route that happens to accept one.
+export async function adminFetch(
+  deps: AuthedFetchDeps,
+  sid: string,
+  session: SessionData,
+  path: string,
+  init: BackendInit = {},
+  tenantId: string | null = null,
+): Promise<Response> {
+  if (tenantId !== null && !session.user.tenants.includes(tenantId)) {
+    throw new NoTenantError("Tenant not permitted for this user");
   }
-
-  let response = await send(deps, current, tenantId, path, init);
-  if (response.status === 401) {
-    // Why: one retry with fresh tokens, no more. A backend that keeps refusing is reported
-    // as it is, not retried in a loop.
-    await response.body?.cancel();
-    current = await refresh(deps, sid, current);
-    response = await send(deps, current, tenantId, path, init);
-  }
-  return response;
+  return fetchWithRefresh(deps, sid, session, tenantId, path, init);
 }

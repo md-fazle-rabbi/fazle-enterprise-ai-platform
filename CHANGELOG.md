@@ -4,6 +4,17 @@
 
 ## 2026-09-30
 
+## Web
+- Added `/admin`, gated to the `platform-admin` role (checked server side, mirroring the
+  backend's own gate). First panel: the kill switch, with status,
+  activate (with a required reason) and deactivate.
+- Refactored authedFetch to share its refresh-and-retry logic with a new adminFetch, whose
+  tenant is optional, since the kill switch has none of its own.
+- Extracted `lib/admin/guard.ts` (Origin, session, role checks) after a third admin route
+  was about to copy the same inline checks `/api/chat` and `/api/tenant` each already had.
+- Hardened `lib/admin/guard.ts`: refuses any request whose `Sec-Fetch-Site` is not
+  `same-origin`, and allows a missing `Origin` only on GET/HEAD (browsers omit it there).
+
 ## Security
 - `/admin/kill-switch/*` and `/review-queue` now require a Keycloak JWT carrying the
   `platform-admin` realm role. The demo key and the raw tenant header are refused outright.

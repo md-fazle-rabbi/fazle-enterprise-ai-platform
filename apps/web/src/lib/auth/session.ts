@@ -27,3 +27,16 @@ export async function requireSession(): Promise<Session> {
   }
   return session;
 }
+
+const ADMIN_ROLE = "platform-admin";
+
+// Why: a UX convenience only. The real boundary is the backend's own platform-admin check
+// (rag_engine.db._authenticated_admin) -- this redirect only saves a signed in but
+// unauthorized user the trip of seeing a 403 from an API call.
+export async function requireAdminSession(): Promise<Session> {
+  const session = await requireSession();
+  if (!session.data.user.roles.includes(ADMIN_ROLE)) {
+    redirect("/");
+  }
+  return session;
+}
