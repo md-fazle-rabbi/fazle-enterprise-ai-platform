@@ -11,7 +11,7 @@ FROM node:24-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Why: env.ts (micro-step 7) reads process.env the moment it is imported, and `next build`
+# Why: env.ts reads process.env the moment it is imported, and `next build`
 # imports every route to bundle and type-check it, even routes that are dynamic at request
 # time. KEYCLOAK_WEB_CLIENT_SECRET is the one setting with no default (deliberately, so a
 # missing secret fails loudly rather than falling back to something guessable), so the build
@@ -27,6 +27,15 @@ FROM node:24-slim AS runtime
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get upgrade -y
+
+# Why: the runtime only executes `node server.js` (and the HEALTHCHECK's `node -e`); npm,
+# npx, corepack and yarn are build-time tools. npm bundles its own dependencies
+# (brace-expansion, tar, undici, ip-address) that Trivy flags and that no runtime code path
+# uses. Removing the tools removes the findings and shrinks the attack surface, rather than
+# ignoring them. Must run before `USER node`, while still root.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-v1.22.22
 
 WORKDIR /app
 ENV NODE_ENV=production
