@@ -1,9 +1,13 @@
 import react from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), react()],
+  plugins: [react()],
+  // Why: Vite 8 resolves the "@/*" path mapping from tsconfig.json natively, so the
+  // vite-tsconfig-paths plugin (and its deprecated tsconfck dependency) is not needed.
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
@@ -22,7 +26,7 @@ export default defineConfig({
     // Why: coverage instrumentation plus a fresh jsdom environment per test file put
     // enough load on the machine to make an unrelated render() call exceed its timeout.
     // Sharing one environment per worker removes that contention without weakening
-    // per-test correctness — tests still run in their own module context.
+    // per-test correctness: tests still run in their own module context.
     isolate: false,
     coverage: {
       provider: "v8",

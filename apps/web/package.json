@@ -17,7 +17,8 @@
     "test:e2e:headed": "playwright test --headed",
     "e2e:reset-cache": "docker compose -f ../../docker-compose.yml exec -T redis redis-cli del semantic_cache:00000000-0000-0000-0000-000000000001",
     "test:e2e:fresh": "npm run e2e:reset-cache && npm run test:e2e",
-    "pretest:e2e": "npm run e2e:reset-cache"
+    "pretest:e2e": "npm run e2e:reset-cache",
+    "unused": "knip"
   },
   "license": "MIT",
   "type": "module",
@@ -30,6 +31,7 @@
     "openid-client": "^6.8.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "redis": "^6.3.0",
     "server-only": "^0.0.1",
     "zod": "^4.6.5"
   },
@@ -50,11 +52,11 @@
     "eslint-config-prettier": "^10.1.8",
     "jose": "^6.2.12",
     "jsdom": "^30.1.0",
+    "knip": "^6.39.0",
     "postcss": "^8.5.28",
     "prettier": "^3.9.8",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^5.0.1"
   },
   "allowScripts": {

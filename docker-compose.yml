@@ -50,6 +50,22 @@ services:
       # scratch, turning routine local iteration into a repeated network
       # download for no reason.
       - hf-cache:/home/appuser/.cache/huggingface
+    # Why: the app loads the Prompt Guard classifier at startup, so /health refuses
+    # connections for the first several seconds (longer on a cold HF cache). Checks that
+    # fail inside start_period do not count toward retries, so a slow start no longer
+    # marks the container unhealthy and blocks web, which waits on app being healthy.
+    # Same probe the image's own HEALTHCHECK uses, made explicit here so the timings live
+    # in one visible place.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,urllib.request; urllib.request.urlopen('http://localhost:' + os.environ.get('PORT','8000') + '/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       db:
         condition: service_healthy
@@ -112,6 +128,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # Why: the app service inside the compose network, not localhost -- the same
+      # container-vs-host split the app service already uses for Keycloak.
+      BACKEND_URL: http://app:8000
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET:?set KEYCLOAK_WEB_CLIENT_SECRET in .env}
+      # Why: database 1, same convention as running it outside Docker (micro-step 5) --
+      # keeps web sessions apart from the backend's own data in database 0.
+      REDIS_URL: redis://redis:6379/1
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
     restart: unless-stopped
 
   opa:

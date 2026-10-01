@@ -4,6 +4,28 @@
 
 ## 2026-10-01
 
+## Web UI — Stages 1 through 4 complete
+
+Login through Keycloak, streaming chat with citations, a workspace selector re-validated
+on every token refresh, and an admin view (kill switch, review queue), all gated the same
+way the backend itself is gated — never trusting the frontend's own checks as the real
+boundary. Packaged as a non-root Docker image with CI covering lint, types, the full test
+suite (including real-Redis integration tests), an image scan, and one end to end
+accessibility-checked path. Known gaps are listed plainly in the README rather than
+implied away.
+
+## Deployment
+- Added a multi-stage, non-root Dockerfile for `apps/web` (Next.js standalone output),
+  wired into `docker-compose.yml` as the `web` service alongside the backend.
+- Added `web-checks` (ESLint, typecheck, Prettier, Vitest with real-Redis integration tests)
+  and `web-build-and-scan` (image build, boot smoke test, Trivy) to CI.
+- Runtime uses the base image's built-in `node` user (uid 1000). The build-time Keycloak
+  placeholder is passed inline to `npm run build`, so it never lands in image metadata.
+- Pinned `turbopack.root` and `outputFileTracingRoot` in `next.config.ts` so local and Docker
+  builds produce the same standalone layout.
+- Declared `redis` in `apps/web` dependencies (it was imported by `src/lib/redis.ts`).
+- Raised the `app` healthcheck `start_period` so model loading at startup no longer marks the container unhealthy and blocks `web`.
+
 ## Web
 - Added the review queue panel to `/admin`: lists flagged answers for the currently
   selected workspace (with their flag reasons, shown to admins though hidden from end

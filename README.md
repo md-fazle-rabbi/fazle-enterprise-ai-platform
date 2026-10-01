@@ -114,6 +114,13 @@ curl -N -X POST http://localhost:8000/query/stream \
 
 **Swagger and full API docs: http://localhost:8000/docs, once the stack is running.** A recorded Loom walkthrough of the same stack running end to end is linked above for anyone who wants to see it without setting it up.
 
+## Running the web app in Docker
+
+`docker compose up -d --build web` builds `apps/web`'s multi-stage, non-root Dockerfile and
+runs it alongside the backend. It listens on `http://localhost:3000`, the same address as
+`npm run dev`. `curl http://localhost:8000` style checks stay the same; nothing about the
+backend changes.
+
 ## End to end testing
 
 One Playwright test covers the whole user-visible flow: an anonymous visit redirects to
@@ -134,23 +141,32 @@ npm run test:e2e
 ## Known limitations
 Stated plainly, not left for a client to discover.
 
-- Signed per user auth exists on the backend (Keycloak JWT, tenant taken from token groups) and is tested with generated keys. 
-- The web app calls the backend with the signed in user's Keycloak access token and refreshes it before it expires (see the proof line). Parallel requests can refresh at the same time, which is safe only while Keycloak's refresh token rotation is off. The end to end test is planned, not implemented
-- A newly signed in user starts on whichever tenant appears first in their Keycloak group list, an order Keycloak does not guarantee, but can now switch explicitly with the Workspace selector, which the backend independently re-checks against the token on every call
-- Workspace names in the selector are shown as the last 4 characters of the tenant id, since there is still no tenants table or Keycloak display name to show instead. Switching workspace on the chat page does not clear or mark the conversation already on screen, even though earlier answers there came from the previous workspace's documents
-- The raw `X-Tenant-ID` header path is still on by default in compose because the load test, the RAGAS run and the research agent use it. Set `ALLOW_UNAUTHENTICATED_TENANT_HEADER=false` to refuse it. While it is on, an empty or malformed `Authorization` header behaves like no token at all
-- Keycloak runs in `start-dev` mode with an embedded database inside the container, so realm data resets when the container is recreated. Local showcase only. The demo users (alice, bob, carol) are synthetic
-- The web admin view (kill switch and review queue) closes Stage 4 of the build (see the proof line). The review queue has no pagination or filtering; every pending item for the selected workspace loads at once, matching the backend's own `/review-queue`, which has no limit or offset either. Switching workspace remounts the review queue panel, so an open, unsaved resolve note is lost
-- The web UI sends basic security headers but no Content Security Policy yet. Its home page is not covered by unit tests because Vitest cannot render async Server Components. The end to end test that would cover it is planned, not implemented
-- Web session data, including the Keycloak tokens, is stored unencrypted in Redis, and the compose Redis has no password or TLS. Local showcase only
-- The web app logs users in through the real Keycloak (see the proof line below). The login flow, including the OIDC code in `apps/web/src/lib/auth/oidc.ts`, is covered by unit tests with a simulated Keycloak and by one manual run. The end to end test is planned, not implemented
-- `proxy.ts` only checks that a session cookie exists. The real check happens in each page (`getSession`), so a new page must call it. If Redis is down, pages that need a session return an error page, and only the login page shows a message
-- `POST /query/stream` streams stage events and the final checked answer, not model tokens. If the client disconnects before the result event, the request's database writes (its query log entry, audit entry and review queue item) are rolled back, while the quota use and cache write in Redis may already have happened. A client must not retry an error event blindly, because a retry runs generation and uses quota again
-- The injection firewall matches request paths exactly, so every new endpoint that takes free text has to be added to its list by hand. `/query/stream` is covered and tested. The image and PDF ingest endpoints are not in that list
-- The web chat route (`/api/chat`) has no per user rate limit and no cap on parallel streams. Only the backend's per tenant daily quota limits usage. It sends no keepalive of its own, so a proxy with a short idle timeout could cut a long silent generation
-- The chat UI keeps its conversation only in the browser's memory. A page refresh loses it, and there is no cap on how long a session can grow. One question runs at a time by design
-- Each source in the citation viewer shows its full retrieved text with no length cap, so a long chunk makes the sources list long. There is no link back from a source to where in the answer it was cited, only forward from the marker to the source
-- The end to end test covers one path (alice, one question, one cited answer) and runs against Chromium only. It is not part of the fast `npm run check` loop, since it needs Docker Compose, real Keycloak login and a real model call; it's a separate, slower step
+**Security posture, local showcase**
+- Web session data, including the Keycloak tokens, is stored unencrypted in Redis, and the compose Redis has no password or TLS
+- `ALLOW_UNAUTHENTICATED_TENANT_HEADER` defaults to `true` in compose because the load test, the RAGAS run and the research agent still send the raw `X-Tenant-ID` header. Set it to `false` to require a real token
+- `proxy.ts` only checks that a session cookie exists; the real check (`getSession`, against Redis) runs in each page, so a page that forgets to call it is only protected by the optimistic gate
+- The web app sends basic security headers but no Content-Security-Policy yet
+- `/admin/kill-switch/*` and `/review-queue` require a real Keycloak token carrying the `platform-admin` realm role, but neither has a network-level restriction (no IP allowlist) yet
+- Keycloak runs in `start-dev` mode with an embedded database inside the container, so realm data resets when the container is recreated. The demo users (alice, bob, carol) are synthetic
+
+**Auth and tenancy edge cases**
+- Parallel requests can refresh the same user's token at the same time; this is safe only while Keycloak's refresh token rotation stays off (as far as I know, its default)
+- A newly signed in user starts on whichever tenant appears first in their Keycloak group list, an order Keycloak does not guarantee, but can switch explicitly with the workspace selector, independently re-checked by the backend on every call
+- Switching workspace remounts the chat panel and the admin review queue panel, so an in-progress conversation or an open, unsaved review note is lost
+
+**Query pipeline and chat**
+- `POST /query/stream` streams stage events and the final checked answer, not model tokens. If the client disconnects before the result event, that request's database writes (query log, audit entry, review queue item) roll back, while a Redis side effect (quota use, cache write) may already have happened. Clients must not retry an error event blindly, since a retry re-runs generation and spends quota again
+- The injection firewall matches request paths exactly and has to be updated by hand for every new endpoint that takes free text. `/query` and `/query/stream` are covered and tested; the image and PDF ingest endpoints are not on that list, and whether they are protected another way has not been checked
+- `/api/chat` has no per-user rate limit and no cap on parallel streams, only the backend's per-tenant daily quota. It sends no keepalive of its own, so a proxy with a short idle timeout could cut a long silent generation
+
+**Citation viewer and review queue**
+- Each source in the citation viewer shows its full retrieved text with no length cap, and there is no link back from a source to where in the answer it was cited
+- The review queue has no pagination or filtering; every pending item for the selected workspace loads at once, matching the backend's own `/review-queue`. Who resolved an item is logged, not stored as a database column (no migration added for it, to keep that step small)
+
+**Testing and delivery maturity**
+- The end to end test covers one path (alice, one question, one cited answer) against Chromium only, and is not part of the fast `npm run check` loop, since it needs the full Docker Compose stack and a real model call
+- The web Docker image builds with a placeholder `KEYCLOAK_WEB_CLIENT_SECRET`, used only to satisfy `next build`'s route analysis; the real secret is supplied at container start. No coverage-percentage gate is enforced on the web app in CI yet, unlike the backend's chunking gate
+
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time

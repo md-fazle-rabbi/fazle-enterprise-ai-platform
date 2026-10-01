@@ -11,7 +11,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Why: the X-Powered-By header tells scanners which framework to attack.
+  // Why: builds a minimal, self-contained server (.next/standalone) that traces only the
+  // files each route actually needs. Deferred from the scaffold because
+  // `next start` warns when this is on without a matching Docker setup; that setup is this
+  // step.
+  output: "standalone",
   poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
