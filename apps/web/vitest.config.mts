@@ -28,6 +28,15 @@ export default defineConfig({
     // Sharing one environment per worker removes that contention without weakening
     // per-test correctness: tests still run in their own module context.
     isolate: false,
+    // Why: the first render() in a worker pays for loading React, Testing Library and
+    // user-event on a cold cache, which took 6-7s here under CPU load. A 15s ceiling
+    // absorbs that spike and still catches a genuinely hung test, and it is set once
+    // here instead of as a per-test timeout argument scattered across test files.
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
+    // Why: jsdom workers are CPU-bound. Capping them at half the cores leaves headroom
+    // for the machine, so a cold-start spike does not push a test past its timeout.
+    maxWorkers: "50%",
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
