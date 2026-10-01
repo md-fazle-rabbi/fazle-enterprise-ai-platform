@@ -53,6 +53,34 @@ _tracer = trace.get_tracer(__name__)
 Stage = Literal["cache_lookup", "retrieval", "grading", "generation", "output_checks"]
 StageCallback = Callable[[Stage], Awaitable[None]]
 
+# Why: every model or database call in the pipeline gets a deadline. Without one, a
+# stalled Gemini or Voyage call leaves the stream silent (only keepalives) until the web
+# app's 120 s overall limit, and the user sits on one stage label that whole time. A call
+# that misses its deadline becomes a 504, which /query/stream reports as an error event
+# like any other failure. cache_lookup covers embed_query, whose own worst case is about
+# 40 s (see embeddings.py). Retrieval is two database calls (no embedding, see
+# hybrid_search), each with its own budget. Worst case 40 + (10 + 10) + 20 + 25 = 105 s,
+# under the web app's 120 s limit.
+_STAGE_TIMEOUT_S: dict[Stage, float] = {
+    "cache_lookup": 40.0,
+    "retrieval": 10.0,
+    "grading": 20.0,
+    "generation": 25.0,
+}
+
+
+async def _bounded[T](stage: Stage, awaitable: Awaitable[T]) -> T:
+    """Await one pipeline call, but give up with a 504 once its stage deadline passes."""
+    timeout_s = _STAGE_TIMEOUT_S[stage]
+    try:
+        async with asyncio.timeout(timeout_s):
+            return await awaitable
+    except TimeoutError as exc:
+        logger.error("query.stage_timeout", stage=stage, timeout_s=timeout_s)
+        raise HTTPException(
+            status_code=504, detail=f"The {stage} stage timed out"
+        ) from exc
+
 
 async def _ignore_stage(stage: Stage) -> None:
     """The plain /query endpoint reports no progress."""
@@ -130,7 +158,7 @@ async def run_query(
     # switch already use.
     # ---------------------------------------------------------
     await on_stage("cache_lookup")
-    query_vector = await embed_query(body.question)
+    query_vector = await _bounded("cache_lookup", embed_query(body.question))
 
     session.add(
         QueryLog(tenant_id=tenant_id, question=body.question, embedding=query_vector)
@@ -161,10 +189,17 @@ async def run_query(
             json.dumps({"question": body.question, "top_k": body.top_k}),
         )
 
-        chunk_ids = await hybrid_search(
-            session,
-            body.question,
-            top_k=body.top_k,
+        chunk_ids = await _bounded(
+            "retrieval",
+            hybrid_search(
+                session,
+                body.question,
+                top_k=body.top_k,
+                # Why: the vector computed for the cache check above. Passing it avoids a
+                # second Voyage call for the same question, which was the call that hit
+                # the rate limit and stalled the stream on "Searching your documents...".
+                query_vector=query_vector,
+            ),
         )
 
         if not chunk_ids:
@@ -181,7 +216,7 @@ async def run_query(
                 flag_reasons=[],
             )
 
-        parents = await expand_to_parents(session, chunk_ids)
+        parents = await _bounded("retrieval", expand_to_parents(session, chunk_ids))
 
         if not parents:
             span.set_attribute(
@@ -210,9 +245,12 @@ async def run_query(
     # crag.grade_relevance itself, alongside the Gemini call.
     # ---------------------------------------------------------
     await on_stage("grading")
-    is_relevant = await grade_relevance(
-        body.question,
-        parents,
+    is_relevant = await _bounded(
+        "grading",
+        grade_relevance(
+            body.question,
+            parents,
+        ),
     )
 
     if not is_relevant:
@@ -243,9 +281,12 @@ async def run_query(
     #    itself, alongside the Gemini call.
     # ---------------------------------------------------------
     await on_stage("generation")
-    answer = await generate_answer(
-        body.question,
-        [{"text": p["text"]} for p in parents],
+    answer = await _bounded(
+        "generation",
+        generate_answer(
+            body.question,
+            [{"text": p["text"]} for p in parents],
+        ),
     )
 
     # ---------------------------------------------------------

@@ -12,6 +12,13 @@
 - The admin page now includes the workspace selector. The review queue panel is keyed on
   the current tenant, so switching workspace refetches it instead of showing stale data
   from the previous one.
+- Added one Playwright end to end test: an anonymous visit through login, Keycloak sign in,
+  the home page, a chat question, and the resulting cited answer. It also runs an
+  accessibility (axe) scan on the login page and on the chat page with an answer showing,
+  finding no violations against a real, running Keycloak and backend.
+- Fixed the chat stream hanging when Voyage rate-limits a question embedding: one
+  embedding per question, stage deadlines, request spacing for the free tier, and an
+  error shown when a stream ends without an answer.
 
 ## 2026-09-30
 

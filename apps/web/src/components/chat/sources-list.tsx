@@ -19,7 +19,7 @@ export function SourcesList({ turnId, result }: SourcesListProps) {
 
   return (
     <div className="mt-2 text-sm">
-      <h3 className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Sources</h3>
+      <h3 className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Sources</h3>
       <ol className="mt-1 flex flex-col gap-2">
         {sources.map((source, position) => {
           const index = position + 1;
@@ -32,10 +32,10 @@ export function SourcesList({ turnId, result }: SourcesListProps) {
               className={`scroll-mt-4 rounded-md border p-2 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-neutral-900 [&:target]:bg-amber-100 dark:focus:outline-white dark:[&:target]:bg-amber-900/40 ${
                 cited
                   ? "border-neutral-300 dark:border-neutral-700"
-                  : "border-dashed border-neutral-200 opacity-70 dark:border-neutral-800"
+                  : "border-dashed border-neutral-200 dark:border-neutral-800"
               }`}
             >
-              <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+              <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
                 [{index}]
                 {source.heading_path.length > 0 ? ` ${source.heading_path.join(" › ")}` : ""}
                 {cited ? "" : " · considered, not cited"}

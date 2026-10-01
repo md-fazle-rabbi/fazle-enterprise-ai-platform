@@ -10,7 +10,7 @@ export function ChatPanel() {
   return (
     <section aria-labelledby="chat-heading" className="flex flex-col gap-4">
       <h2 id="chat-heading" className="text-lg font-medium">
-        Chat
+        Messages
       </h2>
       <div
         role="log"

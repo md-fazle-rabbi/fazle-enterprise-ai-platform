@@ -12,7 +12,12 @@
     "format:check": "prettier --check .",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check": "npm run lint && npm run typecheck && npm run format:check && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run format:check && npm run test",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "e2e:reset-cache": "docker compose -f ../../docker-compose.yml exec -T redis redis-cli del semantic_cache:00000000-0000-0000-0000-000000000001",
+    "test:e2e:fresh": "npm run e2e:reset-cache && npm run test:e2e",
+    "pretest:e2e": "npm run e2e:reset-cache"
   },
   "license": "MIT",
   "type": "module",
@@ -29,6 +34,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",

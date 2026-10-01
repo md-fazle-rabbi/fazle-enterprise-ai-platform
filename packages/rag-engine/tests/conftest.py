@@ -18,6 +18,28 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def forbid_real_voyage_calls(request, monkeypatch):
+    """Safety net for the patches below. If a module binds embed_query or
+    embed_documents under a name that is not patched here, the real Voyage client
+    would be called: the test then spends API quota and, on a rate-limited
+    account, stalls on backoff while still passing. Failing loudly names the
+    unpatched call site instead. test_embeddings.py is the one module that is
+    meant to call the real API."""
+    if request.module.__name__.endswith("test_embeddings"):
+        return
+
+    from rag_engine import embeddings
+
+    async def _refuse(*args, **kwargs):
+        raise AssertionError(
+            "A test called the real Voyage API. Patch the embedding function "
+            "where that module imports it, in tests/conftest.py."
+        )
+
+    monkeypatch.setattr(embeddings._client, "embed", _refuse)
+
+
+@pytest.fixture(autouse=True)
 def mock_voyage_embeddings(monkeypatch):
     async def _fake_embed_documents(texts: list[str]) -> list[list[float]]:
         return [[0.01] * 1024 for _ in texts]
@@ -35,6 +57,9 @@ def mock_voyage_embeddings(monkeypatch):
         "rag_engine.routers.ingest_pdf.embed_documents", _fake_embed_documents
     )
     monkeypatch.setattr("rag_engine.search.embed_query", _fake_embed_query)
+    # Why: run_query embeds the question itself for the semantic cache check, through
+    # its own import of embed_query, which the search.py patch above does not cover.
+    monkeypatch.setattr("rag_engine.routers.query.embed_query", _fake_embed_query)
 
 
 @pytest.fixture(autouse=True)

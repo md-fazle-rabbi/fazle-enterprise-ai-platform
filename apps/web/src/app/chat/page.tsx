@@ -11,6 +11,7 @@ export default async function ChatPage() {
       <Link href="/" className="text-sm text-neutral-600 hover:underline dark:text-neutral-300">
         ← Back to home
       </Link>
+      <h1 className="text-3xl font-semibold">Chat</h1>
       <TenantSwitcher
         tenants={session.data.user.tenants}
         currentTenantId={session.data.currentTenantId}

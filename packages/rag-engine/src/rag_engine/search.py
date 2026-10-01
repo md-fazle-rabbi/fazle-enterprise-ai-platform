@@ -62,15 +62,26 @@ def _reciprocal_rank_fusion(
 
 
 async def hybrid_search(
-    session: AsyncSession, query_text: str, top_k: int = 10, candidate_pool: int = 50
+    session: AsyncSession,
+    query_text: str,
+    top_k: int = 10,
+    candidate_pool: int = 50,
+    *,
+    query_vector: list[float] | None = None,
 ) -> list[uuid.UUID]:
     """
     Dense and sparse searches run sequentially on purpose, not concurrently:
     SQLAlchemy's AsyncSession wraps one connection and isn't safe for
     concurrent queries on the same session. Two sessions would let these
     run in parallel, not worth the added complexity at this scale yet.
+
+    query_vector is the embedding of query_text, when the caller already has
+    it. /query embeds the question once for the semantic cache check and
+    passes that same vector here, so one question costs one embedding call,
+    not two. Left out, this embeds query_text itself (as /search does).
     """
-    query_vector = await embed_query(query_text)
+    if query_vector is None:
+        query_vector = await embed_query(query_text)
     dense_ranks = await _dense_search(session, query_vector, candidate_pool)
     sparse_ranks = await _sparse_search(session, query_text, candidate_pool)
     fused = _reciprocal_rank_fusion(dense_ranks, sparse_ranks)

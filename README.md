@@ -114,6 +114,23 @@ curl -N -X POST http://localhost:8000/query/stream \
 
 **Swagger and full API docs: http://localhost:8000/docs, once the stack is running.** A recorded Loom walkthrough of the same stack running end to end is linked above for anyone who wants to see it without setting it up.
 
+## End to end testing
+
+One Playwright test covers the whole user-visible flow: an anonymous visit redirects to
+login, signs in through the real Keycloak, lands on the home page, asks a question in chat,
+and sees a cited answer. It also runs an accessibility scan (axe) on the login page and on
+the chat page once an answer is showing.
+
+It needs the full stack running (`docker compose up -d db redis keycloak app` and
+`npm run dev` inside `apps/web`), alice's tenant already holding the refund-policy document
+from the `/ingest` example above, and alice's Keycloak password in the environment:
+
+​```bash
+cd apps/web
+export E2E_ALICE_PASSWORD="$(grep '^DEMO_USER_PASSWORD=' ../../.env | cut -d= -f2)"
+npm run test:e2e
+​```
+
 ## Known limitations
 Stated plainly, not left for a client to discover.
 
@@ -133,6 +150,7 @@ Stated plainly, not left for a client to discover.
 - The web chat route (`/api/chat`) has no per user rate limit and no cap on parallel streams. Only the backend's per tenant daily quota limits usage. It sends no keepalive of its own, so a proxy with a short idle timeout could cut a long silent generation
 - The chat UI keeps its conversation only in the browser's memory. A page refresh loses it, and there is no cap on how long a session can grow. One question runs at a time by design
 - Each source in the citation viewer shows its full retrieved text with no length cap, so a long chunk makes the sources list long. There is no link back from a source to where in the answer it was cited, only forward from the marker to the source
+- The end to end test covers one path (alice, one question, one cited answer) and runs against Chromium only. It is not part of the fast `npm run check` loop, since it needs Docker Compose, real Keycloak login and a real model call; it's a separate, slower step
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit
 - GraphRAG entity extraction is stored but not wired into retrieval
 - Drift detection covers query embedding distribution only, not retrieval or generation quality drift over time
