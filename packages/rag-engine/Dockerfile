@@ -1,7 +1,7 @@
 # Build context is the repo root, docker-compose.yml sets context: .
 
 FROM python:3.13.15-slim-bookworm AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /uvx /bin/
 WORKDIR /app
 
 # uv's default 30s per-request timeout gets blown past once large
@@ -22,7 +22,7 @@ COPY packages/governance/pyproject.toml packages/governance/pyproject.toml
 # from PyPI. This is what actually stops the build-cache bloat problem
 # at the source, rather than pruning after the fact.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --package rag-engine
+    uv sync --frozen --no-dev --no-install-project --package rag-engine
 
 # Moved ahead of the source COPY below on purpose: this depends only on
 # spacy being installed (already true after the deps-only sync above),
@@ -48,7 +48,7 @@ COPY packages/governance packages/governance
 # here would silently delete it right after it was installed, that
 # happened, this flag is the fix for it, not a stylistic choice.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --package rag-engine --inexact
+    uv sync --frozen --no-dev --package rag-engine --inexact
 
 FROM python:3.13.15-slim-bookworm AS runtime
 # Patch OS CVEs Debian has already fixed upstream, the base tag only
