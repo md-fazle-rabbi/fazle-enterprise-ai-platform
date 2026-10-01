@@ -7,11 +7,25 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Why: least privilege by default. A job-level `permissions:` block REPLACES this
+# (it does not merge), so every job that needs security-events: write must also
+# re-declare contents: read, or checkout/upload-sarif fail on private repos.
+permissions:
+  contents: read
+
+# Why: a new push to the same ref cancels the now-stale run instead of queueing it.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -29,6 +43,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: lint-and-typecheck
     services:
       postgres:
@@ -56,6 +71,8 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -80,6 +97,7 @@ jobs:
         with:
           name: coverage-report
           path: packages/rag-engine/coverage.xml
+          if-no-files-found: error
       - name: Pull sandbox runner image
         # agent_mesh.sandbox.runner spins up throwaway containers from this
         # image via docker-py's low-level create_container API, which does
@@ -103,6 +121,7 @@ jobs:
 
   web-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       redis:
         image: redis:8-alpine
@@ -120,6 +139,8 @@ jobs:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Node
         # This SHA resolved and ran green in CI. Still confirm it is the latest v6.x.y
         # and put the exact version in the trailing comment:
@@ -144,14 +165,26 @@ jobs:
         with:
           name: web-coverage-report
           path: apps/web/coverage/
+          if-no-files-found: error
 
   web-build-and-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: web-checks
+    # Why: re-declare contents: read, because this block replaces the top-level one.
     permissions:
+      contents: read
+      actions: read
       security-events: write
+    env:
+      # Why: fallback mirror when ghcr.io rate-limits the Trivy DB download
+      # (TOOMANYREQUESTS), a common cause of flaky scan failures.
+      TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
+      TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1,ghcr.io/aquasecurity/trivy-java-db:1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build image
         run: docker build -f apps/web/Dockerfile -t fazle-web:${{ github.sha }} ./apps/web
       - name: Smoke test — image boots and serves /api/health
@@ -159,12 +192,17 @@ jobs:
           docker run -d --name web-smoke -p 3000:3000 \
             -e KEYCLOAK_WEB_CLIENT_SECRET=ci-smoke-test-placeholder-value \
             fazle-web:${{ github.sha }}
-          for i in $(seq 1 15); do
-            curl -sf http://localhost:3000/api/health && break
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health; then ok=1; break; fi
+            # Why: bail out early if the container already died, instead of waiting 60s.
+            if [ "$(docker inspect -f '{{.State.Running}}' web-smoke)" != "true" ]; then break; fi
             sleep 2
           done
-          curl -sf http://localhost:3000/api/health
-          docker stop web-smoke
+          echo "---- container logs ----"
+          docker logs web-smoke
+          docker rm -f web-smoke
+          [ "$ok" = "1" ]
       - name: Trivy table (findings visible in the log, never fails the job)
         # Why: the SARIF step below writes findings to a file, so a failure shows only
         # "exit code 1" in the log. This step prints the same CRITICAL/HIGH findings as a
@@ -182,22 +220,30 @@ jobs:
           image-ref: fazle-web:${{ github.sha }}
           format: sarif
           output: trivy-web-results.sarif
+          limit-severities-for-sarif: true
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
       - name: Upload Trivy results to Security tab
-        if: always()
+        # Why: skipped on fork PRs, where the token cannot have security-events: write.
+        if: ${{ always() && hashFiles('trivy-web-results.sarif') != '' && github.event.pull_request.head.repo.fork != true }}
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           sarif_file: trivy-web-results.sarif
+          category: trivy-web
 
   security:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: lint-and-typecheck
     permissions:
+      contents: read
+      actions: read
       security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: pip-audit
@@ -209,17 +255,27 @@ jobs:
       - name: CodeQL init
         uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
-          languages: python
+          # Why: apps/web is TypeScript, previously never scanned.
+          languages: python,javascript-typescript
+          build-mode: none
       - name: CodeQL analyze
         uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
 
   build-and-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: [test, security]
     permissions:
+      contents: read
+      actions: read
       security-events: write
+    env:
+      TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
+      TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1,ghcr.io/aquasecurity/trivy-java-db:1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build image
         run: docker build -f packages/rag-engine/Dockerfile -t rag-engine:${{ github.sha }} .
       - name: Smoke test — image boots and imports cleanly
@@ -244,17 +300,20 @@ jobs:
           image-ref: rag-engine:${{ github.sha }}
           format: sarif
           output: trivy-results.sarif
+          limit-severities-for-sarif: true
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
       - name: Upload Trivy results to Security tab
-        if: always()
+        if: ${{ always() && hashFiles('trivy-results.sarif') != '' && github.event.pull_request.head.repo.fork != true }}
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           sarif_file: trivy-results.sarif
+          category: trivy-rag-engine
 
   ragas-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: test
     services:
       postgres:
@@ -283,6 +342,8 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: Install Python
