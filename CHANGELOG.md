@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## 2026-10-01
+
+## Web
+- Added the review queue panel to `/admin`: lists flagged answers for the currently
+  selected workspace (with their flag reasons, shown to admins though hidden from end
+  users elsewhere in the app), and resolves them with an optional note. Reuses
+  `lib/admin/guard.ts` and `adminFetch` from the kill switch panel.
+- The admin page now includes the workspace selector. The review queue panel is keyed on
+  the current tenant, so switching workspace refetches it instead of showing stale data
+  from the previous one.
+
 ## 2026-09-30
 
 ## Web

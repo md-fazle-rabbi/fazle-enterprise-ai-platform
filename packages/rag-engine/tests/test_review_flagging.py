@@ -22,7 +22,7 @@ def test_no_flags_when_fully_grounded():
 
 def test_flags_and_redacts_output_pii():
     answer, reasons = _flag_reasons(
-        "Contact fazle@example.com for more.", cited_count=1, total_count=1
+        "Contact mfrabbi.ai@gmail.com for more.", cited_count=1, total_count=1
     )
     assert "output_pii" in reasons
     assert "fazle@example.com" not in answer

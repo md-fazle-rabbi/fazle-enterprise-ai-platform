@@ -1,0 +1,4 @@
+Check 1 (no Origin header, resolve): 403
+Check 2 (cross-tenant resolve from tenant B, tenant A item id): 404 {"message":"Not found"}
+Check 3 (key removed, workspace switch): <stale items stayed / list refreshed>
+Key restored: yes
