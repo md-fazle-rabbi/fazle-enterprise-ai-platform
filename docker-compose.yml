@@ -31,31 +31,30 @@ services:
       LANGFUSE_HOST: ${LANGFUSE_HOST}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+
       # Why: inside compose Keycloak is reachable as keycloak:8080, used to
       # fetch signing keys. Tokens carry the public issuer, localhost:8080.
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_PUBLIC_URL: http://localhost:8080
+
       # Why: the load test, the RAGAS run and the research agent still send the
       # raw X-Tenant-ID header, so this stays true by default. Set it to false
       # in .env to show that only a Keycloak token or the demo key gets in.
       ALLOW_UNAUTHENTICATED_TENANT_HEADER: ${ALLOW_UNAUTHENTICATED_TENANT_HEADER:-true}
+
     volumes:
       # Read-only socket mount: this service spins up throwaway sandbox
       # containers (agent_mesh.sandbox.runner) and destroys them immediately.
       # It never needs to do anything else with the socket.
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Persists downloaded HF model weights (Prompt Guard, etc.) across
-      # container rebuilds. Without this, every rebuild starts with an
-      # empty cache and re-downloads the same ~86M-parameter model from
-      # scratch, turning routine local iteration into a repeated network
-      # download for no reason.
+
+      # Persists downloaded HF model weights across container rebuilds.
       - hf-cache:/home/appuser/.cache/huggingface
+
     # Why: the app loads the Prompt Guard classifier at startup, so /health refuses
-    # connections for the first several seconds (longer on a cold HF cache). Checks that
-    # fail inside start_period do not count toward retries, so a slow start no longer
-    # marks the container unhealthy and blocks web, which waits on app being healthy.
-    # Same probe the image's own HEALTHCHECK uses, made explicit here so the timings live
-    # in one visible place.
+    # connections for the first several seconds. Checks that fail inside start_period
+    # do not count toward retries, so a slow start no longer marks the container
+    # unhealthy and blocks web, which waits on app being healthy.
     healthcheck:
       test:
         - CMD
@@ -66,6 +65,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 90s
+
     depends_on:
       db:
         condition: service_healthy
@@ -73,6 +73,7 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+
     restart: unless-stopped
 
   db:
@@ -85,68 +86,87 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
     restart: unless-stopped
 
   redis:
     image: redis:8-alpine
     ports:
       - "6379:6379"
+
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
+
     restart: unless-stopped
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.6
     command: start-dev --import-realm
+
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_change_me}
+
       # Why: pins the issuer every token carries, whatever address was used to
       # reach Keycloak. Dynamic backchannel lets other containers still call it
       # as keycloak:8080. hostname must be a full URL for that to work.
       KC_HOSTNAME: http://localhost:8080
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+
       # Why: filled into the realm import file as ${...} placeholders, so
       # neither value is committed. The :? stops compose with a clear message
       # when one is missing from .env.
       KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET:?set KEYCLOAK_WEB_CLIENT_SECRET in .env}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:?set DEMO_USER_PASSWORD in .env}
+
     ports:
       - "8080:8080"
+
     volumes:
       - ./infra/keycloak/import:/opt/keycloak/data/import
+
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
+
     restart: unless-stopped
 
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      # IMPORTANT:
+      # The web Dockerfile now expects the repository root as its build context.
+      # This keeps the Docker filesystem layout aligned with next.config.ts.
+      context: .
+      dockerfile: apps/web/Dockerfile
+
     ports:
       - "3000:3000"
+
     environment:
-      # Why: the app service inside the compose network, not localhost -- the same
-      # container-vs-host split the app service already uses for Keycloak.
+      # Why: the app service inside the compose network, not localhost.
       BACKEND_URL: http://app:8000
+
       APP_URL: ${APP_URL:-http://localhost:3000}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}
       KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+
       KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET:?set KEYCLOAK_WEB_CLIENT_SECRET in .env}
-      # Why: database 1, same convention as running it outside Docker (micro-step 5) --
-      # keeps web sessions apart from the backend's own data in database 0.
+
+      # Why: database 1 keeps web sessions apart from the backend's own
+      # Redis data in database 0.
       REDIS_URL: redis://redis:6379/1
+
     depends_on:
       app:
         condition: service_healthy
@@ -154,15 +174,20 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+
     restart: unless-stopped
 
   opa:
     image: openpolicyagent/opa:1.19.1
-    command: ["run", "--server", "--addr=0.0.0.0:8181", "/policies"]
+    command:
+      ["run", "--server", "--addr=0.0.0.0:8181", "/policies"]
+
     volumes:
       - ./infra/opa/policies:/policies
+
     ports:
       - "8181:8181"
+
     restart: unless-stopped
 
 volumes:
