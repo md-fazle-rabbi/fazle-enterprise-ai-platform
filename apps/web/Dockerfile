@@ -2,6 +2,7 @@
 
 FROM node:24-slim AS deps
 WORKDIR /app
+
 # Why: package.json and package-lock.json copied alone, so this layer only invalidates
 # when a dependency actually changes, not on every source edit.
 COPY package.json package-lock.json ./
@@ -9,8 +10,10 @@ RUN npm ci
 
 FROM node:24-slim AS builder
 WORKDIR /app
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
 # Why: env.ts reads process.env the moment it is imported, and `next build`
 # imports every route to bundle and type-check it, even routes that are dynamic at request
 # time. KEYCLOAK_WEB_CLIENT_SECRET is the one setting with no default (deliberately, so a
@@ -21,6 +24,7 @@ COPY . .
 RUN KEYCLOAK_WEB_CLIENT_SECRET=build-time-placeholder-not-used-at-runtime npm run build
 
 FROM node:24-slim AS runtime
+
 # Why: patches OS CVEs Debian has already fixed upstream, the same reasoning and cache
 # mount shape as packages/rag-engine/Dockerfile, kept ahead of the COPY steps so it stays
 # cache-stable across source edits rather than re-running apt over the network every build.
@@ -28,34 +32,42 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get upgrade -y
 
-# Why: the runtime only executes `node server.js` (and the HEALTHCHECK's `node -e`); npm,
-# npx, corepack and yarn are build-time tools. npm bundles its own dependencies
-# (brace-expansion, tar, undici, ip-address) that Trivy flags and that no runtime code path
-# uses. Removing the tools removes the findings and shrinks the attack surface, rather than
-# ignoring them. Must run before `USER node`, while still root.
+# Why: the runtime only executes `node server.js` (and the HEALTHCHECK's `node -e`);
+# npm, npx, corepack and yarn are build-time tools. Removing them reduces the attack
+# surface and avoids shipping unnecessary package dependencies.
+# Must run before `USER node`, while still root.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
            /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
            /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-v1.22.22
 
 WORKDIR /app
+
 ENV NODE_ENV=production
-# Why: the standalone server binds to this address, not to the loopback interface. Left at
-# its default, Docker's port mapping would have nothing to reach inside the container.
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# Why: the standalone build traces only the files each route actually needs, but it does
-# not copy public/ or .next/static itself, both are copied here by hand, and the prerender
-# cache directory (.next) is pre-created with the right owner since nothing else creates it.
-# The built-in `node` user (uid/gid 1000) from the base image is the non-root user, so no
-# separate user is created.
-COPY --from=builder --chown=node:node /app/public ./public
-RUN mkdir .next && chown node:node .next
+# Why: Next.js standalone output preserves the monorepo path when
+# outputFileTracingRoot points to the repository root.
+# The server therefore exists at:
+# /app/apps/web/server.js
+#
+# Copy the complete standalone output first.
 COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+# Runtime assets need to live beside the web application.
+COPY --from=builder --chown=node:node /app/public ./apps/web/public
+
+RUN mkdir -p apps/web/.next && chown -R node:node apps/web/.next
+
+COPY --from=builder --chown=node:node /app/.next/static ./apps/web/.next/static
+
+# Run from the directory containing server.js.
+WORKDIR /app/apps/web
 
 USER node
 EXPOSE 3000
+
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
     CMD node -e "fetch('http://localhost:' + (process.env.PORT || 3000) + '/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+
 CMD ["node", "server.js"]
