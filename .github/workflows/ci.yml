@@ -9,7 +9,7 @@ on:
 
 # Why: least privilege by default. A job-level `permissions:` block REPLACES this
 # (it does not merge), so every job that needs security-events: write must also
-# re-declare contents: read, or checkout/upload-sarif fail on private repos.
+# re-declare contents: read.
 permissions:
   contents: read
 
@@ -23,11 +23,9 @@ env:
   # so a new uv release could change CI behaviour with no commit on our side.
   UV_VERSION: "0.12.21"
 
-# Why: runs-on is pinned to an explicit Ubuntu release instead of ubuntu-latest,
-# because GitHub moves ubuntu-latest from 24.04 to 26.04 between Oct 19 and Nov 19,
-# 2026, and a floating label can change the OS under us with no commit on our side.
-# This branch trials 26.04 before main. To roll back, switch every runs-on label at once:
-# sed -i 's/runs-on: ubuntu-26.04/runs-on: ubuntu-24.04/' .github/workflows/ci.yml
+# Why: runs-on names an explicit Ubuntu release instead of ubuntu-latest, so the runner OS
+# only changes when this file changes. To move to a newer release, switch every runs-on
+# label together.
 
 jobs:
   lint-and-typecheck:
@@ -129,24 +127,17 @@ jobs:
           if-no-files-found: error
 
       - name: Pull sandbox runner image
-        # agent_mesh.sandbox.runner spins up throwaway containers from this
-        # image via docker-py's low-level create_container API, which does
-        # NOT auto-pull on a cache miss the way `docker run` does. On a
-        # fresh runner, create() 404s immediately unless the image is
-        # already present. Pulling explicitly here keeps that behavior
-        # visible and out of test runtime/timeouts.
-        # TODO: pin by digest (python@sha256:...) instead of a mutable tag
-        # once this repo starts caring about supply-chain reproducibility
-        # end-to-end; tracked as a follow-up, not blocking here.
+        # Why: agent_mesh.sandbox.runner creates throwaway containers through docker-py's
+        # low-level create_container API, which does not auto-pull a missing image the way
+        # `docker run` does. Pulling here keeps that step explicit and out of test timeouts.
+        # TODO: pin by digest (python@sha256:...) instead of a mutable tag.
         run: docker pull python:3.13.15-slim
 
       - name: agent-mesh tests
         working-directory: packages/agent-mesh
-        # test_authz.py excluded: needs a live OPA instance. GitHub Actions'
-        # services containers cannot bind-mount infra/opa/policies, so
-        # wiring OPA into this job needs a manual docker run step after
-        # checkout, not a services entry.
-        # Tracked separately, not silently skipped without a reason here.
+        # Why: test_authz.py is excluded because it needs a live OPA instance, and a
+        # services container cannot bind-mount infra/opa/policies. Running it would take a
+        # separate `docker run` step after checkout.
         run: uv run pytest --ignore=tests/test_authz.py -v
 
   web-checks:
@@ -216,7 +207,7 @@ jobs:
       security-events: write
 
     env:
-      # Why: fallback mirror when ghcr.io rate-limits the Trivy DB download.
+      # Why: fallback mirror for when ghcr.io rate-limits the Trivy DB download.
       TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
       TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1,ghcr.io/aquasecurity/trivy-java-db:1
 
@@ -226,9 +217,9 @@ jobs:
           persist-credentials: false
 
       - name: Build image
-        # Why: the Next.js app explicitly uses the repository root as
-        # outputFileTracingRoot. Building from the repository root keeps
-        # Docker's filesystem layout aligned with Next.js' monorepo layout.
+        # Why: the Next.js app uses the repository root as outputFileTracingRoot, so the
+        # image is built from the repository root to keep Docker's filesystem layout
+        # aligned with Next.js' monorepo layout.
         run: docker build -f apps/web/Dockerfile -t fazle-web:${{ github.sha }} .
 
       - name: Smoke test - image boots and serves /api/health
@@ -282,10 +273,13 @@ jobs:
           exit-code: "1"
 
       - name: Upload Trivy results to Security tab
+        # Why: an explicit category gives this scan a stable identity in Code scanning,
+        # independent of the workflow and job names.
         if: ${{ always() && hashFiles('trivy-web-results.sarif') != '' && github.event.pull_request.head.repo.fork != true }}
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           sarif_file: trivy-web-results.sarif
+          category: trivy-web
 
   security:
     runs-on: ubuntu-26.04
@@ -311,8 +305,8 @@ jobs:
         run: |
           uv export --format requirements-txt --no-hashes > requirements.txt
           uvx pip-audit -r requirements.txt || true
-        # non-blocking for now: findings get triaged on the first real run,
-        # tighten to a hard fail once that first pass is reviewed by hand
+        # Why: non-blocking. Findings are reported but do not fail the job; make it a hard
+        # failure once the findings have been triaged.
 
       - name: CodeQL init
         uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
@@ -375,10 +369,12 @@ jobs:
           exit-code: "1"
 
       - name: Upload Trivy results to Security tab
+        # Why: explicit category, same as the web image's upload step.
         if: ${{ always() && hashFiles('trivy-results.sarif') != '' && github.event.pull_request.head.repo.fork != true }}
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
           sarif_file: trivy-results.sarif
+          category: trivy-rag-engine
 
   ragas-gate:
     runs-on: ubuntu-26.04
