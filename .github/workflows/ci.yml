@@ -23,10 +23,10 @@ env:
   # so a new uv release could change CI behaviour with no commit on our side.
   UV_VERSION: "0.12.21"
 
-# Why: runs-on is pinned to an explicit Ubuntu release instead of ubuntu-latest, because
-# GitHub moves ubuntu-latest from 24.04 to 26.04 between Oct 19 and Nov 19, 2026, and a
-# floating label can change the OS under us with no commit on our side. Moved from 24.04
-# to 26.04 after a green PR run. To roll back, switch every runs-on label at once:
+# Why: runs-on is pinned to an explicit Ubuntu release instead of ubuntu-latest,
+# because GitHub moves ubuntu-latest from 24.04 to 26.04 between Oct 19 and Nov 19,
+# 2026, and a floating label can change the OS under us with no commit on our side.
+# This branch trials 26.04 before main. To roll back, switch every runs-on label at once:
 # sed -i 's/runs-on: ubuntu-26.04/runs-on: ubuntu-24.04/' .github/workflows/ci.yml
 
 jobs:
@@ -37,19 +37,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+
       - name: Install Python
         run: uv python install 3.13.15
+
       - name: Install dependencies
         run: uv sync --all-packages
+
       - name: ruff check
         run: uv run ruff check .
+
       - name: ruff format check
         run: uv run ruff format --check .
+
       - name: mypy --strict
         run: uv run mypy --strict -p core -p rag_engine -p agent_mesh
 
@@ -57,6 +63,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     needs: lint-and-typecheck
+
     services:
       postgres:
         image: pgvector/pgvector:0.8.6-pg18-trixie
@@ -68,12 +75,14 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U fazle -d fazle"
           --health-interval 5s --health-timeout 5s --health-retries 5
+
       redis:
         image: redis:8-alpine
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 5
+
     env:
       DATABASE_URL: postgresql+asyncpg://fazle:fazle_ci_password@localhost:5432/fazle
       REDIS_URL: redis://localhost:6379/0
@@ -81,22 +90,28 @@ jobs:
       APP_DB_PASSWORD: ci_app_password
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+
       - name: Install Python
         run: uv python install 3.13.15
+
       - name: Install dependencies
         run: uv sync --all-packages
+
       - name: Run migrations
         working-directory: packages/rag-engine
         run: uv run alembic upgrade head
+
       - name: pytest, coverage gate on chunking only
         working-directory: packages/rag-engine
         run: |
@@ -105,36 +120,39 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under=90
+
       - name: Upload coverage report
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-report
           path: packages/rag-engine/coverage.xml
           if-no-files-found: error
+
       - name: Pull sandbox runner image
         # agent_mesh.sandbox.runner spins up throwaway containers from this
         # image via docker-py's low-level create_container API, which does
         # NOT auto-pull on a cache miss the way `docker run` does. On a
-        # fresh runner (no local image cache), create() 404s immediately
-        # unless the image is already present. Pulling explicitly here
-        # keeps that behavior visible and out of test runtime/timeouts.
+        # fresh runner, create() 404s immediately unless the image is
+        # already present. Pulling explicitly here keeps that behavior
+        # visible and out of test runtime/timeouts.
         # TODO: pin by digest (python@sha256:...) instead of a mutable tag
         # once this repo starts caring about supply-chain reproducibility
         # end-to-end; tracked as a follow-up, not blocking here.
         run: docker pull python:3.13.15-slim
+
       - name: agent-mesh tests
         working-directory: packages/agent-mesh
         # test_authz.py excluded: needs a live OPA instance. GitHub Actions'
-        # `services:` containers can't bind-mount infra/opa/policies (no
-        # volume support in that block, and the repo isn't checked out yet
-        # when services start regardless), so wiring OPA into this job needs
-        # a manual `docker run` step after checkout, not a services entry.
+        # services containers cannot bind-mount infra/opa/policies, so
+        # wiring OPA into this job needs a manual docker run step after
+        # checkout, not a services entry.
         # Tracked separately, not silently skipped without a reason here.
         run: uv run pytest --ignore=tests/test_authz.py -v
 
   web-checks:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
+
     services:
       redis:
         image: redis:8-alpine
@@ -142,37 +160,43 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 5
+
     env:
-      # Why: exercises the real-Redis integration tests too (micro-step 5's store,
-      # micro-step 6's login transactions), not just the ones with a fake Redis. Database
-      # 15 only, per those tests' own guard.
+      # Why: exercises the real-Redis integration tests too, not just the
+      # ones with a fake Redis. Database 15 only, per those tests' own guard.
       REDIS_TEST_URL: redis://localhost:6379/15
+
     defaults:
       run:
         working-directory: apps/web
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
       - name: Install Node
-        # This SHA resolved and ran green in CI. The trailing comment should carry the
-        # exact version; find the tag that points at this SHA with:
-        # git ls-remote --tags https://github.com/actions/setup-node | grep 249970729cb0ef3589644e2896645e5dc5ba9c38
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version-file: apps/web/.nvmrc
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
+
       - name: Install dependencies
         run: npm ci
+
       - name: ESLint
         run: npm run lint
+
       - name: Type check
         run: npm run typecheck
+
       - name: Prettier format check
         run: npm run format:check
+
       - name: Vitest, with coverage
         run: npm run test:coverage
+
       - name: Upload coverage report
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
@@ -184,42 +208,60 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     needs: web-checks
+
     # Why: re-declare contents: read, because this block replaces the top-level one.
     permissions:
       contents: read
       actions: read
       security-events: write
+
     env:
-      # Why: fallback mirror when ghcr.io rate-limits the Trivy DB download
-      # (TOOMANYREQUESTS), a common cause of flaky scan failures.
+      # Why: fallback mirror when ghcr.io rate-limits the Trivy DB download.
       TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
       TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1,ghcr.io/aquasecurity/trivy-java-db:1
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
       - name: Build image
-        run: docker build -f apps/web/Dockerfile -t fazle-web:${{ github.sha }} ./apps/web
-      - name: Smoke test — image boots and serves /api/health
+        # Why: the Next.js app explicitly uses the repository root as
+        # outputFileTracingRoot. Building from the repository root keeps
+        # Docker's filesystem layout aligned with Next.js' monorepo layout.
+        run: docker build -f apps/web/Dockerfile -t fazle-web:${{ github.sha }} .
+
+      - name: Smoke test - image boots and serves /api/health
         run: |
           docker run -d --name web-smoke -p 3000:3000 \
             -e KEYCLOAK_WEB_CLIENT_SECRET=ci-smoke-test-placeholder-value \
             fazle-web:${{ github.sha }}
+
           ok=0
+
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/api/health; then ok=1; break; fi
-            # Why: bail out early if the container already died, instead of waiting 60s.
-            if [ "$(docker inspect -f '{{.State.Running}}' web-smoke)" != "true" ]; then break; fi
+            if curl -sf http://localhost:3000/api/health; then
+              ok=1
+              break
+            fi
+
+            # Why: bail out early if the container already died,
+            # instead of waiting 60 seconds.
+            if [ "$(docker inspect -f '{{.State.Running}}' web-smoke)" != "true" ]; then
+              break
+            fi
+
             sleep 2
           done
+
           echo "---- container logs ----"
           docker logs web-smoke
+
           docker rm -f web-smoke
+
           [ "$ok" = "1" ]
+
       - name: Trivy table (findings visible in the log, never fails the job)
-        # Why: the SARIF step below writes findings to a file, so a failure shows only
-        # "exit code 1" in the log. This step prints the same CRITICAL/HIGH findings as a
-        # readable table; the gate itself stays in the SARIF step.
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: fazle-web:${{ github.sha }}
@@ -227,6 +269,7 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "0"
+
       - name: Trivy scan
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
@@ -237,8 +280,8 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
+
       - name: Upload Trivy results to Security tab
-        # Why: skipped on fork PRs, where the token cannot have security-events: write.
         if: ${{ always() && hashFiles('trivy-web-results.sarif') != '' && github.event.pull_request.head.repo.fork != true }}
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
@@ -248,30 +291,35 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     needs: lint-and-typecheck
+
     permissions:
       contents: read
       actions: read
       security-events: write
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
+
       - name: pip-audit
         run: |
           uv export --format requirements-txt --no-hashes > requirements.txt
           uvx pip-audit -r requirements.txt || true
         # non-blocking for now: findings get triaged on the first real run,
         # tighten to a hard fail once that first pass is reviewed by hand
+
       - name: CodeQL init
         uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
         with:
-          # Why: apps/web is TypeScript, previously never scanned.
           languages: python,javascript-typescript,actions
           build-mode: none
+
       - name: CodeQL analyze
         uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
 
@@ -279,20 +327,25 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     needs: [test, security]
+
     permissions:
       contents: read
       actions: read
       security-events: write
+
     env:
       TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
       TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db:1,ghcr.io/aquasecurity/trivy-java-db:1
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
       - name: Build image
         run: docker build -f packages/rag-engine/Dockerfile -t rag-engine:${{ github.sha }} .
-      - name: Smoke test — image boots and imports cleanly
+
+      - name: Smoke test - image boots and imports cleanly
         run: |
           docker run --rm \
             -e DATABASE_URL=postgresql+asyncpg://x:x@localhost:5432/x \
@@ -300,6 +353,7 @@ jobs:
             -e VOYAGE_API_KEY=dummy \
             rag-engine:${{ github.sha }} \
             python -c "import rag_engine.main"
+
       - name: Trivy table (findings visible in the log, never fails the job)
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
@@ -308,6 +362,7 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "0"
+
       - name: Trivy scan
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
@@ -318,6 +373,7 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
+
       - name: Upload Trivy results to Security tab
         if: ${{ always() && hashFiles('trivy-results.sarif') != '' && github.event.pull_request.head.repo.fork != true }}
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
@@ -328,6 +384,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     needs: test
+
     services:
       postgres:
         image: pgvector/pgvector:0.8.6-pg18-trixie
@@ -339,12 +396,14 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U fazle -d fazle"
           --health-interval 5s --health-timeout 5s --health-retries 5
+
       redis:
         image: redis:8-alpine
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 5
+
     env:
       DATABASE_URL: postgresql+asyncpg://fazle:fazle_ci_password@localhost:5432/fazle
       REDIS_URL: redis://localhost:6379/0
@@ -353,21 +412,27 @@ jobs:
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
+
       - name: Install Python
         run: uv python install 3.13.15
+
       - name: Install dependencies
         run: uv sync --all-packages
+
       - name: Run migrations
         working-directory: packages/rag-engine
         run: uv run alembic upgrade head
+
       - name: Run RAGAS gate
         working-directory: packages/rag-engine
         run: uv run python -m evals.run_ragas
