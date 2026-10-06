@@ -72,6 +72,7 @@ DPIA, DSAR response, and erasure workflow templates are deliberately not LLM aut
 - Web session store: hashed keys, validated reads and an update that cannot revive a session, tested on a real Redis ([`proof/web-session-store-tests.png`](proof/web-session-store-tests.png))
 - Web login through Keycloak with a Redis session behind an opaque cookie ([`proof/web-login-home.png`](proof/web-login-home.png), [`proof/web-login-redis-session.png`](proof/web-login-redis-session.png), [`proof/web-login-cookie-flags.png`](proof/web-login-cookie-flags.png))
 - The backend accepts a real Keycloak token from the web app and returns only the signed in tenant's documents ([`proof/web-documents-alice.png`](proof/web-documents-alice.png), [`proof/web-documents-bob-empty.png`](proof/web-documents-bob-empty.png), [`proof/web-token-refresh.txt`](proof/web-token-refresh.txt))
+- Chat requests are rate limited per user and capped at two simultaneous answers, enforced atomically in Redis and tested against a real Redis ([`proof/web-rate-limit.txt`](proof/web-rate-limit.txt))
 
 ## Architecture
 ```mermaid
@@ -157,7 +158,7 @@ Stated plainly, not left for a client to discover.
 **Query pipeline and chat**
 - `POST /query/stream` streams stage events and the final checked answer, not model tokens. If the client disconnects before the result event, that request's database writes (query log, audit entry, review queue item) roll back, while a Redis side effect (quota use, cache write) may already have happened. Clients must not retry an error event blindly, since a retry re-runs generation and spends quota again
 - The injection firewall matches request paths exactly and has to be updated by hand for every new endpoint that takes free text. `/query` and `/query/stream` are covered and tested; the image and PDF ingest endpoints are not on that list, and whether they are protected another way has not been checked
-- `/api/chat` has no per-user rate limit and no cap on parallel streams, only the backend's per-tenant daily quota. It sends no keepalive of its own, so a proxy with a short idle timeout could cut a long silent generation
+- `/api/chat` is limited per signed in user: 20 questions per 60 seconds (a sliding window, counted before the body is even read, so malformed requests use it up too) and 2 answers at once, both configurable. The limits live in Redis, so they hold across app instances, and the chat route fails closed if Redis is down. No other route is throttled: the login route, which creates a short lived Redis entry per visit, has no limit because limiting an unauthenticated caller needs a trusted client IP, and there is no trusted proxy in this setup. The route still sends no keepalive of its own
 
 **Citation viewer and review queue**
 - Each source in the citation viewer shows its full retrieved text with no length cap, and there is no link back from a source to where in the answer it was cited

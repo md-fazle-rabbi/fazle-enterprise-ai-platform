@@ -1,0 +1,114 @@
+# Proof: per-user rate limit and stream cap on POST /api/chat
+Target: http://localhost:3000 (local), signed in as alice
+Cookie value is not stored in this file.
+
+## 1. Automated tests (npm run check, with REDIS_TEST_URL on database 15)
+Lint, typecheck, format check and tests all pass: 37 files, 340 tests, 0 skipped.
+The 8 tests in limiter.integration.test.ts ran against a real Redis.
+
+> fazle-web@0.1.0 check
+> npm run lint && npm run typecheck && npm run format:check && npm run test
+
+
+> fazle-web@0.1.0 lint
+> eslint . --max-warnings 0
+
+
+> fazle-web@0.1.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+
+> fazle-web@0.1.0 format:check
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> fazle-web@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.1 /home/fazle-rabbi/Fazle-Rabbi/Projects/AI Engineer/fazle-enterprise-ai-platform/apps/web
+
+ ✓ src/lib/auth/oidc.test.ts (13 tests) 700ms
+ ✓ src/lib/rate-limit/limiter.test.ts (16 tests) 55ms
+ ✓ src/components/chat/chat-form.test.tsx (9 tests) 996ms
+   ✓ ChatForm (9)
+     ✓ sends the trimmed question and clears the field 664ms
+ ✓ src/components/chat/answer-text.test.tsx (6 tests) 717ms
+   ✓ AnswerText (6)
+     ✓ turns a resolvable marker into a link to its source 427ms
+ ✓ src/components/admin/review-queue-panel.test.tsx (7 tests) 1151ms
+   ✓ ReviewQueuePanel (7)
+     ✓ reveals a note field when Resolve is clicked, and hides it on Cancel 588ms
+ ✓ src/components/user-panel.test.tsx (4 tests) 144ms
+ ✓ src/components/chat/chat-panel.test.tsx (8 tests) 784ms
+ ✓ src/components/documents-panel.test.tsx (4 tests) 51ms
+ ✓ src/components/tenant-switcher.test.tsx (4 tests) 705ms
+   ✓ TenantSwitcher (4)
+     ✓ lists every tenant and shows the current one selected 502ms
+ ✓ src/components/chat/chat-message.test.tsx (6 tests) 87ms
+ ✓ src/lib/admin/kill-switch/handler.test.ts (8 tests) 85ms
+ ✓ src/lib/chat/stream.test.ts (16 tests) 38ms
+ ✓ src/components/admin/kill-switch-panel.test.tsx (5 tests) 226ms
+ ✓ src/lib/auth/authed-fetch.test.ts (13 tests) 41ms
+ ✓ src/lib/documents.test.ts (6 tests) 7ms
+ ✓ src/lib/backend.test.ts (5 tests) 110ms
+ ✓ src/lib/auth/handlers.test.ts (13 tests) 52ms
+ ✓ src/lib/tenant/handler.test.ts (10 tests) 51ms
+ ✓ src/lib/chat/handler.test.ts (16 tests) 45ms
+ ✓ src/lib/rate-limit/limiter.integration.test.ts (8 tests) 1001ms
+   ✓ Rate limiters on a real Redis (8)
+     ✓ lets a request through again once the window has passed 354ms
+     ✓ leaves no key behind once the window has passed 304ms
+ ✓ src/proxy.test.ts (9 tests) 41ms
+ ✓ src/lib/session/login-transaction.test.ts (7 tests) 18ms
+ ✓ src/lib/admin/review-queue/handler.test.ts (9 tests) 42ms
+ ✓ src/lib/admin/guard.test.ts (8 tests) 43ms
+ ✓ src/lib/chat/client.test.ts (6 tests) 22ms
+ ✓ src/env.test.ts (37 tests) 72ms
+ ✓ src/lib/sse.test.ts (9 tests) 25ms
+ ✓ src/lib/chat/citations.test.ts (8 tests) 10ms
+ ✓ src/lib/auth/claims.test.ts (15 tests) 33ms
+ ✓ src/components/backend-status.test.tsx (2 tests) 490ms
+   ✓ BackendStatus (2)
+     ✓ says the backend is reachable 433ms
+ ✓ src/lib/chat/events.test.ts (8 tests) 13ms
+ ✓ src/lib/auth/return-to.test.ts (18 tests) 7ms
+ ✓ src/lib/session/cookie.test.ts (5 tests) 13ms
+ ✓ src/components/chat/sources-list.test.tsx (5 tests) 161ms
+ ✓ src/app/api/health/route.test.ts (1 test) 83ms
+ ✓ src/lib/session/store.test.ts (10 tests) 48ms
+ ✓ src/lib/session/store.integration.test.ts (6 tests) 58ms
+
+ Test Files  37 passed (37)
+      Tests  340 passed (340)
+   Start at  19:35:26
+   Duration  13.98s (environment 70%, setup 10%, tests 10%, import 7%, transform 4%)
+
+
+## 2. Rate limit (defaults: 20 requests per 60 seconds)
+
+### 23 malformed requests ({} body, counted against the limit)
+400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 400 429 429 429
+
+### Retry-After header on the next request
+HTTP/1.1 429 Too Many Requests
+retry-after: 60
+
+### After waiting 65 seconds
+400
+
+## 3. Concurrency cap (CHAT_MAX_CONCURRENT_STREAMS=1; default is 2)
+Run at 2026-10-06T18:51:09Z
+
+# slot keys while first stream is open:
+web:conc:chat:fbf097b8-535d-424a-a1e2-2ef2a66188ff
+
+# second request while the first is open:
+{"code":"too_many_streams","message":"Too many answers are already in progress. Wait for one to finish."}
+HTTP 429
+
+# slot keys after both finished (empty = no leaked slot):

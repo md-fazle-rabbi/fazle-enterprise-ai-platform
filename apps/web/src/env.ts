@@ -43,6 +43,11 @@ const schema = z.object({
   // Why: bounds of 5 minutes and 7 days stop a typo from making sessions that expire at once
   // or live for months. Environment values are strings, so the number is coerced.
   SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(604_800).default(28_800),
+  // Why: bounded so a typo cannot turn the limiter off (a huge limit) or lock everyone out
+  // (a limit of zero). The defaults are generous for a person and tight for a script.
+  CHAT_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1_000).default(20),
+  CHAT_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).max(3_600).default(60),
+  CHAT_MAX_CONCURRENT_STREAMS: z.coerce.number().int().min(1).max(20).default(2),
 });
 
 export function parseEnv(source: Record<string, string | undefined>) {

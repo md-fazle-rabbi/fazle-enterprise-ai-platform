@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "redis";
 import { env } from "@/env";
+import type { RateLimitRedis } from "@/lib/rate-limit/limiter";
 import type { RedisLike } from "@/lib/session/store";
 
 // Why: Next.js can load this module more than once (per route bundle, and again after a
@@ -73,6 +74,15 @@ export function createRedisLike(client: RedisClient): RedisLike {
       // transaction single use.
       const value = await client.getDel(key);
       return typeof value === "string" ? value : null;
+    },
+  };
+}
+
+export function createRateLimitRedis(client: RedisClient): RateLimitRedis {
+  return {
+    // Why: EVAL <script> <number of keys> <keys...> <args...>
+    evalScript(script, keys, args) {
+      return client.sendCommand(["EVAL", script, String(keys.length), ...keys, ...args]);
     },
   };
 }

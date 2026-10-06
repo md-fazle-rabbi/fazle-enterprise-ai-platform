@@ -35,6 +35,8 @@ export type ChatResult = z.infer<typeof chatResultSchema>;
 export const chatErrorCodeSchema = z.enum([
   "blocked",
   "quota",
+  "rate_limited",
+  "too_many_streams",
   "signed_out",
   "no_tenant",
   "unavailable",
@@ -47,6 +49,8 @@ export type ChatErrorCode = z.infer<typeof chatErrorCodeSchema>;
 export const CHAT_ERROR_MESSAGES: Record<ChatErrorCode, string> = {
   blocked: "This question was blocked by the security filter.",
   quota: "The daily usage limit for this workspace has been reached.",
+  rate_limited: "You are sending questions too quickly. Please wait a moment and try again.",
+  too_many_streams: "Too many answers are already in progress. Wait for one to finish.",
   signed_out: "Your session has ended. Please sign in again.",
   no_tenant: "This account has no workspace, so it cannot ask questions.",
   unavailable: "The answer service is not available right now. Please try again in a moment.",

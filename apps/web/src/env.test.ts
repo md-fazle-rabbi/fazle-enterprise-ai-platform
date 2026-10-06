@@ -15,6 +15,9 @@ describe("parseEnv defaults", () => {
       KEYCLOAK_WEB_CLIENT_SECRET: required.KEYCLOAK_WEB_CLIENT_SECRET,
       REDIS_URL: "redis://localhost:6379/1",
       SESSION_TTL_SECONDS: 28_800,
+      CHAT_RATE_LIMIT_MAX: 20,
+      CHAT_RATE_LIMIT_WINDOW_SECONDS: 60,
+      CHAT_MAX_CONCURRENT_STREAMS: 2,
     });
   });
 });
@@ -69,5 +72,33 @@ describe("parseEnv secrets and sessions", () => {
     expect(() => parseEnv({ ...required, REDIS_URL: "http://localhost:6379/1" })).toThrow(
       /REDIS_URL/,
     );
+  });
+});
+
+describe("chat limits", () => {
+  it("reads the limits from strings", () => {
+    const parsed = parseEnv({
+      ...required,
+      CHAT_RATE_LIMIT_MAX: "5",
+      CHAT_RATE_LIMIT_WINDOW_SECONDS: "30",
+      CHAT_MAX_CONCURRENT_STREAMS: "1",
+    });
+    expect(parsed).toMatchObject({
+      CHAT_RATE_LIMIT_MAX: 5,
+      CHAT_RATE_LIMIT_WINDOW_SECONDS: 30,
+      CHAT_MAX_CONCURRENT_STREAMS: 1,
+    });
+  });
+
+  it.each([
+    ["CHAT_RATE_LIMIT_MAX", "0"],
+    ["CHAT_RATE_LIMIT_MAX", "1001"],
+    ["CHAT_RATE_LIMIT_WINDOW_SECONDS", "0"],
+    ["CHAT_RATE_LIMIT_WINDOW_SECONDS", "3601"],
+    ["CHAT_MAX_CONCURRENT_STREAMS", "0"],
+    ["CHAT_MAX_CONCURRENT_STREAMS", "21"],
+    ["CHAT_MAX_CONCURRENT_STREAMS", "abc"],
+  ])("rejects %s = %s", (name, value) => {
+    expect(() => parseEnv({ ...required, [name]: value })).toThrow(new RegExp(name));
   });
 });

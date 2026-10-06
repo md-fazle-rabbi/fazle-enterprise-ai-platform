@@ -2,10 +2,17 @@
 
 ## [Unreleased]
 
+## 2026-10-06
+
+## Security
+- `/api/chat` now has a per user sliding-window rate limit (default 20 per 60 seconds)
+  and a cap of two simultaneous answers per user, both configurable and bounded. Both run
+  as atomic Lua scripts in Redis, using Redis's own clock. A refused request gets a 429
+  with a Retry-After header and a fixed message.
+
 ## 2026-10-01
 
 ## Web UI — Stages 1 through 4 complete
-
 Login through Keycloak, streaming chat with citations, a workspace selector re-validated
 on every token refresh, and an admin view (kill switch, review queue), all gated the same
 way the backend itself is gated — never trusting the frontend's own checks as the real
