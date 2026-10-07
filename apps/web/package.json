@@ -16,8 +16,9 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "e2e:reset-cache": "docker compose -f ../../docker-compose.yml exec -T redis redis-cli del semantic_cache:00000000-0000-0000-0000-000000000001",
-    "test:e2e:fresh": "npm run e2e:reset-cache && npm run test:e2e",
-    "pretest:e2e": "npm run e2e:reset-cache",
+    "e2e:reset-db": "docker compose -f ../../docker-compose.yml exec -T db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB -c \"TRUNCATE conversations CASCADE;\"'",
+    "test:e2e:fresh": "npm run e2e:reset-cache && npm run e2e:reset-db && npm run test:e2e",
+    "pretest:e2e": "npm run e2e:reset-cache && npm run e2e:reset-db",
     "unused": "knip"
   },
   "license": "MIT",

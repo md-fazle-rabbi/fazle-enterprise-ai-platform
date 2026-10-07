@@ -112,6 +112,35 @@ test.describe("chat end to end", () => {
     // most likely to introduce a violation the login page can't: dynamic content, inline
     // links, a sources list.
     await expectNoAccessibilityViolations(page, "chat page");
+
+    // 6. The exchange was saved to history: after a reload it is in the past chats list,
+    // and opening it brings the cited answer back. Waits for "Send" first, which only
+    // returns once the server has finished writing the conversation row.
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+    await page.reload();
+
+    // Why: scoped to the sidebar nav so the conversation log (which may also contain the
+    // question text) can never match. .first() guards against a stale entry left by a
+    // partial run on the same DB — the most-recently-saved chat is always at the top of a
+    // newest-first list, so .first() is both safe and intentional here.
+    // exact: true — Playwright's default is a substring match, and "Delete chat: <title>"
+    // would collide with the title itself without it.
+    await page
+      .getByRole("navigation", { name: "Past chats" })
+      .getByRole("button", { name: QUESTION, exact: true })
+      .first()
+      .click();
+
+    await expect(
+      page
+        .getByRole("log", { name: "Conversation" })
+        .getByRole("link", { name: /Jump to source \d+/ })
+        .first(),
+      "Reopened chat did not bring back the cited answer",
+    ).toBeVisible();
+
+    // With the sidebar and a loaded history on screen, scan once more.
+    await expectNoAccessibilityViolations(page, "chat page with loaded history");
   });
 
   test("shows an error instead of hanging when the chat stream ends without an answer", async ({

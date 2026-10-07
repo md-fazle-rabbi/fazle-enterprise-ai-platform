@@ -31,6 +31,11 @@ export function ChatMessage({ turn }: { turn: Turn }) {
               Flagged for review
             </p>
           ) : null}
+          {turn.unsaved ? (
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Not saved to history
+            </p>
+          ) : null}
           <SourcesList turnId={turn.id} result={turn.result} />
         </div>
       ) : null}

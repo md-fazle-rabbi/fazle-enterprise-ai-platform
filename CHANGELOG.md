@@ -11,6 +11,10 @@
   exchange. Added `/api/conversations` routes to list, read and delete conversations.
 - Every backend call made for the save re-reads the session first, so a refresh done by the
   answer's own call is never repeated with a stale refresh token.
+- Added the past chats sidebar: list, open, continue, delete (with an inline confirm) and
+  New chat. The chat panel is now keyed on the current workspace, so switching workspace
+  loads that workspace's chats instead of leaving the previous ones on screen. An answer
+  that could not be saved says so. The end to end test now covers history across a reload.
 
 ## 2026-10-06
 

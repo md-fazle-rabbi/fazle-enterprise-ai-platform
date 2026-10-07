@@ -10,6 +10,7 @@ const BASE: Turn = {
   stage: null,
   result: null,
   error: null,
+  unsaved: false,
 };
 
 const CITATION = {
@@ -82,5 +83,23 @@ describe("ChatMessage", () => {
     };
     render(<ChatMessage turn={turn} />);
     expect(screen.getByRole("alert")).toHaveTextContent("daily usage limit");
+  });
+
+  it("says so when an answer could not be saved to history", () => {
+    const turn: Turn = {
+      ...BASE,
+      status: "done",
+      unsaved: true,
+      result: {
+        answer: "Answer.",
+        citations: [],
+        retrieved_context: [],
+        retrieved_but_uncited_count: 0,
+        flagged: false,
+        flag_reasons: [],
+      },
+    };
+    render(<ChatMessage turn={turn} />);
+    expect(screen.getByText("Not saved to history")).toBeInTheDocument();
   });
 });
