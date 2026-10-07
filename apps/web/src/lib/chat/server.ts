@@ -1,11 +1,13 @@
 import "server-only";
 import { env } from "@/env";
+import { NotSignedInError } from "@/lib/auth/errors";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { refreshAccessToken } from "@/lib/auth/oidc";
 import { getSession, type Session } from "@/lib/auth/session";
 import { backendFetch } from "@/lib/backend";
 import { chatError, type ChatEvent } from "@/lib/chat/events";
 import type { ChatHandlerDeps, ChatLimits } from "@/lib/chat/handler";
+import { saveExchange, type BackendCall, type SaveExchangeInput } from "@/lib/chat/history-save";
 import { streamChat } from "@/lib/chat/stream";
 import { createConcurrencyLimiter, createSlidingWindowLimiter } from "@/lib/rate-limit/limiter";
 import { createRateLimitRedis, getRedis } from "@/lib/redis";
@@ -54,6 +56,30 @@ async function* chatForSession(
   yield* streamChat({ openUpstream }, question, signal);
 }
 
+async function saveExchangeForSession(
+  session: Session,
+  input: SaveExchangeInput,
+): Promise<string | null> {
+  const sessionStore = await getSessionStore();
+  const authedDeps = {
+    sessionStore,
+    refreshTokens: refreshAccessToken,
+    backendFetch,
+    nowSeconds: () => Math.floor(Date.now() / 1000),
+  };
+  // Why: every call re-reads the session first. The answer's own backend call may have just
+  // refreshed the tokens, and a stale copy would refresh again with an old refresh token,
+  // which destroys the session if Keycloak rotates refresh tokens.
+  const call: BackendCall = async (path, init) => {
+    const current = await sessionStore.get(session.sid);
+    if (!current) {
+      throw new NotSignedInError("The session no longer exists");
+    }
+    return authedFetch(authedDeps, session.sid, current, path, init);
+  };
+  return saveExchange(call, input);
+}
+
 async function buildLimits(): Promise<ChatLimits> {
   const redis = createRateLimitRedis(await getRedis());
   const requests = createSlidingWindowLimiter({
@@ -80,5 +106,6 @@ export async function getChatHandlerDeps(): Promise<ChatHandlerDeps> {
     getSession,
     limits: await buildLimits(),
     streamChat: chatForSession,
+    saveExchange: saveExchangeForSession,
   };
 }

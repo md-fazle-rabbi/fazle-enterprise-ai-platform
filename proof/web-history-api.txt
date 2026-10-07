@@ -1,0 +1,49 @@
+## 1. first answer ends with a history event
+event: result
+data: {"answer":"Customers have a timeframe of 30 days from the date of purchase to request a refund [4, 5].","citations":[],"retrieved_context":[{"chunk_id":"8b5154c9-1aa9-490e-9a07-378158ac7434","document_id":"42d84cc1-21a0-410d-bd3d-8ab0524a0c02","heading_path":[],"text":"This system enforces tenant isolation using Postgres Row Level Security."},{"chunk_id":"c93de040-6448-4534-9504-f9d77bc62aff","document_id":"c66d5472-6596-40c9-b269-0f8c44fac55e","heading_path":[],"text":"The injection firewall runs a two layer check on retrieved content: a pattern based classifier followed by a lightweight model based classifier, before any retrieved text reaches the generation prompt."},{"chunk_id":"377c9a72-f069-43eb-bd76-e332eafb8bac","document_id":"da1f0c05-380c-4d73-9d56-15b1b843cd49","heading_path":[],"text":"The agent mesh kill switch halts a running agent sandbox within five seconds of a runaway loop being detected, verified against a simulated infinite loop scenario."},{"chunk_id":"88597a04-1ccb-4356-9f10-3cf87fade6c1","document_id":"8ac9459d-fcdf-4a22-ba46-94a474474dcc","heading_path":["Refund policy"],"text":"Customers can request a full refund within 30 days of purchase."},{"chunk_id":"02fbd99d-bc2c-4569-b8be-b2cd0b2d1060","document_id":"ba8dca95-6de7-4af4-a30f-c0c1759ad9ff","heading_path":[],"text":"Refund policy: customers may request a refund within 30 days of purchase. Refunds are issued to the original payment method. Shipping fees are non-refundable. Digital goods are refundable only if not yet downloaded."}],"retrieved_but_uncited_count":5,"flagged":true,"flag_reasons":["no_citations"]}
+
+event: history
+data: {"conversationId":"1077a00e-8211-49f2-b1a6-b1308752920e"}
+
+## 2. conversation is listed
+{
+  "conversations": [
+    {
+      "id": "1077a00e-8211-49f2-b1a6-b1308752920e",
+      "title": "How long do customers have to request a refund?",
+      "updatedAt": "2026-10-07T09:02:55.683653Z"
+    },
+    {
+      "id": "0cd9d7b7-306f-4800-91a7-be1f407d1c3e",
+      "title": "New chat",
+      "updatedAt": "2026-10-07T07:42:42.292443Z"
+    }
+  ]
+}
+
+## 3. message count after two exchanges (expect 4)
+4
+
+## 4. delete (expect 204)
+204
+
+## 5. asking into the deleted id gives a new conversation (expect true)
+true
+
+## 6. new conversation id (used as $ID below)
+dae24739-179a-46f9-bed8-9acc86311aed
+
+## 7. DELETE from another origin (expect 403)
+HTTP/1.1 403 Forbidden
+{"message":"Refused"}
+
+## 8. list without a session (expect 401)
+HTTP/1.1 401 Unauthorized
+{"message":"Not signed in"}
+
+## 9. id that is not a UUID (expect 400)
+HTTP/1.1 400 Bad Request
+{"message":"Invalid conversation id"}
+
+## 10. bob requests alice's conversation (expect 404)
+404 {"message":"Not found"}

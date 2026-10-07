@@ -67,7 +67,8 @@ export function chatError(code: ChatErrorCode): ChatError {
 export type ChatEvent =
   | { type: "stage"; data: { stage: Stage } }
   | { type: "result"; data: ChatResult }
-  | { type: "error"; data: ChatError };
+  | { type: "error"; data: ChatError }
+  | { type: "history"; data: { conversationId: string | null } };
 
 // Why: no server code here either, so the browser can validate what /api/chat sends it with
 // the exact same rules the server used to build it.
@@ -77,6 +78,8 @@ export const chatErrorSchema = z.object({
 });
 
 const stageEventDataSchema = z.object({ stage: stageSchema });
+
+const historyEventDataSchema = z.object({ conversationId: z.guid().nullable() });
 
 // Why: /api/chat has already translated the backend's events into this shape (see
 // lib/chat/handler.ts), so this parser is far smaller than the server's: it only has to
@@ -100,6 +103,10 @@ export function parseChatEvent(message: SseMessage): ChatEvent | null {
     case "error": {
       const parsed = chatErrorSchema.safeParse(payload);
       return parsed.success ? { type: "error", data: parsed.data } : null;
+    }
+    case "history": {
+      const parsed = historyEventDataSchema.safeParse(payload);
+      return parsed.success ? { type: "history", data: parsed.data } : null;
     }
     default:
       return null;

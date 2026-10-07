@@ -51,4 +51,25 @@ describe("parseChatEvent", () => {
   it.each(["result", "error"])("drops a %s event of the wrong shape", (event) => {
     expect(parseChatEvent({ event, data: "{}" })).toBeNull();
   });
+
+  it("reads a history event with a conversation id", () => {
+    const id = "33333333-3333-4333-8333-333333333333";
+    expect(
+      parseChatEvent({ event: "history", data: JSON.stringify({ conversationId: id }) }),
+    ).toEqual({
+      type: "history",
+      data: { conversationId: id },
+    });
+  });
+
+  it("reads a history event that says nothing was saved", () => {
+    expect(parseChatEvent({ event: "history", data: '{"conversationId":null}' })).toEqual({
+      type: "history",
+      data: { conversationId: null },
+    });
+  });
+
+  it("drops a history event whose id is not a UUID", () => {
+    expect(parseChatEvent({ event: "history", data: '{"conversationId":"nope"}' })).toBeNull();
+  });
 });

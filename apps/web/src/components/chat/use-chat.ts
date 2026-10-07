@@ -61,17 +61,15 @@ export function useChat() {
           updateTurn(id, { status: "error", error: await errorFromResponse(response) });
           return;
         }
-        // Why: streamChat on the server always ends with a result or error event (ADR-015),
-        // so breaking here is enough; there is no case where the loop should keep going after
-        // one of these. Breaking also releases the reader right away instead of waiting for
-        // one more read.
+        // Why: the stream is read to its end, not stopped at the result. After the result,
+        // /api/chat saves the exchange to history and sends one last "history" event (the
+        // next part of this feature uses it). Only an error event ends the loop early.
         for await (const event of readChatEvents(response.body)) {
           if (event.type === "stage") {
             updateTurn(id, { stage: event.data.stage });
           } else if (event.type === "result") {
             updateTurn(id, { status: "done", result: event.data });
-            break;
-          } else {
+          } else if (event.type === "error") {
             updateTurn(id, { status: "error", error: event.data });
             break;
           }

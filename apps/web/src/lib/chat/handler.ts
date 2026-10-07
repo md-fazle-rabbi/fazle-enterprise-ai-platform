@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import * as z from "zod";
 import type { Session } from "@/lib/auth/session";
 import { chatError, type ChatErrorCode, type ChatEvent } from "@/lib/chat/events";
+import type { SaveExchangeInput } from "@/lib/chat/history-save";
 import type { RateDecision, StreamSlot } from "@/lib/rate-limit/limiter";
 import { encodeSse } from "@/lib/sse";
 
@@ -9,6 +10,8 @@ const MAX_QUESTION_LENGTH = 2_000;
 
 const requestSchema = z.object({
   question: z.string().trim().min(1).max(MAX_QUESTION_LENGTH),
+  // Why: null or missing means "start a new conversation".
+  conversationId: z.guid().nullable().optional(),
 });
 
 export type ChatLimits = {
@@ -27,6 +30,7 @@ export type ChatHandlerDeps = {
     question: string,
     signal: AbortSignal,
   ) => AsyncGenerator<ChatEvent>;
+  saveExchange: (session: Session, input: SaveExchangeInput) => Promise<string | null>;
 };
 
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -37,6 +41,23 @@ function refuse(status: number, code: ChatErrorCode, retryAfterSeconds?: number)
     headers["Retry-After"] = String(retryAfterSeconds);
   }
   return Response.json(chatError(code), { status, headers });
+}
+
+// Why: a failed save must never take the answer down with it. It becomes "not saved".
+async function saveSafely(
+  deps: ChatHandlerDeps,
+  session: Session,
+  input: SaveExchangeInput,
+): Promise<string | null> {
+  try {
+    return await deps.saveExchange(session, input);
+  } catch (error) {
+    console.error(
+      "Saving the exchange failed:",
+      error instanceof Error ? error.message : "unknown error",
+    );
+    return null;
+  }
 }
 
 export async function handleChat(request: NextRequest, deps: ChatHandlerDeps): Promise<Response> {
@@ -94,22 +115,42 @@ export async function handleChat(request: NextRequest, deps: ChatHandlerDeps): P
   );
   const encoder = new TextEncoder();
 
+  let closed = false;
   const body = new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
         const next = await events.next();
+        // Why: the browser may have left while this was waiting. Nothing is left to send.
+        if (closed) {
+          return;
+        }
         if (next.done) {
           release();
           controller.close();
           return;
         }
-        controller.enqueue(encoder.encode(encodeSse(next.value.type, next.value.data)));
+        const event = next.value;
+        controller.enqueue(encoder.encode(encodeSse(event.type, event.data)));
+        if (event.type === "result") {
+          // Why: saved on the server from the result it just validated, so the browser
+          // cannot change what goes into history. Sent after the result, so the answer is
+          // on screen before the save finishes.
+          const conversationId = await saveSafely(deps, session, {
+            conversationId: parsed.data.conversationId ?? null,
+            question: parsed.data.question,
+            result: event.data,
+          });
+          if (!closed) {
+            controller.enqueue(encoder.encode(encodeSse("history", { conversationId })));
+          }
+        }
       } catch (error) {
         release();
         throw error;
       }
     },
     cancel() {
+      closed = true;
       release();
       abort.abort();
       void events.return(undefined).catch(() => undefined);

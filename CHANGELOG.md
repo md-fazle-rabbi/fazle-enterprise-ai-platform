@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## 2026-10-07
+
+## Web
+- `/api/chat` now saves each successful exchange to history on the server and sends a
+  final `history` event with the conversation id (or null if it could not be saved). A
+  conversation deleted in another tab is replaced by a new one instead of losing the
+  exchange. Added `/api/conversations` routes to list, read and delete conversations.
+- Every backend call made for the save re-reads the session first, so a refresh done by the
+  answer's own call is never repeated with a stale refresh token.
+
 ## 2026-10-06
 
 ## Security

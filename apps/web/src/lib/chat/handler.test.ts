@@ -5,11 +5,24 @@ import type { Session } from "@/lib/auth/session";
 import type { RateDecision, StreamSlot } from "@/lib/rate-limit/limiter";
 import { makeSession } from "@/lib/session/fixtures";
 import { encodeSse } from "@/lib/sse";
-import type { ChatEvent } from "./events";
+import type { ChatEvent, ChatResult } from "./events";
 import { handleChat, type ChatHandlerDeps, type ChatLimits } from "./handler";
+import type { SaveExchangeInput } from "./history-save";
 
 const APP_URL = "http://app.test:3000";
 const session: Session = { sid: "sid-1", data: makeSession() };
+
+const CONVERSATION_ID = "11111111-1111-4111-8111-111111111111";
+const SAVED_ID = "33333333-3333-4333-8333-333333333333";
+const RESULT: ChatResult = {
+  answer: "Within 30 days [1]",
+  citations: [],
+  retrieved_context: [],
+  retrieved_but_uncited_count: 0,
+  flagged: false,
+  flag_reasons: [],
+};
+const RESULT_EVENT: ChatEvent = { type: "result", data: RESULT };
 
 const STAGE: ChatEvent = { type: "stage", data: { stage: "retrieval" } };
 const ERROR: ChatEvent = {
@@ -44,10 +57,13 @@ function makeLimits(options: { decision?: RateDecision; slot?: StreamSlot | null
   return { limits, release, consumeRequest, acquireStream };
 }
 
+type SaveFn = (session: Session, input: SaveExchangeInput) => Promise<string | null>;
+
 function makeDeps(
   events: ChatEvent[] = [],
   signedIn = true,
   limitOptions: Parameters<typeof makeLimits>[0] = {},
+  save: SaveFn = async () => SAVED_ID,
 ) {
   const getSession = vi.fn(async () => (signedIn ? session : null));
   const streamChat = vi.fn(async function* (
@@ -57,9 +73,16 @@ function makeDeps(
   ): AsyncGenerator<ChatEvent> {
     yield* events;
   });
+  const saveExchange = vi.fn(save);
   const limited = makeLimits(limitOptions);
-  const deps: ChatHandlerDeps = { appUrl: APP_URL, getSession, streamChat, limits: limited.limits };
-  return { deps, getSession, streamChat, ...limited };
+  const deps: ChatHandlerDeps = {
+    appUrl: APP_URL,
+    getSession,
+    streamChat,
+    saveExchange,
+    limits: limited.limits,
+  };
+  return { deps, getSession, streamChat, saveExchange, ...limited };
 }
 
 describe("handleChat", () => {
@@ -144,6 +167,7 @@ describe("handleChat", () => {
       appUrl: APP_URL,
       getSession: async () => session,
       streamChat,
+      saveExchange: async () => SAVED_ID,
       limits,
     };
 
@@ -215,11 +239,88 @@ describe("handleChat", () => {
       appUrl: APP_URL,
       getSession: async () => session,
       streamChat,
+      saveExchange: async () => SAVED_ID,
       limits,
     };
 
     const response = await handleChat(chatRequest(validBody), deps);
     await expect(response.text()).rejects.toThrow("generator failed");
     expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves the exchange after the result and tells the browser where it went", async () => {
+    const { deps, saveExchange } = makeDeps([STAGE, RESULT_EVENT]);
+    const response = await handleChat(
+      chatRequest(JSON.stringify({ question: "  Refunds?  ", conversationId: CONVERSATION_ID })),
+      deps,
+    );
+    expect(await response.text()).toBe(
+      encodeSse("stage", STAGE.data) +
+        encodeSse("result", RESULT) +
+        encodeSse("history", { conversationId: SAVED_ID }),
+    );
+    expect(saveExchange).toHaveBeenCalledWith(session, {
+      conversationId: CONVERSATION_ID,
+      question: "Refunds?",
+      result: RESULT,
+    });
+  });
+
+  it("starts a new conversation when none is given", async () => {
+    const { deps, saveExchange } = makeDeps([RESULT_EVENT]);
+    await (await handleChat(chatRequest(validBody), deps)).text();
+    expect(saveExchange.mock.calls[0]?.[1].conversationId).toBeNull();
+  });
+
+  it("still delivers the answer when the save reports failure", async () => {
+    const { deps } = makeDeps([RESULT_EVENT], true, {}, async () => null);
+    const text = await (await handleChat(chatRequest(validBody), deps)).text();
+    expect(text).toBe(encodeSse("result", RESULT) + encodeSse("history", { conversationId: null }));
+  });
+
+  it("still delivers the answer when the save throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { deps } = makeDeps([RESULT_EVENT], true, {}, async () => {
+      throw new Error("backend down");
+    });
+    const text = await (await handleChat(chatRequest(validBody), deps)).text();
+    expect(text).toContain(encodeSse("result", RESULT));
+    expect(text).toContain(encodeSse("history", { conversationId: null }));
+  });
+
+  it("does not save when the answer ended in an error", async () => {
+    const { deps, saveExchange } = makeDeps([ERROR]);
+    await (await handleChat(chatRequest(validBody), deps)).text();
+    expect(saveExchange).not.toHaveBeenCalled();
+  });
+
+  it("refuses a conversation id that is not a UUID", async () => {
+    const { deps, streamChat } = makeDeps();
+    const response = await handleChat(
+      chatRequest(JSON.stringify({ question: "hi", conversationId: "nope" })),
+      deps,
+    );
+    expect(response.status).toBe(400);
+    expect(streamChat).not.toHaveBeenCalled();
+  });
+
+  it("does not fail when the browser leaves while the exchange is being saved", async () => {
+    let finishSave: (id: string | null) => void = () => undefined;
+    const slowSave: SaveFn = () =>
+      new Promise<string | null>((resolve) => {
+        finishSave = resolve;
+      });
+    const { deps, saveExchange } = makeDeps([RESULT_EVENT], true, {}, slowSave);
+
+    const response = await handleChat(chatRequest(validBody), deps);
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("The response has no body");
+    }
+    await reader.read();
+    await reader.cancel();
+    await vi.waitFor(() => expect(saveExchange).toHaveBeenCalled());
+    finishSave(SAVED_ID);
+    await new Promise((resolve) => setTimeout(resolve, 20));
   });
 });
