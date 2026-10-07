@@ -26,6 +26,7 @@ from rag_engine.routers import ingest_image, ingest_pdf
 from rag_engine.routers.agents import admin_router
 from rag_engine.routers.agents import router as agents_router
 from rag_engine.routers.audit import router as audit_router
+from rag_engine.routers.conversations import router as conversations_router
 from rag_engine.routers.documents import router as documents_router
 from rag_engine.routers.ingest import router as ingest_router
 from rag_engine.routers.query import router as query_router
@@ -86,6 +87,7 @@ app.include_router(agents_router)
 app.include_router(admin_router)
 app.include_router(audit_router)
 app.include_router(review_router)
+app.include_router(conversations_router)
 app.include_router(classify_router)
 app.include_router(governance_documents_router)
 app.include_router(vendor_router)

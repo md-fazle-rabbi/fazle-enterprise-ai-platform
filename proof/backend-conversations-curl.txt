@@ -1,0 +1,10 @@
+## Backend conversations red team, 2026-10-07T07:42:41Z
+alice reads her own: 200
+carol, same tenant, other user: 404
+demo key: 401
+no token: 401
+carol reads her own under the other tenant header: 404
+
+## Token claims used above (token values not stored)
+ALICE iss: http://localhost:8080/realms/agent-mesh | aud: rag-engine-api | groups: ['/tenants/00000000-0000-0000-0000-000000000001']
+CAROL iss: http://localhost:8080/realms/agent-mesh | aud: rag-engine-api | groups: ['/tenants/00000000-0000-0000-0000-000000000001', '/tenants/00000000-0000-0000-0000-000000000002']

@@ -10,6 +10,13 @@
   as atomic Lua scripts in Redis, using Redis's own clock. A refused request gets a 429
   with a Retry-After header and a fixed message.
 
+## History
+- Added chat history to the backend: `conversations` and `messages` tables, private per
+  user inside a tenant by a row level security policy that needs both `app.tenant_id` and
+  `app.user_id` (and shows nothing when the user setting is missing). New `/conversations`
+  routes list, read, save an exchange to, and delete a conversation, with caps on size. A
+  real Keycloak token is required.
+
 ## 2026-10-01
 
 ## Web UI — Stages 1 through 4 complete

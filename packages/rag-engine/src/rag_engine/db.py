@@ -6,6 +6,7 @@ sharing a pooled connection.
 
 import hmac
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
@@ -90,12 +91,10 @@ async def get_session(
 ADMIN_ROLE = "platform-admin"
 
 
-async def _authenticated_admin(request: Request) -> AuthenticatedUser:
-    # Why: admin endpoints never accept the demo key or the raw header path. Those exist
-    # only as tenant-scoped conveniences for demos and tests; a platform-wide kill switch
-    # and another tenant's flagged answers need a real, role-bearing Keycloak identity.
-    # Feeding the demo key into authenticate_token already fails it (not a valid JWT), and
-    # no Bearer header at all is refused before either path is even considered.
+async def _authenticated_user(request: Request) -> AuthenticatedUser:
+    # Why: a real Keycloak token or nothing. The demo key fails authenticate_token (it is not
+    # a JWT) and the raw header path has no Bearer token at all, so neither can ever have a
+    # "user" to attach a private conversation to.
     token = bearer_token(request)
     if not token:
         raise HTTPException(
@@ -104,10 +103,62 @@ async def _authenticated_admin(request: Request) -> AuthenticatedUser:
             headers={"WWW-Authenticate": "Bearer"},
         )
     user = await authenticate_token(token)
+    if not user.subject:
+        # Why: an empty subject would match the empty user_id setting RLS falls back to.
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    structlog.contextvars.bind_contextvars(user_id=user.subject)
+    return user
+
+
+async def _authenticated_admin(request: Request) -> AuthenticatedUser:
+    user = await _authenticated_user(request)
     if ADMIN_ROLE not in user.roles:
         raise HTTPException(status_code=403, detail=f"{ADMIN_ROLE} role required")
-    structlog.contextvars.bind_contextvars(user_id=user.subject, admin=True)
+    structlog.contextvars.bind_contextvars(admin=True)
     return user
+
+
+@dataclass(frozen=True, slots=True)
+class UserContext:
+    user_id: str
+    tenant_id: UUID
+
+
+async def get_user_context(
+    request: Request,
+    x_tenant_id: Annotated[str | None, Header()] = None,
+) -> UserContext:
+    """
+    For data that belongs to one user inside one tenant, such as chat history. Same
+    tenant selection as every other route (select_tenant), plus the caller's identity.
+    """
+    user = await _authenticated_user(request)
+    tenant_id = select_tenant(user, x_tenant_id)
+    structlog.contextvars.bind_contextvars(tenant_id=str(tenant_id))
+    return UserContext(user_id=user.subject, tenant_id=tenant_id)
+
+
+async def get_user_session(
+    request: Request,
+    ctx: Annotated[UserContext, Depends(get_user_context)],
+) -> AsyncGenerator[AsyncSession]:
+    # Why: a third copy of this body instead of a shared helper, for the same reason as
+    # get_admin_session: delegating between async generator dependencies does not reliably
+    # carry an exception's cleanup into the inner `async with`.
+    session_factory = request.app.state.session_factory
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            text(
+                "SELECT set_config('app.tenant_id', :tenant_id, true), "
+                "set_config('app.user_id', :user_id, true)"
+            ),
+            {"tenant_id": str(ctx.tenant_id), "user_id": ctx.user_id},
+        )
+        yield session
 
 
 async def require_platform_admin(request: Request) -> AuthenticatedUser:
