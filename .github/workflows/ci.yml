@@ -37,7 +37,7 @@ jobs:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -95,7 +95,7 @@ jobs:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
@@ -120,7 +120,7 @@ jobs:
             --cov-fail-under=90
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-report
           path: packages/rag-engine/coverage.xml
@@ -167,7 +167,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: apps/web/.nvmrc
           cache: npm
@@ -201,7 +201,7 @@ jobs:
         run: npm run test:coverage
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: web-coverage-report
           path: apps/web/coverage/
@@ -265,7 +265,7 @@ jobs:
           [ "$ok" = "1" ]
 
       - name: Trivy table (findings visible in the log, never fails the job)
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: fazle-web:${{ github.sha }}
           format: table
@@ -274,7 +274,7 @@ jobs:
           exit-code: "0"
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: fazle-web:${{ github.sha }}
           format: sarif
@@ -288,7 +288,7 @@ jobs:
         # Why: an explicit category gives this scan a stable identity in Code scanning,
         # independent of the workflow and job names.
         if: ${{ always() && hashFiles('trivy-web-results.sarif') != '' && github.event.pull_request.head.repo.fork != true }}
-        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: trivy-web-results.sarif
           category: trivy-web
@@ -309,7 +309,7 @@ jobs:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
 
@@ -321,13 +321,13 @@ jobs:
         # failure once the findings have been triaged.
 
       - name: CodeQL init
-        uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           languages: python,javascript-typescript,actions
           build-mode: none
 
       - name: CodeQL analyze
-        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
 
   build-and-scan:
     runs-on: ubuntu-26.04
@@ -361,7 +361,7 @@ jobs:
             python -c "import rag_engine.main"
 
       - name: Trivy table (findings visible in the log, never fails the job)
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: rag-engine:${{ github.sha }}
           format: table
@@ -370,7 +370,7 @@ jobs:
           exit-code: "0"
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: rag-engine:${{ github.sha }}
           format: sarif
@@ -383,7 +383,7 @@ jobs:
       - name: Upload Trivy results to Security tab
         # Why: explicit category, same as the web image's upload step.
         if: ${{ always() && hashFiles('trivy-results.sarif') != '' && github.event.pull_request.head.repo.fork != true }}
-        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: trivy-results.sarif
           category: trivy-rag-engine
@@ -427,7 +427,7 @@ jobs:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
 
