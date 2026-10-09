@@ -4,6 +4,22 @@
 
 ## 2026-10-09
 
+### Changed
+- Dependabot: 7 day cooldown across npm, GitHub Actions, Docker and docker-compose (npm
+  majors 14 days), monthly schedules in Asia/Dhaka, grouped docker minor/patch updates,
+  conventional commit prefixes (`chore/ci/build(deps)`), and per-ecosystem PR limits.
+- Documented the manual bump list (Keycloak, uv image) in `.github/dependabot.yml` and
+  ADR-028.
+
+### Fixed
+- Dependabot ignore for Keycloak now uses the short image name (`keycloak/keycloak`), so it
+  matches. Previously it matched nothing and a PR without cooldown could open.
+- Dependabot ignores the `ghcr.io/astral-sh/uv` image, which has no publication date.
+
+### Security
+- Supply-chain delay (cooldown) now applies where the registry supports it; security
+  updates still bypass cooldown.
+
 ### Web
 - Fixed the two high production advisories with a plain `npm audit fix` (no `--force`):
   `sharp` is now 0.35.5 and `source-map-js` 1.2.2.
