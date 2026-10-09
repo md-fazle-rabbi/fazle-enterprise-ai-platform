@@ -65,9 +65,10 @@ updates:
       interval: "monthly"
       timezone: "Asia/Dhaka"
     open-pull-requests-limit: 3
+    # Why: Dependabot rejects semver-*-days for the docker ecosystem, only default-days
+    # is valid here. Majors of python and node are ignored below anyway.
     cooldown:
       default-days: 7
-      semver-major-days: 14
     commit-message:
       prefix: "build(deps)"
     groups:
