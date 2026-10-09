@@ -1,6 +1,9 @@
 # Build context is the repo root, docker-compose.yml sets context: .
 
 FROM python:3.13.15-slim-bookworm AS builder
+# Why: ghcr.io publishes no release date, so Dependabot cannot apply its cooldown
+# to this image. It is ignored in .github/dependabot.yml and bumped by hand, see
+# ADR-028. Keep this tag in sync with UV_VERSION in .github/workflows/ci.yml.
 COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /uvx /bin/
 WORKDIR /app
 

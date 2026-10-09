@@ -1,6 +1,15 @@
 version: 2
 
 # uv is intentionally not listed. Dependabot's uv job errors on this repo, see ADR-028.
+#
+# Manual bump checklist (monthly reminder, ADR-028). Dependabot cannot cooldown these:
+#   - quay.io/keycloak/keycloak      (docker-compose.yml)
+#   - ghcr.io/astral-sh/uv           (packages/rag-engine/Dockerfile). Bump together with
+#                                    UV_VERSION in .github/workflows/ci.yml.
+#   - pgvector/pgvector and the service images in ci.yml (Dependabot does not scan
+#     workflow service containers at all).
+#
+# Security updates ignore cooldown by design, so the delay below never holds back a CVE fix.
 
 updates:
   # Why: the repo root package.json holds only redis, apps/web holds the real web app.
@@ -20,7 +29,10 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 14
+    commit-message:
+      prefix: "chore(deps)"
     # Why: one PR per week instead of one per package keeps the review queue small.
+    # Majors stay out of the group so each one gets its own review.
     groups:
       npm-minor-and-patch:
         update-types:
@@ -34,8 +46,12 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+      timezone: "Asia/Dhaka"
+    open-pull-requests-limit: 3
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: "ci(deps)"
     groups:
       github-actions:
         patterns:
@@ -47,8 +63,18 @@ updates:
       - "/packages/rag-engine"
     schedule:
       interval: "monthly"
+      timezone: "Asia/Dhaka"
+    open-pull-requests-limit: 3
     cooldown:
       default-days: 7
+      semver-major-days: 14
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      docker-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
     ignore:
       # Why: Python 3.13 is a deliberate choice (ADR-000). Patch bumps are welcome,
       # a move to 3.14 is a manual decision.
@@ -60,13 +86,21 @@ updates:
       - dependency-name: "node"
         update-types:
           - "version-update:semver-major"
+      # Why: ghcr.io gives no publication date, so Dependabot cannot apply cooldown to
+      # the uv image and its job fails on it. Updated by hand together with UV_VERSION
+      # in ci.yml, see ADR-028.
+      - dependency-name: "ghcr.io/astral-sh/uv"
 
   - package-ecosystem: "docker-compose"
     directory: "/"
     schedule:
       interval: "monthly"
+      timezone: "Asia/Dhaka"
+    open-pull-requests-limit: 3
     cooldown:
       default-days: 7
+    commit-message:
+      prefix: "build(deps)"
     ignore:
       # Why: a Postgres or pgvector major upgrade needs a data migration, never an
       # automatic PR against a volume that holds real data.
