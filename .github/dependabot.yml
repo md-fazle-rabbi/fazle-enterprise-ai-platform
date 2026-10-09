@@ -1,0 +1,79 @@
+version: 2
+
+updates:
+  # Why: the repo root package.json holds only redis, apps/web holds the real web app.
+  # Both lockfiles need watching.
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/apps/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Asia/Dhaka"
+    open-pull-requests-limit: 5
+    # Why: a brand new release is the riskiest one (hijacked or malicious versions are
+    # usually caught within days). Waiting a few days costs little. Majors wait longer.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    # Why: one PR per week instead of one per package keeps the review queue small.
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Why: the Python side is a uv workspace with one uv.lock at the repo root.
+  # Monthly and small, because every Python bump needs the full local test run.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    groups:
+      python-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Why: every action in ci.yml is pinned to a commit SHA. Dependabot is what keeps
+  # those pins from going stale.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/apps/web"
+      - "/packages/rag-engine"
+    schedule:
+      interval: "monthly"
+    ignore:
+      # Why: Python 3.13 is a deliberate choice (ADR-000). Patch bumps are welcome,
+      # a move to 3.14 is a manual decision.
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      # Why: a Node major bump has to move .nvmrc and package.json engines with it.
+      - dependency-name: "node"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    ignore:
+      # Why: a Postgres or pgvector major upgrade needs a data migration, never an
+      # automatic PR against a volume that holds real data.
+      - dependency-name: "pgvector/pgvector"

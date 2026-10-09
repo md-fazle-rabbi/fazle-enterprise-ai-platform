@@ -176,6 +176,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: npm audit (web, production dependencies, high and above)
+        # Why: fails the build on a high or critical advisory in anything that ships.
+        # Dev-only tooling is left out on purpose (--omit=dev), see the audit:prod script.
+        run: npm run audit:prod
+
+      - name: npm audit (repo root, production dependencies, high and above)
+        # Why: the repo root has its own package.json and lockfile (redis). The job default
+        # is apps/web, so this step overrides it. npm audit only reads the lockfile, so no
+        # install is needed here.
+        working-directory: .
+        run: npm run audit:prod
+
       - name: ESLint
         run: npm run lint
 

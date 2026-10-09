@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 2026-10-09
+
+### Web
+- Fixed the two high production advisories with a plain `npm audit fix` (no `--force`):
+  `sharp` is now 0.35.5 and `source-map-js` 1.2.2.
+- Added an `audit:prod` script (`npm audit --omit=dev --audit-level=high`) to `apps/web` and
+  the repo root, and run both in CI. The build fails on a high or critical advisory in
+  production dependencies.
+- Added a web coverage gate in Vitest: statements 78, branches 82, functions 66, lines 79
+  percent, set 2 points below measured coverage (80.16, 84.08, 68.08, 81.4). The gate was
+  checked to fail by forcing `lines=99` (exit code 1).
+- Documented the one remaining dev-only finding (`braces`, GHSA-vfj7-8cjw-p6xm) in
+  `docs/security-exceptions.md`, with a review date of 2026-11-08.
+
 ## 2026-10-07
 
 ## Web

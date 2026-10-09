@@ -190,7 +190,10 @@ Stated plainly, not left for a client to discover.
 
 **Testing and delivery maturity**
 - The end to end tests cover one main path (alice, one question, one cited answer, then that chat reopened from history after a reload) plus a mocked stalled-stream case, against Chromium only. They are not part of the fast `npm run check` loop, since the main path needs the full Docker Compose stack and a real model call
-- The web Docker image builds with a placeholder `KEYCLOAK_WEB_CLIENT_SECRET`, used only to satisfy `next build`'s route analysis; the real secret is supplied at container start. No coverage-percentage gate is enforced on the web app in CI yet, unlike the API's chunking gate
+- The web Docker image builds with a placeholder `KEYCLOAK_WEB_CLIENT_SECRET`, used only to satisfy `next build`'s route analysis; the real secret is supplied at container start
+- The web app has a coverage gate in CI (statements 78, branches 82, functions 66, lines 79 percent), set 2 points below measured coverage (80.16, 84.08, 68.08, 81.4) so it blocks drops and does not claim high coverage. The page and route files under `src/app` have no unit tests, which is why functions coverage is only about 68 percent. The gate was checked to fail by forcing `lines=99`, see `proof/web-coverage-gate-negative-test.txt`
+- `npm audit` gates production dependencies at high severity and above, for `apps/web` and the repo root (0 vulnerabilities at the last run). It has been verified to pass; it has not yet been verified to fail on a real finding in CI. Dev dependencies are not gated
+- One dev-only advisory is open: `braces` (GHSA-vfj7-8cjw-p6xm), reached through `eslint-config-next`. GitHub lists no patched version, and it is not in any production dependency. It is tracked with a review date in `docs/security-exceptions.md`
 
 **API**
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit

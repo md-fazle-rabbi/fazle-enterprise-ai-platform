@@ -19,7 +19,8 @@
     "e2e:reset-db": "docker compose -f ../../docker-compose.yml exec -T db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB -c \"TRUNCATE conversations CASCADE;\"'",
     "test:e2e:fresh": "npm run e2e:reset-cache && npm run e2e:reset-db && npm run test:e2e",
     "pretest:e2e": "npm run e2e:reset-cache && npm run e2e:reset-db",
-    "unused": "knip"
+    "unused": "knip",
+    "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
   "license": "MIT",
   "type": "module",
