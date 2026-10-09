@@ -178,7 +178,7 @@ services:
     restart: unless-stopped
 
   opa:
-    image: openpolicyagent/opa:1.19.1
+    image: openpolicyagent/opa:1.21.1
     command:
       ["run", "--server", "--addr=0.0.0.0:8181", "/policies"]
 
