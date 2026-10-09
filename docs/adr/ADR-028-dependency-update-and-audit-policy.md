@@ -34,3 +34,8 @@ Risks and mitigations:
   RAGAS jobs may fail on them. Mitigation: review and run those locally before merging.
 - Dependabot support for uv workspace members and override-dependencies is unverified
   until the first uv PR appears. Mitigation: read that PR before trusting the setup.
+
+## Update 2026-10-09
+Dependabot's uv job errored on this repo ("Dependabot does not support your uv version"), so the
+uv ecosystem was removed from dependabot.yml. Python advisories are covered only by pip-audit in
+CI, which is still non-blocking. Open item: triage the pip-audit findings, then make it blocking.

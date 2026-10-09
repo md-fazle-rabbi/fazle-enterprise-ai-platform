@@ -194,6 +194,7 @@ Stated plainly, not left for a client to discover.
 - The web app has a coverage gate in CI (statements 78, branches 82, functions 66, lines 79 percent), set 2 points below measured coverage (80.16, 84.08, 68.08, 81.4) so it blocks drops and does not claim high coverage. The page and route files under `src/app` have no unit tests, which is why functions coverage is only about 68 percent. The gate was checked to fail by forcing `lines=99`, see `proof/web-coverage-gate-negative-test.txt`
 - `npm audit` gates production dependencies at high severity and above, for `apps/web` and the repo root (0 vulnerabilities at the last run). It has been verified to pass; it has not yet been verified to fail on a real finding in CI. Dev dependencies are not gated
 - One dev-only advisory is open: `braces` (GHSA-vfj7-8cjw-p6xm), reached through `eslint-config-next`. GitHub lists no patched version, and it is not in any production dependency. It is tracked with a review date in `docs/security-exceptions.md`
+- Dependabot does not cover Python dependencies (its uv job errors on this repo). Python advisories are checked by `pip-audit` in CI, which does not fail the build yet
 
 **API**
 - Concurrent load p95 not yet published, third party free tier throughput ceiling, not an application limit

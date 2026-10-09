@@ -1,5 +1,7 @@
 version: 2
 
+# uv is intentionally not listed. Dependabot's uv job errors on this repo, see ADR-028.
+
 updates:
   # Why: the repo root package.json holds only redis, apps/web holds the real web app.
   # Both lockfiles need watching.
@@ -21,21 +23,6 @@ updates:
     # Why: one PR per week instead of one per package keeps the review queue small.
     groups:
       npm-minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
-
-  # Why: the Python side is a uv workspace with one uv.lock at the repo root.
-  # Monthly and small, because every Python bump needs the full local test run.
-  - package-ecosystem: "uv"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
-    cooldown:
-      default-days: 7
-    groups:
-      python-minor-and-patch:
         update-types:
           - "minor"
           - "patch"
