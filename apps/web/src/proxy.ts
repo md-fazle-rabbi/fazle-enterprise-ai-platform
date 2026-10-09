@@ -61,8 +61,11 @@ export function proxy(request: NextRequest) {
   return response;
 }
 
-// Why: /login is included now; api, Next's own internals and the favicon stay excluded,
-// since CSP on a JSON response or a static asset has nothing to govern.
+// Why: /login is included now; api, Next's own internals and the icons stay excluded. CSP on
+// a JSON response or a static asset has nothing to govern, and the icons must load for a
+// visitor with no session, or the login page would show no icon in the browser tab. Files
+// are listed by exact name on purpose: a pattern like "any path with a dot" would also
+// exempt files that should need a session.
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)"],
 };

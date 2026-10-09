@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 2026-10-10
+
+### Web
+- Added an SVG app icon (shield with a check) and made `proxy.ts` skip `/icon.svg`, because
+  without that a visitor with no session was redirected away from the icon and the login page
+  showed no tab icon. A test now pins the paths the proxy skips (ADR-031).
+- Added a 1280x640 social preview image for the repository under `docs/branding`, with the
+  HTML source and the Playwright script that renders it.
+
 ## 2026-10-09
 
 ### Changed

@@ -213,6 +213,8 @@ Stated plainly, not left for a client to discover.
 - The landing page lives at `/login`, because every signed out visit is sent there and the end to end tests depend on it; its six numbers are copied by hand from the "At a glance" table, so they have to be updated together
 - Only the sign in page, the buttons and the fonts have the new design; the home, chat and admin panels still use the older plain card styles
 - The landing page links to GitHub and LinkedIn, which need internet; nothing on the page loads from outside the app
+- The web app has only an SVG icon and no `favicon.ico` fallback, so a browser without SVG icon support shows no tab icon; Safari was not tested
+- The web app sets no Open Graph tags or share image, because it runs locally and nothing fetches a link preview from it; the repository social preview image is in `docs/branding` and has to be uploaded by hand in the repository settings
 
 **API**
 - Concurrent p95 is not published (third party free tier ceiling, not an application limit).

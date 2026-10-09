@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
-import { proxy } from "./proxy";
+import { config, proxy } from "./proxy";
 
 function request(path: string, cookie?: string) {
   const url = `http://app.test:3000${path}`;
@@ -65,5 +65,30 @@ describe("proxy", () => {
     );
     expect(first).toBeDefined();
     expect(first).not.toBe(second);
+  });
+});
+
+describe("proxy matcher", () => {
+  // Why: Next reads the matcher as a path pattern, but this one is also a valid regular
+  // expression. Anchoring it lets a test check which paths the proxy runs on.
+  const [pattern = ""] = config.matcher;
+  const matcher = new RegExp(`^${pattern}$`);
+
+  it("runs on pages", () => {
+    for (const path of ["/", "/login", "/chat", "/admin"]) {
+      expect(matcher.test(path), path).toBe(true);
+    }
+  });
+
+  it("skips the icons, API routes and Next internals, so they load without a session", () => {
+    for (const path of [
+      "/icon.svg",
+      "/favicon.ico",
+      "/api/health",
+      "/_next/static/chunk.js",
+      "/_next/image",
+    ]) {
+      expect(matcher.test(path), path).toBe(false);
+    }
   });
 });

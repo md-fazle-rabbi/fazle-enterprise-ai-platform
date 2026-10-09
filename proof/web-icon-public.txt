@@ -1,0 +1,4 @@
+signed out, /icon.svg:
+200 image/svg+xml
+signed out, /chat (must still redirect):
+307 -> http://localhost:3000/login?returnTo=%2Fchat
