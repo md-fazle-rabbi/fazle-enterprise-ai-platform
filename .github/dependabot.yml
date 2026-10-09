@@ -28,11 +28,14 @@ updates:
           - "patch"
 
   # Why: every action in ci.yml is pinned to a commit SHA. Dependabot is what keeps
-  # those pins from going stale.
+  # those pins from going stale. The cooldown matters most here: a bump replaces the SHA
+  # of code that runs with the workflow's permissions.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns:
@@ -44,6 +47,8 @@ updates:
       - "/packages/rag-engine"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     ignore:
       # Why: Python 3.13 is a deliberate choice (ADR-000). Patch bumps are welcome,
       # a move to 3.14 is a manual decision.
@@ -60,6 +65,8 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     ignore:
       # Why: a Postgres or pgvector major upgrade needs a data migration, never an
       # automatic PR against a volume that holds real data.
