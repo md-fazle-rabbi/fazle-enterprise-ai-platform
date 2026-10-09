@@ -170,6 +170,7 @@ Stated plainly, not left for a client to discover.
 - The web app sends basic security headers but no Content-Security-Policy yet
 - `/admin/kill-switch/*` and `/review-queue` require a real Keycloak token carrying the `platform-admin` realm role, but neither has a network-level restriction (no IP allowlist) yet
 - Keycloak runs in `start-dev` mode with an embedded database inside the container, so realm data resets when the container is recreated. The demo users (alice, bob, carol) are synthetic
+- The `app` container mounts the Docker socket for the sandbox runner. The `:ro` flag only protects the socket file, not the Docker API calls made through it, so a compromised `app` container could start containers on the host. A socket proxy that allows only the needed calls is not in place
 
 **Auth and tenancy edge cases**
 - Parallel requests can refresh the same user's token at the same time; this is safe only while Keycloak's refresh token rotation stays off (as far as I know, its default)

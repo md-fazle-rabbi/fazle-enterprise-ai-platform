@@ -39,3 +39,11 @@ Risks and mitigations:
 Dependabot's uv job errored on this repo ("Dependabot does not support your uv version"), so the
 uv ecosystem was removed from dependabot.yml. Python advisories are covered only by pip-audit in
 CI, which is still non-blocking. Open item: triage the pip-audit findings, then make it blocking.
+
+## Update 2026-10-09: Keycloak removed from Dependabot
+Dependabot cooldown only works for Docker Hub images, and Keycloak comes from quay.io, so a
+Dependabot PR for it would arrive with no delay. Keycloak is therefore ignored in dependabot.yml
+and reviewed by hand: a monthly GitHub issue (keycloak-review.yml) reminds me to check the
+release is at least 7 days old, read the notes, bump the tag and pass the e2e test before merging.
+This replaces the earlier rule of reviewing Keycloak Dependabot PRs. Cost: Keycloak security
+releases are no longer announced by Dependabot, so the monthly check is the only trigger.

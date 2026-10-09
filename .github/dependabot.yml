@@ -71,3 +71,7 @@ updates:
       # Why: a Postgres or pgvector major upgrade needs a data migration, never an
       # automatic PR against a volume that holds real data.
       - dependency-name: "pgvector/pgvector"
+      # Why: Dependabot cannot apply cooldown to images outside Docker Hub (quay.io gives no
+      # publication date), so Keycloak, the auth component, would arrive with no delay. It is
+      # updated by hand on a monthly reminder, see ADR-028.
+      - dependency-name: "quay.io/keycloak/keycloak"

@@ -1,0 +1,23 @@
+name: Keycloak review reminder
+
+on:
+  schedule:
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open the monthly review issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "Review Keycloak version" \
+            --body "Keycloak is ignored by Dependabot because cooldown does not work outside Docker Hub (see ADR-028). Check the latest release: it must be at least 7 days old. Read the release notes and upgrade guide, bump the tag in docker-compose.yml, run docker compose up -d --build and npm run test:e2e, then commit."
