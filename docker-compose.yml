@@ -109,7 +109,7 @@ services:
     restart: unless-stopped
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.6
+    image: quay.io/keycloak/keycloak:26.8
     command: start-dev --import-realm
 
     environment:
