@@ -3,11 +3,15 @@ version: 2
 # uv is intentionally not listed. Dependabot's uv job errors on this repo, see ADR-028.
 #
 # Manual bump checklist (monthly reminder, ADR-028). Dependabot cannot cooldown these:
-#   - quay.io/keycloak/keycloak      (docker-compose.yml)
-#   - ghcr.io/astral-sh/uv           (packages/rag-engine/Dockerfile). Bump together with
+#   - keycloak/keycloak (quay.io)    (docker-compose.yml)
+#   - astral-sh/uv (ghcr.io)         (packages/rag-engine/Dockerfile). Bump together with
 #                                    UV_VERSION in .github/workflows/ci.yml.
 #   - pgvector/pgvector and the service images in ci.yml (Dependabot does not scan
 #     workflow service containers at all).
+#
+# Dependabot names images without the registry host (keycloak/keycloak, not
+# quay.io/keycloak/keycloak), so ignore entries must use that short form or they
+# silently match nothing.
 #
 # Security updates ignore cooldown by design, so the delay below never holds back a CVE fix.
 
@@ -87,10 +91,11 @@ updates:
       - dependency-name: "node"
         update-types:
           - "version-update:semver-major"
-      # Why: ghcr.io gives no publication date, so Dependabot cannot apply cooldown to
-      # the uv image and its job fails on it. Updated by hand together with UV_VERSION
-      # in ci.yml, see ADR-028.
+      # Why: ghcr.io gives no publication date, so cooldown cannot apply to the uv image.
+      # Updated by hand together with UV_VERSION in ci.yml, see ADR-028. Both name forms
+      # are listed because Dependabot drops the registry host from the name.
       - dependency-name: "ghcr.io/astral-sh/uv"
+      - dependency-name: "astral-sh/uv"
 
   - package-ecosystem: "docker-compose"
     directory: "/"
@@ -106,7 +111,7 @@ updates:
       # Why: a Postgres or pgvector major upgrade needs a data migration, never an
       # automatic PR against a volume that holds real data.
       - dependency-name: "pgvector/pgvector"
-      # Why: Dependabot cannot apply cooldown to images outside Docker Hub (quay.io gives no
-      # publication date), so Keycloak, the auth component, would arrive with no delay. It is
-      # updated by hand on a monthly reminder, see ADR-028.
-      - dependency-name: "quay.io/keycloak/keycloak"
+      # Why: quay.io gives Dependabot no publication date, so Keycloak, the auth component,
+      # would arrive with no cooldown. Updated by hand on a monthly reminder, see ADR-028.
+      # The name has no registry host: "quay.io/keycloak/keycloak" matches nothing.
+      - dependency-name: "keycloak/keycloak"
