@@ -105,3 +105,8 @@ def mock_injection_firewall(monkeypatch):
         )
 
     monkeypatch.setattr("rag_engine.security.middleware.assess", _fake_assess)
+    # Why: the image and PDF routers import assess under their own names, so the
+    # middleware patch above does not reach them. Without these two lines their
+    # handlers would call the real classifier.
+    monkeypatch.setattr("rag_engine.routers.ingest_image.assess", _fake_assess)
+    monkeypatch.setattr("rag_engine.routers.ingest_pdf.assess", _fake_assess)

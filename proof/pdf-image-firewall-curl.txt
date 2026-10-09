@@ -1,0 +1,16 @@
+tenant: fa55b2d0-aa32-4555-bf48-d188d6dd9b4b
+--- image with injected text (expect HTTP 400)
+{"detail":"Extracted image content blocked: possible prompt injection."}
+HTTP 400
+--- pdf, page 2 injected (expect HTTP 400 naming page 2)
+{"detail":"PDF rejected: page 2 was blocked as possible prompt injection."}
+HTTP 400
+--- same injected pdf again (expect HTTP 400 again, not a duplicate)
+{"detail":"PDF rejected: page 2 was blocked as possible prompt injection."}
+HTTP 400
+--- clean pdf (expect HTTP 201, page_count 2)
+{"document_id":"c8d33761-f208-4e2a-aa4a-c5933dd6f477","page_count":2,"deduplicated":false,"skipped_pages":[]}
+HTTP 201
+--- clean pdf again (expect HTTP 201, deduplicated true)
+{"document_id":"c8d33761-f208-4e2a-aa4a-c5933dd6f477","page_count":2,"deduplicated":true,"skipped_pages":[]}
+HTTP 201

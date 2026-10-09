@@ -4,6 +4,24 @@
 
 ## 2026-10-10
 
+## Security
+- Added tests for the image and PDF upload routes against the real firewall function
+  (`tests/test_ingest_firewall.py`). Both routes run the firewall on the text the vision
+  model or OCR extracted, inside the handler, because the JSON middleware never reads
+  multipart files. The test conftest now fakes the firewall at those two call sites as
+  well, so the existing image test no longer calls the real classifier.
+- A PDF with one blocked page is now rejected as a whole, and nothing is embedded or
+  stored. Before, the blocked page was dropped quietly and the rest was kept (ADR-032).
+
+## Fixed
+- `/ingest/pdf` did not set `pii_analyzer_version` on the new document, and that column is
+  NOT NULL with no default, so a new PDF could not be stored. The route had no test.
+- A PDF whose pages were all blocked or unreadable used to leave an empty document, and
+  uploading the same file again returned it as a duplicate. It now returns an error and
+  stores nothing.
+- A PDF is now embedded in one Voyage request instead of one per page.
+- The 422 for an unreadable PDF no longer includes the parser's error text.
+
 ### Web
 - Added an SVG app icon (shield with a check) and made `proxy.ts` skip `/icon.svg`, because
   without that a visitor with no session was redirected away from the icon and the login page

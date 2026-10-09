@@ -1,0 +1,9 @@
+--- empty file to /ingest/pdf (expect 400 Empty file)
+{"detail":"Empty file"}
+HTTP 400
+--- a text file renamed .pdf (expect 422, and no parser text in the message)
+{"detail":"Could not render the PDF pages"}
+HTTP 422
+--- no X-Tenant-ID header (expect 400)
+{"detail":"X-Tenant-ID header required"}
+HTTP 400
