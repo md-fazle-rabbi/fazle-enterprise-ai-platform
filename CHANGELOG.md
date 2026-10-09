@@ -31,6 +31,9 @@
   checked to fail by forcing `lines=99` (exit code 1).
 - Documented the one remaining dev-only finding (`braces`, GHSA-vfj7-8cjw-p6xm) in
   `docs/security-exceptions.md`, with a review date of 2026-11-08.
+- Added custom error pages: `error.tsx` (a retry button and an error reference, never the
+  error message), `not-found.tsx`, and a self contained `global-error.tsx` for failures in
+  the root layout (ADR-029).
 
 ## 2026-10-07
 

@@ -6,80 +6,91 @@
  RUN  v5.0.1 /home/fazle-rabbi/Fazle-Rabbi/Projects/AI Engineer/fazle-enterprise-ai-platform/apps/web
       Coverage enabled with v8
 
- ✓ src/lib/auth/oidc.test.ts (13 tests) 413ms
- ✓ src/components/admin/review-queue-panel.test.tsx (7 tests) 1000ms
+ ✓ src/lib/auth/oidc.test.ts (13 tests) 1028ms
+ ✓ src/components/admin/review-queue-panel.test.tsx (7 tests) 1393ms
    ✓ ReviewQueuePanel (7)
-     ✓ reveals a note field when Resolve is clicked, and hides it on Cancel 425ms
-     ✓ resolves with the typed note and removes the item from the list 323ms
- ✓ src/components/chat/conversation-list.test.tsx (10 tests) 1308ms
+     ✓ reveals a note field when Resolve is clicked, and hides it on Cancel 766ms
+ ✓ src/components/tenant-switcher.test.tsx (4 tests) 146ms
+ ✓ src/components/chat/conversation-list.test.tsx (10 tests) 1882ms
    ✓ ConversationList (10)
-     ✓ shows a message when the delete fails 736ms
- ✓ src/components/documents-panel.test.tsx (4 tests) 29ms
- ✓ src/components/chat/answer-text.test.tsx (6 tests) 138ms
- ✓ src/components/chat/chat-message.test.tsx (7 tests) 1071ms
-   ✓ ChatMessage (7)
-     ✓ renders the answer and its sources once done 349ms
-     ✓ notes when an answer was flagged, without naming why 338ms
- ✓ src/components/admin/kill-switch-panel.test.tsx (5 tests) 1134ms
+     ✓ shows New chat and a loading note while the list loads 759ms
+ ✓ src/components/chat/chat-message.test.tsx (7 tests) 156ms
+ ✓ src/components/chat/sources-list.test.tsx (5 tests) 56ms
+ ✓ src/components/chat/chat-form.test.tsx (9 tests) 419ms
+ ✓ src/app/error.test.tsx (5 tests) 147ms
+ ✓ src/components/user-panel.test.tsx (4 tests) 168ms
+ ✓ src/lib/chat/handler.test.ts (23 tests) 279ms
+ ✓ src/components/admin/kill-switch-panel.test.tsx (5 tests) 1120ms
    ✓ KillSwitchPanel (5)
-     ✓ shows inactive and an activate form when the switch is off 551ms
-     ✓ shows active and a deactivate button when the switch is on 456ms
- ✓ src/components/tenant-switcher.test.tsx (4 tests) 122ms
- ✓ src/lib/chat/stream.test.ts (16 tests) 92ms
- ✓ src/lib/chat/handler.test.ts (23 tests) 129ms
- ✓ src/components/chat/chat-form.test.tsx (9 tests) 524ms
-   ✓ ChatForm (9)
-     ✓ sends the trimmed question and clears the field 332ms
- ✓ src/components/chat/chat-panel.test.tsx (17 tests) 3522ms
+     ✓ shows inactive and an activate form when the switch is off 866ms
+ ✓ src/lib/conversations/handler.test.ts (13 tests) 88ms
+ ✓ src/lib/backend.test.ts (5 tests) 27ms
+ ✓ src/components/chat/chat-panel.test.tsx (17 tests) 4856ms
    ✓ ChatPanel (17)
-     ✓ shows a hint before any question is asked 582ms
-     ✓ shows the question right away, then the answer once the stream finishes 1214ms
- ✓ src/lib/documents.test.ts (6 tests) 5ms
- ✓ src/lib/admin/kill-switch/handler.test.ts (8 tests) 23ms
- ✓ src/lib/backend.test.ts (5 tests) 53ms
- ✓ src/app/api/health/route.test.ts (1 test) 4ms
- ✓ src/lib/auth/handlers.test.ts (13 tests) 54ms
- ✓ src/lib/admin/review-queue/handler.test.ts (9 tests) 39ms
- ✓ src/components/user-panel.test.tsx (4 tests) 257ms
- ✓ src/lib/admin/guard.test.ts (8 tests) 23ms
- ✓ src/lib/rate-limit/limiter.test.ts (16 tests) 24ms
- ✓ src/env.test.ts (37 tests) 16ms
- ✓ src/components/chat/sources-list.test.tsx (5 tests) 92ms
- ✓ src/lib/conversations/handler.test.ts (13 tests) 60ms
- ✓ src/lib/chat/client-history.test.ts (7 tests) 31ms
- ✓ src/lib/auth/authed-fetch.test.ts (13 tests) 92ms
- ✓ src/lib/session/store.test.ts (10 tests) 13ms
- ✓ src/components/backend-status.test.tsx (2 tests) 325ms
- ✓ src/lib/auth/claims.test.ts (15 tests) 29ms
- ✓ src/proxy.test.ts (9 tests) 42ms
- ✓ src/lib/session/login-transaction.test.ts (7 tests) 16ms
- ✓ src/lib/tenant/handler.test.ts (10 tests) 67ms
- ✓ src/lib/chat/client.test.ts (6 tests) 22ms
- ✓ src/lib/sse.test.ts (9 tests) 5ms
- ✓ src/lib/auth/return-to.test.ts (18 tests) 5ms
- ✓ src/components/chat/turns.test.ts (5 tests) 14ms
- ✓ src/lib/chat/events.test.ts (11 tests) 5ms
- ✓ src/lib/chat/history-save.test.ts (7 tests) 37ms
- ✓ src/lib/chat/citations.test.ts (8 tests) 11ms
- ✓ src/lib/session/cookie.test.ts (5 tests) 17ms
- ↓ src/lib/rate-limit/limiter.integration.test.ts (8 tests | 8 skipped)
+     ✓ shows a hint before any question is asked 317ms
+     ✓ shows the question right away, then the answer once the stream finishes 737ms
+     ✓ opens a saved chat and continues in it 400ms
+     ✓ does not announce an opened chat, and announces again for a new question 326ms
+     ✓ ignores an open that finishes after a new question was asked 378ms
+     ✓ clears the screen and starts a fresh conversation on New chat 302ms
+     ✓ deletes a chat after confirmation, and clears it if it was open 362ms
+ ✓ src/lib/admin/kill-switch/handler.test.ts (8 tests) 47ms
+ ✓ src/env.test.ts (37 tests) 56ms
+ ✓ src/app/api/health/route.test.ts (1 test) 2ms
+ ✓ src/components/documents-panel.test.tsx (4 tests) 108ms
+ ✓ src/app/not-found.test.tsx (2 tests) 95ms
+ ✓ src/lib/auth/handlers.test.ts (13 tests) 113ms
+ ✓ src/lib/auth/authed-fetch.test.ts (13 tests) 162ms
+ ✓ src/proxy.test.ts (9 tests) 49ms
+ ✓ src/lib/session/store.test.ts (10 tests) 16ms
+ ✓ src/lib/admin/review-queue/handler.test.ts (9 tests) 42ms
+ ✓ src/components/chat/answer-text.test.tsx (6 tests) 1058ms
+   ✓ AnswerText (6)
+     ✓ turns a resolvable marker into a link to its source 636ms
+ ✓ src/components/error-panel.test.tsx (2 tests) 699ms
+   ✓ ErrorPanel (2)
+     ✓ shows the title as the page heading, the description, and its children 629ms
+ ✓ src/lib/tenant/handler.test.ts (10 tests) 90ms
+ ✓ src/components/backend-status.test.tsx (2 tests) 616ms
+   ✓ BackendStatus (2)
+     ✓ says the backend is reachable 538ms
+ ✓ src/lib/chat/stream.test.ts (16 tests) 212ms
+ ✓ src/lib/admin/guard.test.ts (8 tests) 55ms
+ ✓ src/lib/chat/history-save.test.ts (7 tests) 22ms
+ ✓ src/lib/auth/claims.test.ts (15 tests) 33ms
+ ✓ src/lib/auth/return-to.test.ts (18 tests) 9ms
+ ✓ src/lib/chat/events.test.ts (11 tests) 16ms
+ ✓ src/lib/chat/citations.test.ts (8 tests) 6ms
+ ✓ src/lib/session/cookie.test.ts (5 tests) 8ms
+ ✓ src/lib/session/login-transaction.test.ts (7 tests) 49ms
+ ✓ src/app/global-error.test.tsx (2 tests) 67ms
+ ✓ src/lib/chat/client.test.ts (6 tests) 48ms
+ ✓ src/lib/sse.test.ts (9 tests) 27ms
+ ✓ src/components/chat/turns.test.ts (5 tests) 7ms
+ ✓ src/lib/documents.test.ts (6 tests) 127ms
  ↓ src/lib/session/store.integration.test.ts (6 tests | 6 skipped)
+ ✓ src/lib/rate-limit/limiter.test.ts (16 tests) 57ms
+ ✓ src/lib/chat/client-history.test.ts (7 tests) 47ms
+ ↓ src/lib/rate-limit/limiter.integration.test.ts (8 tests | 8 skipped)
 
- Test Files  40 passed | 2 skipped (42)
-      Tests  388 passed | 14 skipped (402)
-   Start at  11:15:27
-   Duration  14.08s (environment 56%, tests 17%, setup 9%, import 8%, transform 7%, worker 3%)
+ Test Files  44 passed | 2 skipped (46)
+      Tests  399 passed | 14 skipped (413)
+   Start at  14:21:43
+   Duration  20.44s (environment 65%, tests 15%, setup 8%, import 7%, transform 3%, worker 2%)
 
  % Coverage report from v8
 -------------------|---------|----------|---------|---------|-------------------
 File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
 -------------------|---------|----------|---------|---------|-------------------
-All files          |   80.16 |    84.08 |   68.08 |    81.4 |                   
+All files          |   80.23 |    84.24 |   68.27 |   81.45 |                   
  src               |     100 |       75 |     100 |     100 |                   
   env.ts           |     100 |       75 |     100 |     100 | 61                
   proxy.ts         |     100 |       75 |     100 |     100 | 12-16             
- src/app           |       0 |        0 |       0 |       0 |                   
+ src/app           |   52.38 |       50 |   55.55 |   52.38 |                   
+  error.tsx        |     100 |      100 |     100 |     100 |                   
+  global-error.tsx |   66.66 |      100 |   33.33 |   66.66 | 33,45             
   layout.tsx       |       0 |      100 |       0 |       0 | 4-15              
+  not-found.tsx    |     100 |      100 |     100 |     100 |                   
   page.tsx         |       0 |        0 |       0 |       0 | 16-23             
  src/app/admin     |       0 |        0 |       0 |       0 |                   
   page.tsx         |       0 |        0 |       0 |       0 | 8-10              
@@ -109,9 +120,10 @@ All files          |   80.16 |    84.08 |   68.08 |    81.4 |
   page.tsx         |       0 |        0 |       0 |       0 | 7-9               
  src/app/login     |       0 |        0 |       0 |       0 |                   
   page.tsx         |       0 |        0 |       0 |       0 | 8-36              
- src/components    |   96.66 |       96 |     100 |   96.66 |                   
+ src/components    |   96.77 |    96.42 |     100 |   96.77 |                   
   ...nd-status.tsx |     100 |      100 |     100 |     100 |                   
   ...nts-panel.tsx |     100 |      100 |     100 |     100 |                   
+  error-panel.tsx  |     100 |      100 |     100 |     100 |                   
   styles.ts        |     100 |      100 |     100 |     100 |                   
   ...-switcher.tsx |      95 |     87.5 |     100 |      95 | 46                
   user-panel.tsx   |     100 |      100 |     100 |     100 |                   

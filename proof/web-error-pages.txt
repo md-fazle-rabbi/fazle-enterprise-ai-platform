@@ -1,0 +1,5 @@
+signed out, unknown page:
+307 -> http://localhost:3000/login?returnTo=%2Fnothing-here
+unknown api path:
+404 text/html; charset=utf-8
+

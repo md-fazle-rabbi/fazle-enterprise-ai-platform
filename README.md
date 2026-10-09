@@ -207,6 +207,9 @@ Stated plainly, not left for a client to discover.
 - The web coverage gate in CI (statements 78, branches 82, functions 66, lines 79 percent) sits 2 points below measured coverage (80.16, 84.08, 68.08, 81.4), so it blocks drops without claiming high coverage. Page and route files under `src/app` have no unit tests, which is why functions coverage is about 68 percent. The gate was shown to fail by forcing `lines=99` ([`proof/web-coverage-gate-negative-test.txt`](proof/web-coverage-gate-negative-test.txt)).
 - `npm audit` gates production dependencies at high severity for `apps/web` and the repo root (0 vulnerabilities at the last run). It has been shown to pass, not yet to fail on a real finding in CI. Dev dependencies are not gated.
 - One dev-only advisory is open: `braces` (GHSA-vfj7-8cjw-p6xm), reached through `eslint-config-next`. No patched version is listed and it is in no production dependency. It is tracked with a review date in `docs/security-exceptions.md`.
+- A signed out visitor who opens an unknown address is sent to the login page by `proxy.ts` and never sees the 404 page, because the proxy only checks for a session cookie and runs before routing
+- The `global-error` page, which replaces the whole document, has a render test and was checked in a browser once by throwing from the root layout in development; its retry button has no click test
+- Unknown `/api/*` paths return the HTML 404 page, not JSON (checked with curl, see `proof/web-error-pages.txt`)
 
 **API**
 - Concurrent p95 is not published (third party free tier ceiling, not an application limit).
