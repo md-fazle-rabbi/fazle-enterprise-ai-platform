@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { primaryButtonClass } from "@/components/styles";
+import { Landing } from "@/components/landing";
 import { safeReturnTo } from "@/lib/auth/return-to";
 import { getSession } from "@/lib/auth/session";
 
@@ -24,6 +24,9 @@ async function hasSession(): Promise<boolean> {
   }
 }
 
+// Why this page is also the landing page: proxy.ts sends every signed out visit here, so this
+// is the first thing a visitor sees. The route stays /login so the redirect rules and the end
+// to end tests do not change.
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { error, returnTo } = await searchParams;
   if (await hasSession()) {
@@ -33,17 +36,5 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const message = error === undefined ? undefined : ERROR_MESSAGES.get(error);
   const signInUrl = `/api/auth/login?returnTo=${encodeURIComponent(safeReturnTo(returnTo))}`;
 
-  return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 p-8">
-      <h1 className="text-3xl font-semibold">Sign in</h1>
-      {message ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
-          {message}
-        </p>
-      ) : null}
-      <a href={signInUrl} className={primaryButtonClass}>
-        Sign in with Keycloak
-      </a>
-    </main>
-  );
+  return <Landing message={message} signInUrl={signInUrl} />;
 }

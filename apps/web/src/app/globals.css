@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* Why: one accent colour, defined once. Buttons and links use these names, so a colour change
+   is a three line edit here and never a search across components. Contrast was computed:
+   white text on accent 6.29:1, accent text on white 6.29:1, accent-soft on the dark page
+   background 6.64:1. The WCAG AA minimum for normal text is 4.5:1. */
+@theme {
+  --color-accent: #4f46e5;
+  --color-accent-strong: #4338ca;
+  --color-accent-soft: #818cf8;
+}
+
+/* Why inline: these point at variables that next/font sets on the html element. */
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
 :root {
   color-scheme: light dark;
 }

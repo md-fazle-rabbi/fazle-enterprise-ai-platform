@@ -210,6 +210,9 @@ Stated plainly, not left for a client to discover.
 - A signed out visitor who opens an unknown address is sent to the login page by `proxy.ts` and never sees the 404 page, because the proxy only checks for a session cookie and runs before routing
 - The `global-error` page, which replaces the whole document, has a render test and was checked in a browser once by throwing from the root layout in development; its retry button has no click test
 - Unknown `/api/*` paths return the HTML 404 page, not JSON (checked with curl, see `proof/web-error-pages.txt`)
+- The landing page lives at `/login`, because every signed out visit is sent there and the end to end tests depend on it; its six numbers are copied by hand from the "At a glance" table, so they have to be updated together
+- Only the sign in page, the buttons and the fonts have the new design; the home, chat and admin panels still use the older plain card styles
+- The landing page links to GitHub and LinkedIn, which need internet; nothing on the page loads from outside the app
 
 **API**
 - Concurrent p95 is not published (third party free tier ceiling, not an application limit).

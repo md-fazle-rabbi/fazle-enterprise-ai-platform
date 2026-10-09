@@ -1,0 +1,8 @@
+Landing page self-red-team, http://localhost:3000/login, 2026-10-09
+
+1  ?error=failed shows the sign in error message:     PASS
+1b ?error=constructor shows no message:               PASS
+2  320px wide: no sideways scrollbar:                 PASS
+3  Keyboard Tab: focus outline visible on every
+   button and link:                                   PASS
+4  200% zoom: no clipped or overlapping text:         PASS

@@ -1,0 +1,26 @@
+
+> fazle-web@0.1.0 pretest:e2e
+> npm run e2e:reset-cache && npm run e2e:reset-db
+
+
+> fazle-web@0.1.0 e2e:reset-cache
+> docker compose -f ../../docker-compose.yml exec -T redis redis-cli del semantic_cache:***
+
+1
+
+> fazle-web@0.1.0 e2e:reset-db
+> docker compose -f ../../docker-compose.yml exec -T db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB -c "TRUNCATE conversations CASCADE;"'
+
+NOTICE:  truncate cascades to table "messages"
+TRUNCATE TABLE
+
+> fazle-web@0.1.0 test:e2e
+> playwright test
+
+
+Running 2 tests using 1 worker
+
+  ✓  1 [chromium] › e2e/login-and-chat.spec.ts:71:3 › chat end to end › an anonymous visitor signs in, asks a question, and gets a cited, accessible answer (33.5s)
+  ✓  2 [chromium] › e2e/login-and-chat.spec.ts:146:3 › chat end to end › shows an error instead of hanging when the chat stream ends without an answer (5.1s)
+
+  2 passed (58.0s)

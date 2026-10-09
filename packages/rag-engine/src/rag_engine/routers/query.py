@@ -495,6 +495,9 @@ async def query_stream(
     events: asyncio.Queue[ServerSentEvent | None] = asyncio.Queue()
 
     async def on_stage(stage: Stage) -> None:
+        # Why: one timestamped log line per stage start, so the gaps between lines
+        # show which stage is slow when a request takes longer than expected.
+        logger.info("query.stage", stage=stage)
         await events.put(ServerSentEvent(data={"stage": stage}, event="stage"))
 
     async def work() -> None:

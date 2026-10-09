@@ -1,4 +1,21 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+// Why: Playwright does not read .env files. The repo root .env is the one source of
+// truth for the demo password, so load it here (apps/web -> ../..) instead of relying
+// on a manual export in whatever shell happened to run the tests. Guarded because CI
+// usually injects env vars and has no .env file, and loadEnvFile throws if it is missing.
+// Variables already set in the shell are not overridden.
+const rootEnv = path.resolve(here, "../../.env");
+if (fs.existsSync(rootEnv)) process.loadEnvFile(rootEnv);
+
+// Why: the spec reads E2E_ALICE_PASSWORD. alice's password is DEMO_USER_PASSWORD in the
+// root .env. ??= keeps an explicit E2E_ALICE_PASSWORD override working.
+process.env.E2E_ALICE_PASSWORD ??= process.env.DEMO_USER_PASSWORD;
 
 const BASE_URL = "http://localhost:3000";
 

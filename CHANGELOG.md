@@ -34,6 +34,10 @@
 - Added custom error pages: `error.tsx` (a retry button and an error reference, never the
   error message), `not-found.tsx`, and a self contained `global-error.tsx` for failures in
   the root layout (ADR-029).
+- Redesigned the sign in page as a public landing page: what the platform is, six measured
+  results with a link to the evidence, and contact links. It stays at `/login`.
+- Added a design base: one accent colour and Geist fonts as Tailwind theme tokens. Primary
+  buttons now use the accent (ADR-030).
 
 ## 2026-10-07
 
