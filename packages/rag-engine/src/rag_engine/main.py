@@ -12,6 +12,7 @@ import structlog
 from core import settings
 from core.db import make_engine
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from governance.colorado_admt_router import router as colorado_admt_router
 from governance.documents.router import router as governance_documents_router
 from governance.router import router as classify_router
@@ -22,6 +23,7 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from rag_engine.embeddings import EmbeddingRateLimited
 from rag_engine.routers import ingest_image, ingest_pdf
 from rag_engine.routers.agents import admin_router
 from rag_engine.routers.agents import router as agents_router
@@ -76,6 +78,27 @@ app = FastAPI(
     lifespan=lifespan,
 )
 instrument_app(app)
+
+
+@app.exception_handler(EmbeddingRateLimited)
+async def _embedding_rate_limited(
+    _request: Request, exc: EmbeddingRateLimited
+) -> JSONResponse:
+    # Why: the free Voyage tier allows 3 requests a minute. When no slot is free soon
+    # enough, the caller gets a normal 503 that says when to retry, not a 500.
+    logger.warning("voyage.slot_unavailable", retry_after=exc.retry_after_seconds)
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": (
+                "The embedding service is at its request limit. "
+                f"Try again in {exc.retry_after_seconds} seconds."
+            )
+        },
+        headers={"Retry-After": str(exc.retry_after_seconds)},
+    )
+
+
 app.include_router(documents_router)
 app.include_router(ingest_router)
 app.include_router(search_router)

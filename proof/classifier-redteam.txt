@@ -1,0 +1,9 @@
+== 1. paraphrased injection through /query ==
+{"detail":"Request blocked: possible prompt injection detected."}
+HTTP 400
+== 2. benign control through /query (must NOT be blocked) ==
+{"answer":"I don't have any relevant information to answer this question.","citations":[],"retrieved_context":[],"retrieved_but_uncited_count":0,"flagged":false,"flag_reasons":[]}
+HTTP 200
+== 3. injection hidden at the end of a long document through /ingest ==
+{"detail":"Request blocked: possible prompt injection detected."}
+HTTP 400

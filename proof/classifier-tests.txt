@@ -1,0 +1,23 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0 -- /home/fazle-rabbi/Fazle-Rabbi/Projects/AI Engineer/fazle-enterprise-ai-platform/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/fazle-rabbi/Fazle-Rabbi/Projects/AI Engineer/fazle-enterprise-ai-platform/packages/rag-engine
+configfile: pyproject.toml
+plugins: anyio-4.14.2, langsmith-0.11.1, asyncio-1.4.0, cov-7.1.0, locust-2.46.5, Faker-40.39.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 12 items
+
+tests/test_classifier_segments.py::test_windows_short_input_is_one_window PASSED [  8%]
+tests/test_classifier_segments.py::test_windows_cover_every_token_with_the_requested_overlap PASSED [ 16%]
+tests/test_classifier_segments.py::test_short_injection_scores_high_in_one_row PASSED [ 25%]
+tests/test_classifier_segments.py::test_injection_after_the_first_512_tokens_is_found PASSED [ 33%]
+tests/test_classifier_segments.py::test_long_benign_text_scores_low PASSED [ 41%]
+tests/test_classifier_segments.py::test_empty_text_scores_zero_without_calling_the_model PASSED [ 50%]
+tests/test_classifier_segments.py::test_text_past_the_segment_cap_is_not_scored PASSED [ 58%]
+tests/test_classifier_segments.py::test_label_check_accepts_the_prompt_guard_2_layouts PASSED [ 66%]
+tests/test_classifier_segments.py::test_label_check_refuses_the_prompt_guard_1_layout PASSED [ 75%]
+tests/test_classifier_segments.py::test_label_check_refuses_swapped_labels PASSED [ 83%]
+tests/test_classifier_segments.py::test_template_check_accepts_cls_text_sep PASSED [ 91%]
+tests/test_classifier_segments.py::test_template_check_refuses_a_tokenizer_that_adds_no_special_tokens PASSED [100%]
+
+============================= 12 passed in 31.25s ==============================

@@ -13,7 +13,6 @@ import sys
 import uuid
 
 import httpx
-import voyageai.error
 from asgi_lifespan import LifespanManager
 from core.settings import settings
 from datasets import Dataset
@@ -35,9 +34,13 @@ THRESHOLDS = {
     "context_precision": 0.80,
 }
 
-_VOYAGE_RATE_LIMIT_BACKOFF_SECONDS = 25
 _TRANSIENT_ERROR_BACKOFF_SECONDS = 5
+# Why: one retry is normally enough, because Retry-After is exact. Three leaves room for
+# a transient error on the retry itself.
 _MAX_RETRIES = 3
+# Why: used only when a 503 arrives without a readable Retry-After. The window in
+# embeddings.py is 62 s.
+_DEFAULT_RETRY_AFTER_SECONDS = 62
 
 # The golden corpus only has 3 documents. Using the production default
 # top_k=5 against a 3-document corpus means every query retrieves all 3
@@ -47,36 +50,37 @@ _MAX_RETRIES = 3
 _EVAL_TOP_K = 2
 
 
+def _retry_after_seconds(response: httpx.Response) -> int:
+    try:
+        return max(1, int(response.headers["retry-after"]))
+    except (KeyError, ValueError):
+        return _DEFAULT_RETRY_AFTER_SECONDS
+
+
 async def _post_with_backoff(client: AsyncClient, url: str, **kwargs):
     for attempt in range(_MAX_RETRIES + 1):
         try:
             response = await client.post(url, **kwargs)
-            response.raise_for_status()
-            return response
-        except Exception as exc:
-            is_voyage_rate_limit = isinstance(
-                getattr(exc, "__cause__", None), voyageai.error.RateLimitError
-            ) or "RateLimitError" in repr(exc)
-            is_transient_network_error = isinstance(exc, httpx.TransportError)
-
-            if not (is_voyage_rate_limit or is_transient_network_error):
-                raise
+        except httpx.TransportError as exc:
             if attempt == _MAX_RETRIES:
                 raise
-
-            if is_voyage_rate_limit:
-                wait = _VOYAGE_RATE_LIMIT_BACKOFF_SECONDS
-                print(
-                    f"  Voyage rate limit hit, waiting {wait}s before retry "
-                    f"({attempt + 1}/{_MAX_RETRIES})..."
-                )
-            else:
-                wait = _TRANSIENT_ERROR_BACKOFF_SECONDS
-                print(
-                    f"  Transient network error ({exc!r}), waiting {wait}s "
-                    f"before retry ({attempt + 1}/{_MAX_RETRIES})..."
-                )
-            await asyncio.sleep(wait)
+            wait = _TRANSIENT_ERROR_BACKOFF_SECONDS
+            print(
+                f"  Transient network error ({exc!r}), waiting {wait}s "
+                f"before retry ({attempt + 1}/{_MAX_RETRIES})..."
+            )
+        else:
+            # Why: the backend answers 503 with Retry-After when no Voyage slot is free.
+            # Waiting exactly that long is the shortest wait that works.
+            if response.status_code != 503 or attempt == _MAX_RETRIES:
+                response.raise_for_status()
+                return response
+            wait = _retry_after_seconds(response) + 1
+            print(
+                f"  Embedding limit hit, waiting {wait}s as the server asked "
+                f"({attempt + 1}/{_MAX_RETRIES})..."
+            )
+        await asyncio.sleep(wait)
     raise RuntimeError("unreachable")
 
 

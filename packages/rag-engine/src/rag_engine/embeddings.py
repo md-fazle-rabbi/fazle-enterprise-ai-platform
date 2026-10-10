@@ -15,9 +15,14 @@ question is asked by someone watching a screen, so it gives up quickly: a
 call that cannot start within a few seconds, or hangs, fails inside about 40
 seconds (the cache_lookup deadline in routers/query.py) instead of leaving the
 stream silent.
+
+When a caller gives up, the error says how long until a slot is free
+(EmbeddingRateLimited.retry_after_seconds), and main.py turns it into a 503 with a
+Retry-After header.
 """
 
 import asyncio
+import math
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -43,6 +48,12 @@ _client = voyageai.AsyncClient(api_key=settings.voyage_api_key)  # type: ignore[
 class EmbeddingRateLimited(Exception):
     """No Voyage request slot is free soon enough for the caller to wait for it."""
 
+    def __init__(self, wait_seconds: float) -> None:
+        # Why: the exact wait, rounded up, so an HTTP caller can be told when to
+        # come back instead of guessing a fixed pause.
+        self.retry_after_seconds = max(1, math.ceil(wait_seconds))
+        super().__init__(f"next Voyage request slot is {wait_seconds:.0f} s away")
+
 
 class _SlidingWindowLimiter:
     """
@@ -64,7 +75,7 @@ class _SlidingWindowLimiter:
             start = max(now, self._starts[0] + self._window_seconds)
         wait = start - now
         if max_wait_seconds is not None and wait > max_wait_seconds:
-            raise EmbeddingRateLimited(f"next Voyage request slot is {wait:.0f} s away")
+            raise EmbeddingRateLimited(wait)
         self._starts.append(start)
         if wait > 0:
             await asyncio.sleep(wait)
@@ -126,9 +137,11 @@ async def _embed_with_backoff(
                     output_dimension=EMBEDDING_DIMENSION,
                 )
             return [[float(x) for x in vector] for vector in result.embeddings]
-        except voyageai.error.RateLimitError:
+        except voyageai.error.RateLimitError as exc:
             if rate_limit_retries >= policy.max_rate_limit_retries:
-                raise
+                # Why: a real 429 that outlasts the retries becomes the same
+                # error as a busy slot, so the API answers 503, not 500.
+                raise EmbeddingRateLimited(_WINDOW_SECONDS) from exc
             rate_limit_retries += 1
             logger.warning(
                 "voyage.rate_limited",

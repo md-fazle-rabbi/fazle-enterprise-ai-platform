@@ -31,7 +31,7 @@ from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
 from rag_engine.pdf import pdf_to_page_images
 from rag_engine.pii import PII_ANALYZER_VERSION, redact_pii
-from rag_engine.security.firewall import assess
+from rag_engine.security.firewall import assess, blocks_stored_content
 from rag_engine.vision import extract_image_content
 
 logger = structlog.get_logger()
@@ -83,7 +83,7 @@ async def _screen_pdf(page_images: list[bytes]) -> _ScreenedPdf:
             continue
 
         assessment = await assess(text)
-        if assessment.action == "block":
+        if blocks_stored_content(assessment):
             # Why: log the page and the reason, never the page text itself.
             logger.warning(
                 "firewall.blocked",

@@ -12,6 +12,20 @@
   well, so the existing image test no longer calls the real classifier.
 - A PDF with one blocked page is now rejected as a whole, and nothing is embedded or
   stored. Before, the blocked page was dropped quietly and the rest was kept (ADR-032).
+- Fixed the injection classifier. It compared the model's label to "INJECTION", a Prompt
+  Guard 1 name, but Prompt Guard 2 is a binary classifier, so every malicious verdict was
+  turned into a score near zero. A blatant injection logged `classifier_score` 0.0005 in
+  `proof/web-chat-bff-red-team.txt`, and the regex layer did all the blocking. The lethal
+  trifecta check, which reads the classifier score of retrieved context, had the same blind
+  spot. The model is now run directly, the malicious probability is read from index 1, and
+  the app refuses to start if the labels or the tokenizer template are not what it expects
+  (ADR-033).
+- The classifier now scores text longer than 512 tokens in overlapping segments, as Meta's
+  model card recommends, and keeps the highest score. At most 64 segments are scored.
+- Added tests for the segment scoring, the label check and
+  the cap.
+- Stored text (/ingest, image and PDF extraction) is now refused at the flag line, not only the block line. 
+  A live test showed an injection hidden at the end of a long document scored 0.88 and was stored.
 
 ## Fixed
 - `/ingest/pdf` did not set `pii_analyzer_version` on the new document, and that column is

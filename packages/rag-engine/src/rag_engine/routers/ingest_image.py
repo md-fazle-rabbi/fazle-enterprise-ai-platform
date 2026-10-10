@@ -19,7 +19,7 @@ from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
 from rag_engine.pii import PII_ANALYZER_VERSION, redact_pii
-from rag_engine.security.firewall import assess
+from rag_engine.security.firewall import assess, blocks_stored_content
 from rag_engine.vision import extract_image_content
 
 logger = structlog.get_logger()
@@ -54,7 +54,7 @@ async def _reprocess_stale_image_document(
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     assessment = await assess(text)
-    if assessment.action == "block":
+    if blocks_stored_content(assessment):
         logger.warning(
             "firewall.blocked",
             path="/ingest/image",
@@ -142,7 +142,7 @@ async def ingest_image(
         raise HTTPException(status_code=422, detail=str(e)) from e
 
     assessment = await assess(text)
-    if assessment.action == "block":
+    if blocks_stored_content(assessment):
         logger.warning(
             "firewall.blocked",
             path="/ingest/image",

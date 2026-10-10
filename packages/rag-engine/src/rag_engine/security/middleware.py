@@ -4,6 +4,10 @@ generation. Only inspects /query, /query/stream and /ingest, the only
 endpoints that carry free text into an LLM context. Paths are matched
 exactly, so a new endpoint that takes a question MUST be added here.
 
+/ingest stores what it receives, so it is held to the stricter line in
+firewall.blocks_stored_content: a flag is refused there, only a block is refused on
+the question endpoints.
+
 This is a plain ASGI middleware, not a BaseHTTPMiddleware subclass.
 BaseHTTPMiddleware wraps call_next in its own task group and re-wraps
 `receive`, which conflicts with FastAPI's native SSE producer (also
@@ -17,7 +21,7 @@ middleware avoids both problems.
 import json
 
 import structlog
-from rag_engine.security.firewall import assess
+from rag_engine.security.firewall import assess, blocks_stored_content
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -27,6 +31,7 @@ _INSPECTED_PATHS = {
     "/query/stream": "question",
     "/ingest": "text",
 }
+_STORED_PATHS = {"/ingest"}
 
 
 class InjectionFirewallMiddleware:
@@ -65,7 +70,12 @@ class InjectionFirewallMiddleware:
 
         if text:
             result = await assess(text)
-            if result.action == "block":
+            blocked = (
+                blocks_stored_content(result)
+                if scope["path"] in _STORED_PATHS
+                else result.action == "block"
+            )
+            if blocked:
                 logger.warning(
                     "firewall.blocked",
                     path=scope["path"],

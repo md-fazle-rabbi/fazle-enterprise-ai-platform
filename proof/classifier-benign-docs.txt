@@ -1,0 +1,12 @@
+36 benign repo documents, highest scores first:
+  0.0465  README.md
+  0.0276  docs/adr/ADR-006-trifecta-threshold.md
+  0.0247  docs/adr/ADR-015-chat-bff-route.md
+  0.0213  docs/adr/ADR-016-chat-ui.md
+  0.0210  docs/adr/ADR-002-sandboxing-approach-and-trade-offs.md
+  0.0208  docs/adr/ADR-028-dependency-update-and-audit-policy.md
+  0.0207  docs/adr/ADR-018-tenant-selector.md
+  0.0158  docs/adr/ADR-022-end-to-end-test.md
+  0.0149  docs/adr/ADR-020-admin-view.md
+  0.0146  docs/adr/ADR-025-conversation-history.md
+documents at or above the 0.60 flag line: 0 of 36

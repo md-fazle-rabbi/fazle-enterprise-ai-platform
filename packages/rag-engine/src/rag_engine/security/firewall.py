@@ -33,3 +33,17 @@ async def assess(text: str) -> InjectionAssessment:
     return InjectionAssessment(
         pattern_hit=pattern_hit, classifier_score=score, action=action
     )
+
+
+def blocks_stored_content(assessment: InjectionAssessment) -> bool:
+    """
+    Text that is about to be stored is held to a stricter line than a question.
+
+    A question is used once, by the person who typed it. Stored text is retrieved into
+    the model's context later, for any user of the tenant, so one injected document
+    keeps working until someone finds it. Measured on this classifier: an injection
+    hidden in a long benign document scored 0.88, which is a flag, not a block. For
+    stored text a flag is treated as a block. A question still needs a block to be
+    refused, so a borderline question is not turned away.
+    """
+    return assessment.action != "allow"
