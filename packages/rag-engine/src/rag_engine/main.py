@@ -36,6 +36,7 @@ from rag_engine.routers.review import router as review_router
 from rag_engine.routers.search import router as search_router
 from rag_engine.security.classifier import _get_pipeline
 from rag_engine.security.middleware import InjectionFirewallMiddleware
+from rag_engine.security.size_limit import RequestSizeLimitMiddleware
 
 configure_logging(settings.log_level)
 logger = structlog.get_logger()
@@ -103,7 +104,6 @@ app.include_router(documents_router)
 app.include_router(ingest_router)
 app.include_router(search_router)
 app.include_router(query_router)
-app.add_middleware(InjectionFirewallMiddleware)
 app.include_router(ingest_image.router)
 app.include_router(ingest_pdf.router)
 app.include_router(agents_router)
@@ -115,6 +115,12 @@ app.include_router(classify_router)
 app.include_router(governance_documents_router)
 app.include_router(vendor_router)
 app.include_router(colorado_admt_router)
+
+# Why: Starlette makes the LAST middleware added the OUTERMOST one. The size limit must
+# wrap the firewall, so an oversized body is refused (413) before the firewall buffers it
+# and before any route, database session or model call runs. Keep this order.
+app.add_middleware(InjectionFirewallMiddleware)
+app.add_middleware(RequestSizeLimitMiddleware)
 
 
 @app.get("/")

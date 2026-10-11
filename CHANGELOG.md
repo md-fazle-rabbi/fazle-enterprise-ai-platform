@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## 2026-10-11
+
+### Security
+- Added size limits on request bodies and uploads (ADR-034). A middleware in front of the
+  firewall refuses a body over the limit before reading it, by `Content-Length` or by counting
+  chunked bytes. Limits: images 8 MiB and 50 million pixels, PDFs 10 MiB and 20 pages, text
+  100,000 characters and 200 chunks, questions 2,000 characters, `top_k` 1 to 20.
+- PDF pages are checked for password protection and page count before any page is rendered,
+  and a page that would render too large is rendered at a lower dpi. A refused document is
+  rejected before anything is inserted or deleted.
+- Image uploads are checked by their header: only PNG, JPEG and WEBP are accepted, with a
+  pixel limit against decompression bombs. A junk file now gets 415 instead of a 500.
+
+### Changed
+- GIF images are no longer accepted by `/ingest/image`. They went to Gemini as `image/gif`,
+  which Gemini does not list for image input, and only worked through the OCR fallback.
+- `agent_mesh` now ships a `py.typed` marker, so `mypy` reads its types instead of reporting
+  `import-untyped` in `routers/agents.py`.
+
 ## 2026-10-10
 
 ## Security

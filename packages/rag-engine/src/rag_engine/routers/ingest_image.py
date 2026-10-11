@@ -2,6 +2,10 @@
 Image ingestion. Extracted content routes through the same dedup, embed,
 and store logic as text ingestion, plus the same injection firewall
 applied to whatever text extraction produced.
+
+Upload limits: the image is validated (type by magic bytes, pixel count)
+before any database lookup and before the vision model is called, so a rejected
+upload costs nothing. See rag_engine.upload_limits.check_image.
 """
 
 import hashlib
@@ -20,6 +24,7 @@ from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
 from rag_engine.pii import PII_ANALYZER_VERSION, redact_pii
 from rag_engine.security.firewall import assess, blocks_stored_content
+from rag_engine.upload_limits import check_image
 from rag_engine.vision import extract_image_content
 
 logger = structlog.get_logger()
@@ -112,6 +117,11 @@ async def ingest_image(
     image_bytes = await file.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty file")
+
+    # Why: reject an unsupported type or an oversized pixel count BEFORE the
+    # dedup query and before the vision model. A rejected upload must cost
+    # nothing: no database round trip, no model tokens. Raises 415 / 422.
+    check_image(image_bytes)
 
     content_hash = hashlib.sha256(image_bytes).hexdigest()
     existing = await session.scalar(

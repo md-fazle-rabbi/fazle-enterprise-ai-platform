@@ -204,6 +204,14 @@ Stated plainly, not left for a client to discover.
 - The server saves a conversation only after an answer succeeds, never from browser input. If the save fails, the answer still shows and the browser is told it was not saved. A blocked or failed question is not saved. A save can delay the question box by a few seconds (5 second API limit). Because the web tier does the saving, a user could write to their own history by calling the API directly.
 - The sidebar shows the 50 most recent conversations, with no search, rename or export. Older ones stay stored but are unreachable from the interface. The list does not update live across tabs or devices, and it locks while an answer runs. Opening a past chat does not read it aloud, and that has not been tested with a real screen reader.
 
+**Uploads and request size**
+- The limits are constants in `upload_limits.py`, picked from vendor limits and arithmetic, not tuned on real documents: images 8 MiB and 50 million pixels, PDFs 10 MiB and 20 pages, text 100,000 characters and 200 chunks, questions 2,000 characters
+- The byte caps cover `/ingest`, `/ingest/image`, `/ingest/pdf`, `/query`, `/query/stream` and `/search`; the other POST routes (agents, reviews, documents, governance) have no byte cap yet
+- The limits stop one oversized request, not many small ones: apart from `/api/chat` in the web app no route has a rate limit, and the shared free tier embedding quota (3 requests a minute) can still be used up by a flood of small uploads
+- A client that keeps sending after a 413 can get a connection reset instead of the response; the 413 is pinned by tests, but a very large real upload was not checked in a browser or with every client
+- A PDF page far larger than the page budget is rendered at a lower resolution and may read poorly, and the 20 rendered pages are held in memory together (up to 160 MiB in the worst case, not measured)
+- Only PNG, JPEG and WEBP images are accepted; GIF is refused, and HEIC and HEIF are refused because Pillow here cannot read them
+
 **Citation viewer and review queue**
 - Each source shows its full retrieved text with no length cap, and there is no link back to where the answer cited it.
 - The review queue has no pagination or filtering and loads every pending item for the workspace, matching the API's `/review-queue`. Who resolved an item is logged, not stored as a column.

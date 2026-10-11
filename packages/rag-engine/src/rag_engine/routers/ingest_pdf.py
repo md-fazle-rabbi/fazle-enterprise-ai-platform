@@ -11,6 +11,10 @@ leaves nothing behind (no document row, no chunks, no embedding calls).
 Idempotent by content hash. If the stored document was redacted under an older
 pii.PII_ANALYZER_VERSION, re-posting the same bytes re-derives its chunks under the
 current rules (see _reprocess_stale_pdf), as ingest.py and ingest_image.py do.
+
+Upload limits: the magic bytes are checked (415) before hashing or parsing, and
+page-count / page-size limits are enforced while rendering (422), so a rejected PDF
+never reaches the vision model. See rag_engine.upload_limits and rag_engine.pdf.
 """
 
 import hashlib
@@ -29,9 +33,10 @@ from rag_engine.chunking import count_tokens
 from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
-from rag_engine.pdf import pdf_to_page_images
+from rag_engine.pdf import PdfLimitError, pdf_to_page_images
 from rag_engine.pii import PII_ANALYZER_VERSION, redact_pii
 from rag_engine.security.firewall import assess, blocks_stored_content
+from rag_engine.upload_limits import check_pdf_header
 from rag_engine.vision import extract_image_content
 
 logger = structlog.get_logger()
@@ -152,6 +157,29 @@ async def _existing_response(
     )
 
 
+def _render_pages(pdf_bytes: bytes) -> list[bytes]:
+    """
+    Render the PDF to page images, translating failures into HTTP errors.
+
+    PdfLimitError is a ValueError subclass raised by THIS codebase ("The PDF has 4
+    pages. The limit is 3.", "The PDF is password protected."), never by the parser,
+    so its text is safe to return and tells the caller exactly what to fix. It must be
+    caught BEFORE the generic handler. Any other exception comes from the parser, whose
+    message can carry internal detail, so it goes to the log and the caller gets fixed
+    text.
+    """
+    try:
+        return pdf_to_page_images(pdf_bytes)
+    except PdfLimitError as e:
+        logger.info("pdf.limit_exceeded", reason=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:
+        logger.warning("pdf.render_failed", exc_info=True)
+        raise HTTPException(
+            status_code=422, detail="Could not render the PDF pages"
+        ) from e
+
+
 async def _reprocess_stale_pdf(
     session: AsyncSession,
     document: Document,
@@ -196,6 +224,10 @@ async def ingest_pdf(
     if not pdf_bytes:
         raise HTTPException(status_code=400, detail="Empty file")
 
+    # Why: magic-bytes check (415) before hashing, any database access or parsing, so a
+    # file that is not a PDF costs nothing.
+    check_pdf_header(pdf_bytes)
+
     content_hash = hashlib.sha256(pdf_bytes).hexdigest()
     existing = await session.scalar(
         select(Document).where(Document.content_hash == content_hash)
@@ -206,15 +238,7 @@ async def ingest_pdf(
     if existing is not None and existing.pii_analyzer_version == PII_ANALYZER_VERSION:
         return await _existing_response(session, existing)
 
-    try:
-        page_images = pdf_to_page_images(pdf_bytes)
-    except Exception as e:
-        # Why: the parser's own message can carry internal detail, so it goes to the
-        # log and the caller gets fixed text.
-        logger.warning("pdf.render_failed", exc_info=True)
-        raise HTTPException(
-            status_code=422, detail="Could not render the PDF pages"
-        ) from e
+    page_images = _render_pages(pdf_bytes)
     if not page_images:
         raise HTTPException(status_code=422, detail="PDF has no pages")
 

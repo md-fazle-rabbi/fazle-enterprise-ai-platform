@@ -1,0 +1,39 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0 -- /home/fazle-rabbi/Fazle-Rabbi/Projects/AI Engineer/fazle-enterprise-ai-platform/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/fazle-rabbi/Fazle-Rabbi/Projects/AI Engineer/fazle-enterprise-ai-platform/packages/rag-engine
+configfile: pyproject.toml
+plugins: anyio-4.14.2, langsmith-0.11.1, asyncio-1.4.0, cov-7.1.0, locust-2.46.5, Faker-40.39.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 28 items
+
+tests/test_upload_limits.py::test_body_at_the_limit_passes PASSED        [  3%]
+tests/test_upload_limits.py::test_declared_oversize_is_rejected_before_the_route_runs PASSED [  7%]
+tests/test_upload_limits.py::test_oversize_without_a_declared_length_is_stopped_while_streaming PASSED [ 10%]
+tests/test_upload_limits.py::test_oversize_multipart_upload_is_413_not_400 PASSED [ 14%]
+tests/test_upload_limits.py::test_paths_without_a_limit_are_not_capped PASSED [ 17%]
+tests/test_upload_limits.py::test_oversize_query_body_never_reaches_the_firewall PASSED [ 21%]
+tests/test_upload_limits.py::test_oversize_image_body_is_413 PASSED      [ 25%]
+tests/test_upload_limits.py::test_oversize_pdf_body_is_413 PASSED        [ 28%]
+tests/test_upload_limits.py::test_oversize_ingest_body_is_413 PASSED     [ 32%]
+tests/test_upload_limits.py::test_ingest_text_over_the_character_limit_is_422 PASSED [ 35%]
+tests/test_upload_limits.py::test_json_inputs_outside_the_limits_are_422[question-too-long] PASSED [ 39%]
+tests/test_upload_limits.py::test_json_inputs_outside_the_limits_are_422[top-k-too-big] PASSED [ 42%]
+tests/test_upload_limits.py::test_json_inputs_outside_the_limits_are_422[top-k-zero] PASSED [ 46%]
+tests/test_upload_limits.py::test_json_inputs_outside_the_limits_are_422[search-too-long] PASSED [ 50%]
+tests/test_upload_limits.py::test_ingest_with_too_many_sections_is_422_and_stores_nothing PASSED [ 53%]
+tests/test_upload_limits.py::test_image_of_an_unsupported_type_is_415[gif] PASSED [ 57%]
+tests/test_upload_limits.py::test_image_of_an_unsupported_type_is_415[bmp] PASSED [ 60%]
+tests/test_upload_limits.py::test_image_of_an_unsupported_type_is_415[text] PASSED [ 64%]
+tests/test_upload_limits.py::test_image_over_the_pixel_limit_is_422 PASSED [ 67%]
+tests/test_upload_limits.py::test_png_jpeg_and_webp_are_accepted[PNG] PASSED [ 71%]
+tests/test_upload_limits.py::test_png_jpeg_and_webp_are_accepted[JPEG] PASSED [ 75%]
+tests/test_upload_limits.py::test_png_jpeg_and_webp_are_accepted[WEBP] PASSED [ 78%]
+tests/test_upload_limits.py::test_pdf_over_the_page_limit_is_422_and_never_reaches_the_vision_model PASSED [ 82%]
+tests/test_upload_limits.py::test_file_that_is_not_a_pdf_is_415 PASSED   [ 85%]
+tests/test_upload_limits.py::test_password_protected_pdf_is_422 PASSED   [ 89%]
+tests/test_upload_limits.py::test_pages_are_rendered_within_the_pixel_budget PASSED [ 92%]
+tests/test_upload_limits.py::test_a_page_over_the_byte_limit_is_rejected PASSED [ 96%]
+tests/test_upload_limits.py::test_default_page_limit_is_enforced_before_rendering PASSED [100%]
+
+============================= 28 passed in 26.07s ==============================

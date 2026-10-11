@@ -5,6 +5,10 @@ tenant is a no-op that returns the existing document, not a duplicate --
 UNLESS pii.PII_ANALYZER_VERSION has moved on since that document was
 ingested, in which case it's re-redacted and re-chunked under the current
 rules (see _reprocess_stale_document).
+
+Upload limits: text and source_path are length-capped by the request model (422),
+and a document that would split into too many chunks is refused (422) BEFORE the first
+write, so a rejected upload stores nothing and costs no embedding calls.
 """
 
 import hashlib
@@ -13,7 +17,7 @@ from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,14 +27,19 @@ from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_documents
 from rag_engine.models import Chunk, Document
 from rag_engine.pii import PII_ANALYZER_VERSION, redact_pii
+from rag_engine.upload_limits import (
+    MAX_SOURCE_PATH_CHARS,
+    MAX_TEXT_CHARS,
+    check_chunk_count,
+)
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 logger = structlog.get_logger()
 
 
 class IngestRequest(BaseModel):
-    source_path: str
-    text: str
+    source_path: str = Field(max_length=MAX_SOURCE_PATH_CHARS)
+    text: str = Field(max_length=MAX_TEXT_CHARS)
 
 
 class IngestResponse(BaseModel):
@@ -87,6 +96,11 @@ async def _reprocess_stale_document(
     """
     redacted_text, pii_types_found = redact_pii(original_text)
 
+    # Why: chunk and check the limit BEFORE deleting the old chunks, so a refused
+    # re-post leaves the stored document exactly as it was.
+    chunks = chunk_markdown(redacted_text)
+    check_chunk_count(len(chunks))
+
     await session.execute(delete(Chunk).where(Chunk.document_id == document.id))
 
     document.pii_analyzer_version = PII_ANALYZER_VERSION
@@ -98,7 +112,6 @@ async def _reprocess_stale_document(
         source_path=document.source_path,
     )
 
-    chunks = chunk_markdown(redacted_text)
     if not chunks:
         return IngestResponse(document_id=document.id, chunk_count=0, deduplicated=True)
 
@@ -157,6 +170,15 @@ async def ingest(
             "pii.redacted", entity_types=pii_types_found, source_path=body.source_path
         )
 
+    # chunking runs on the REDACTED text, the original unredacted text
+    # never reaches chunking, embedding, or the chunks table
+    #
+    # Why: chunk and check the limit BEFORE the documents INSERT. Chunking is pure, so a
+    # document that splits into too many sections is refused (422) with nothing written:
+    # no documents row, no chunks, no embedding calls.
+    chunks = chunk_markdown(redacted_text)
+    check_chunk_count(len(chunks))
+
     document = Document(
         tenant_id=tenant_id,
         content_hash=content_hash,
@@ -182,9 +204,6 @@ async def ingest(
         # worth stating rather than silently assuming it's covered.
         return await _existing_response(session, content_hash)
 
-    # chunking runs on the REDACTED text, the original unredacted text
-    # never reaches chunking, embedding, or the chunks table
-    chunks = chunk_markdown(redacted_text)
     if not chunks:
         return IngestResponse(
             document_id=document.id, chunk_count=0, deduplicated=False

@@ -2,20 +2,23 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rag_engine.db import get_session
 from rag_engine.models import Chunk
 from rag_engine.search import hybrid_search
+from rag_engine.upload_limits import MAX_QUESTION_CHARS, MAX_TOP_K
 
 router = APIRouter(prefix="/search", tags=["search"])
 
 
 class SearchRequest(BaseModel):
-    query: str
-    top_k: int = 10
+    # Why: bounded at the request model so an oversized query or an out-of-range top_k
+    # is a 422 before any embedding or database work runs.
+    query: str = Field(max_length=MAX_QUESTION_CHARS)
+    top_k: int = Field(default=10, ge=1, le=MAX_TOP_K)
 
 
 class SearchResult(BaseModel):

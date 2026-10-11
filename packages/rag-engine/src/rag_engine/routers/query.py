@@ -27,7 +27,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from governance.audit_log import append_entry
 from observability.alerts import send_slack_alert
 from opentelemetry import trace
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +44,7 @@ from rag_engine.search import hybrid_search
 from rag_engine.security.canary import scan_for_canary_leak
 from rag_engine.security.firewall import assess
 from rag_engine.security.trifecta import assess_trifecta
+from rag_engine.upload_limits import MAX_QUESTION_CHARS, MAX_TOP_K
 
 router = APIRouter(prefix="/query", tags=["query"])
 logger = structlog.get_logger()
@@ -87,8 +88,11 @@ async def _ignore_stage(stage: Stage) -> None:
 
 
 class QueryRequest(BaseModel):
-    question: str
-    top_k: int = 5
+    # Why: bound both fields at the request model so an out-of-range value is a 422
+    # before run_query starts: no embedding call, no Redis lookup, no quota use. The
+    # same model serves /query and /query/stream.
+    question: str = Field(max_length=MAX_QUESTION_CHARS)
+    top_k: int = Field(default=5, ge=1, le=MAX_TOP_K)
 
 
 class Citation(BaseModel):

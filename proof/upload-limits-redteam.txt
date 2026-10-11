@@ -1,0 +1,35 @@
+--- 9 MiB file to /ingest/image
+    expected 413, got 413  [PASS]
+    {"detail":"Request body is too large for this endpoint. The limit is 8454144 bytes."}
+--- text file posted as an image
+    expected 415, got 415  [PASS]
+    {"detail":"Unsupported image. Upload a PNG, JPEG or WEBP file."}
+--- GIF posted as an image
+    expected 415, got 415  [PASS]
+    {"detail":"Unsupported image. Upload a PNG, JPEG or WEBP file."}
+--- 21 page PDF (limit 20)
+    expected 422, got 422  [PASS]
+    {"detail":"The PDF has 21 pages. The limit is 20."}
+--- not a PDF
+    expected 415, got 415  [PASS]
+    {"detail":"The file is not a PDF."}
+--- 150,000 character text to /ingest
+    expected 422, got 422  [PASS]
+    {"detail":[{"type":"string_too_long","loc":["body","text"],"msg":"String should have at most 100000 characters","input":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--- 700,000 byte body to /ingest
+    expected 413, got 413  [PASS]
+    {"detail":"Request body is too large for this endpoint. The limit is 607168 bytes."}
+--- 20,000 character question to /query
+    expected 413, got 413  [PASS]
+    {"detail":"Request body is too large for this endpoint. The limit is 16096 bytes."}
+--- 2,500 character question to /query
+    expected 422, got 422  [PASS]
+    {"detail":[{"type":"string_too_long","loc":["body","question"],"msg":"String should have at most 2000 characters","input":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--- top_k 500 on /query
+    expected 422, got 422  [PASS]
+    {"detail":[{"type":"less_than_equal","loc":["body","top_k"],"msg":"Input should be less than or equal to 20","input":500,"ctx":{"le":20}}]}
+--- small document to /ingest (must work)
+    expected 201, got 201  [PASS]
+    {"document_id":"74aaff5f-fd17-4a6e-9c07-959f598e937c","chunk_count":1,"deduplicated":false}
+
+RESULT: 0 failed of 11
