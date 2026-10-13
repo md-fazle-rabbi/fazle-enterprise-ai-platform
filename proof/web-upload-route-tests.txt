@@ -1,0 +1,15 @@
+
+ RUN  v5.0.1 /home/fazle-rabbi/Fazle-Rabbi/Projects/AI Engineer/fazle-enterprise-ai-platform/apps/web
+
+ ✓ src/lib/upload/read-body.test.ts (16 tests) 58ms
+ ✓ src/lib/upload/sniff.test.ts (37 tests) 194ms
+ ✓ src/lib/upload/limits.test.ts (7 tests) 4ms
+ ✓ src/lib/upload/forward.test.ts (33 tests) 112ms
+ ✓ src/lib/upload/handler.test.ts (30 tests) 317ms
+ ✓ src/env.test.ts (45 tests) 33ms
+
+ Test Files  6 passed (6)
+      Tests  168 passed (168)
+   Start at  15:45:40
+   Duration  3.20s (setup 34%, environment 23%, transform 16%, import 14%, tests 12%, worker 1%)
+

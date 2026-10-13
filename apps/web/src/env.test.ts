@@ -18,6 +18,9 @@ describe("parseEnv defaults", () => {
       CHAT_RATE_LIMIT_MAX: 20,
       CHAT_RATE_LIMIT_WINDOW_SECONDS: 60,
       CHAT_MAX_CONCURRENT_STREAMS: 2,
+      UPLOAD_RATE_LIMIT_MAX: 10,
+      UPLOAD_RATE_LIMIT_WINDOW_SECONDS: 600,
+      UPLOAD_MAX_CONCURRENT: 1,
     });
   });
 });
@@ -98,6 +101,34 @@ describe("chat limits", () => {
     ["CHAT_MAX_CONCURRENT_STREAMS", "0"],
     ["CHAT_MAX_CONCURRENT_STREAMS", "21"],
     ["CHAT_MAX_CONCURRENT_STREAMS", "abc"],
+  ])("rejects %s = %s", (name, value) => {
+    expect(() => parseEnv({ ...required, [name]: value })).toThrow(new RegExp(name));
+  });
+});
+
+describe("upload limits", () => {
+  it("reads the limits from strings", () => {
+    const parsed = parseEnv({
+      ...required,
+      UPLOAD_RATE_LIMIT_MAX: "3",
+      UPLOAD_RATE_LIMIT_WINDOW_SECONDS: "120",
+      UPLOAD_MAX_CONCURRENT: "2",
+    });
+    expect(parsed).toMatchObject({
+      UPLOAD_RATE_LIMIT_MAX: 3,
+      UPLOAD_RATE_LIMIT_WINDOW_SECONDS: 120,
+      UPLOAD_MAX_CONCURRENT: 2,
+    });
+  });
+
+  it.each([
+    ["UPLOAD_RATE_LIMIT_MAX", "0"],
+    ["UPLOAD_RATE_LIMIT_MAX", "101"],
+    ["UPLOAD_RATE_LIMIT_WINDOW_SECONDS", "0"],
+    ["UPLOAD_RATE_LIMIT_WINDOW_SECONDS", "3601"],
+    ["UPLOAD_MAX_CONCURRENT", "0"],
+    ["UPLOAD_MAX_CONCURRENT", "6"],
+    ["UPLOAD_MAX_CONCURRENT", "abc"],
   ])("rejects %s = %s", (name, value) => {
     expect(() => parseEnv({ ...required, [name]: value })).toThrow(new RegExp(name));
   });

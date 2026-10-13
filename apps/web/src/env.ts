@@ -48,6 +48,13 @@ const schema = z.object({
   CHAT_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1_000).default(20),
   CHAT_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).max(3_600).default(60),
   CHAT_MAX_CONCURRENT_STREAMS: z.coerce.number().int().min(1).max(20).default(2),
+  // Why: an upload is slow and spends the shared free tier embedding quota (3 requests a
+  // minute), so these defaults are tighter than the chat ones: 10 uploads per 10 minutes and
+  // one at a time per person. The bounds stop a typo from turning the limit off or locking
+  // everyone out.
+  UPLOAD_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(100).default(10),
+  UPLOAD_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).max(3_600).default(600),
+  UPLOAD_MAX_CONCURRENT: z.coerce.number().int().min(1).max(5).default(1),
 });
 
 export function parseEnv(source: Record<string, string | undefined>) {
