@@ -1,0 +1,61 @@
+# Proof: /query latency, cold and cached (local, free tier keys, one user)
+Run at 2026-10-14T19:34:21Z. Bench tenant 00000000-0000-0000-0000-0000000000b1 holds the 3 golden corpus documents.
+One request every 21 s, because the embedding free tier allows 3 requests a minute.
+
+## Setup: ingest the golden corpus
+{"document_id":"f556a43b-3583-4604-8692-eda248b36416","chunk_count":1,"deduplicated":false} HTTP 201
+{"document_id":"55ac5b69-e3ec-43d9-a2ba-d873d4d578ac","chunk_count":1,"deduplicated":false} HTTP 201
+{"document_id":"5c2e7ba9-504c-4325-b0d1-26bbe59792e5","chunk_count":1,"deduplicated":false} HTTP 201
+
+## Cold: the cache is cleared before every request (20 requests)
+cold 1: 200 3.751383 miss
+cold 2: 200 3.682906 miss
+cold 3: 200 3.552680 miss
+cold 4: 200 3.656270 miss
+cold 5: 200 3.874746 miss
+cold 6: 200 3.043855 miss
+cold 7: 200 2.842585 miss
+cold 8: 200 3.097690 miss
+cold 9: 200 3.416205 miss
+cold 10: 200 3.075335 miss
+cold 11: 200 3.764186 miss
+cold 12: 200 3.251511 miss
+cold 13: 200 3.346421 miss
+cold 14: 200 3.171828 miss
+cold 15: 200 3.231801 miss
+cold 16: 200 4.486170 miss
+cold 17: 200 2.857092 miss
+cold 18: 200 3.877259 miss
+cold 19: 200 3.105383 miss
+cold 20: 200 3.351825 miss
+
+## Warm: the 5 questions are answered once to fill the cache (not counted), then 20 cached requests
+fill 1: 200 3.082567 miss
+fill 2: 200 3.184133 miss
+fill 3: 200 3.569555 miss
+fill 4: 200 3.508902 miss
+fill 5: 200 3.316730 miss
+warm 1: 200 0.804444 hit
+warm 2: 200 1.272239 hit
+warm 3: 200 1.321035 hit
+warm 4: 200 0.839713 hit
+warm 5: 200 1.441077 hit
+warm 6: 200 0.826338 hit
+warm 7: 200 1.302195 hit
+warm 8: 200 0.749716 hit
+warm 9: 200 1.313036 hit
+warm 10: 200 0.721037 hit
+warm 11: 200 1.411967 hit
+warm 12: 200 1.402448 hit
+warm 13: 200 0.758000 hit
+warm 14: 200 0.786516 hit
+warm 15: 200 0.766899 hit
+warm 16: 200 1.659699 hit
+warm 17: 200 1.420113 hit
+warm 18: 200 1.350075 hit
+warm 19: 200 1.839005 hit
+warm 20: 200 1.484250 hit
+
+## Result (seconds, nearest rank)
+cold: n=20 p50=3.346421 p95=3.877259
+warm: n=20 p50=1.302195 p95=1.659699

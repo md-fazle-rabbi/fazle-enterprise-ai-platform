@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.13.15-blue)
 ![RAGAS Faithfulness](https://img.shields.io/badge/RAGAS_faithfulness-100%25-blue)
-![p95 latency (single user)](https://img.shields.io/badge/query_p95_single_user-1900ms-blue)
+![p95 latency (cold, free tier, single user)](https://img.shields.io/badge/query_p95_cold_free_tier-3.9s-blue)
 ![Security-Reviewed](https://img.shields.io/badge/security_review-pending_Repo_2-lightgrey)
 
 **A multi-tenant RAG and agent platform built to survive a real security and compliance review: database-enforced tenant isolation, cited answers, a kill switch, and a governance layer.**
@@ -18,12 +18,12 @@ Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabb
 |---|---|---|
 | Tenant isolation | Enforced by Postgres Row Level Security, not app code | [`proof/rls-api-isolation.png`](proof/rls-api-isolation.png), [`proof/rls-db-state.png`](proof/rls-db-state.png) |
 | Answer faithfulness | 100% RAGAS locally, CI gate at 0.90/0.85/0.80 | [`proof/ragas-scores.png`](proof/ragas-scores.png) |
-| Query latency | p95 1900ms, single user, unthrottled, Locust | [`proof/langfuse-trace-detail.png`](proof/langfuse-trace-detail.png) |
+| Query latency | p95 3.9 s cold and 1.7 s from the semantic cache, free tier keys, single user, 20 requests each | [`proof/query-latency.txt`](proof/query-latency.txt) |
 | Kill switch | Under 5 seconds against a simulated runaway agent loop | [`proof/web-admin-kill-switch.png`](proof/web-admin-kill-switch.png) |
 | Audit log | Hash chained, insert only, UPDATE and DELETE change nothing in the database | [`proof/audit-log-tamper-test.txt`](proof/audit-log-tamper-test.txt) |
 | HIPAA Safe Harbor coverage | 10 of 18 identifiers detected, gaps named | live `/governance/documents/hipaa-report` |
 
-*Latency is measured locally for a single user, with no third party throttling. See "Observability" for why concurrent p95 isn't published.*
+*Latency is measured locally for a single user, one request every 21 seconds to stay under the embedding free tier limit, and every request got a 200. See "Observability" for why concurrent p95 isn't published.*
 
 ## Read this first
 - "SOC2-aligned" means built following SOC2 principles. It is not a SOC2 certification, which needs a third party auditor.
@@ -94,7 +94,7 @@ API docs: **http://localhost:8000/docs** once the stack is up. The Loom walkthro
 ## Observability
 Every `/query` call is traced with OpenTelemetry and exported to Langfuse. Retrieval, CRAG grading, generation and output checks each get their own span with real prompt and response content, not just timings.
 
-- p95 latency is 1900ms for a single user, unthrottled, measured with Locust ([`proof/langfuse-trace-detail.png`](proof/langfuse-trace-detail.png)).
+- Query p95 latency for a single user is 3.9 s when the answer is built from scratch and 1.7 s when the semantic cache answers it. Each figure is 20 requests on free tier API keys and a small test corpus (three documents of one chunk each), one every 21 seconds, timed with curl, and the p95 of 20 samples is the 19th value, so it is a rough figure ([`proof/query-latency.txt`](proof/query-latency.txt)). The Locust profile in the repo sends one question for every request, so after the first one the cache answers it; an earlier figure of 1.9 s came from that profile, so it most likely measured cached answers, and it is replaced. A trace of one request, with a span for each stage, is in [`proof/langfuse-trace-detail.png`](proof/langfuse-trace-detail.png).
 - Concurrent p95 is not published. The embedding provider's free tier caps at 3 requests per minute, so a higher number would measure their limit, not this application.
 - The demo API key is limited to 20 requests per hour, shown by a live 429 on request 21 ([`proof/demo-rate-limit.png`](proof/demo-rate-limit.png)).
 - Langfuse dashboards are limited to project members on the free tier, so screenshots stand in for a public link.
@@ -205,7 +205,7 @@ Stated plainly, not left for a client to discover.
 - The firewall does not scan filenames; `source_path` does not appear in `generation.py`, `query.py` or `search.py`, so those paths do not send it to the model. Text that is stored (/ingest, and text read from images and PDF pages) is refused at the flag line (0.60) instead of the block line (0.95), because an injection hidden in a long benign document scored 0.88 in a live test and would otherwise be stored. Questions are refused only at 0.95. An injection that scores below 0.60 inside long benign text was not tested. proof/classifier-redteam.txt shows the case.
 - The classifier (Prompt Guard 2, 86M) reads 512 tokens at a time, so longer text is split into overlapping segments and the highest score wins; at most 64 segments (about 28,000 tokens) are scored, and anything after that is checked by the regex layer only, which `tests/test_classifier_segments.py` pins
 - The classifier layer was inactive until 2026-10-09: the code compared the model's label to a Prompt Guard 1 name, so malicious verdicts became near zero scores and the regex layer did all the blocking (before the fix: `proof/web-chat-bff-red-team.txt`, after: `proof/classifier-check.txt`); the thresholds (flag 0.60, block 0.95) have only been checked against the golden set and the six cases in `evals/classifier_check.py`, so the false positive rate on real documents is unknown
-- The p95 latency in the "At a glance" table was measured before the classifier fix and before long text was scored in segments, and has not been re-measured
+- The latency numbers come from one user on one machine, a test corpus of three documents with one chunk each, and 20 requests per case, so retrieval time on a large corpus and concurrent load are not measured. The Locust profile in `packages/observability/loadtest/locustfile.py` still sends one question for every request, so it measures the cached path
 - Re-uploading a PDF after the text redaction rules have changed does not re-redact it, unlike text and images: the PDF route returns the stored document as a duplicate
 - The image and PDF routes do not handle a lost insert race the way `/ingest` does, so two identical uploads sent at the same moment may fail; this was not tested
 - `/api/chat` allows 20 questions per 60 seconds per user (sliding window, counted before the body is read, so malformed requests use it up) and 2 answers at once. Limits live in Redis, hold across app instances, and fail closed if Redis is down. No other route is throttled. The login route has no limit because limiting anonymous callers needs a trusted client IP, and there is no trusted proxy here.

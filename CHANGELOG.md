@@ -34,6 +34,11 @@
   measured 83.54, 87.07, 71.22 and 84.77.
 - README: the Content-Security-Policy limitation, the end to end test section and the upload
   proof are brought up to date.
+- Query latency is measured cold and cached separately: p95 3.9 s and 1.7 s over 20 requests
+  each (`proof/query-latency.txt`). The earlier 1.9 s figure came from a Locust profile that
+  sends one question, so it most likely measured cached answers. The notes in that profile now
+  say Gemini, not Claude, and that the cache answers repeats.
+- The root `node_modules` folder is no longer tracked and is ignored.
 
 ## 2026-10-11
 

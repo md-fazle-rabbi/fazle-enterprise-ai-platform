@@ -1,9 +1,11 @@
 """
 Two load profiles, deliberately separate. InfraOnlyUser hits /health, no
 LLM calls, free to run at any volume. FullPipelineUser hits /query, which
-calls Claude twice (CRAG grade + generation) and Voyage once per request,
+calls Gemini twice (CRAG grade + generation) and Voyage once per request,
 real API cost, keep user count and runtime small on purpose, this is for
 one honest measurement, not a stress test run repeatedly for fun.
+FullPipelineUser sends one fixed question, so after the first request the semantic cache
+answers it. The cold and cached latency are measured separately in proof/query-latency.txt.
 """
 
 import uuid
