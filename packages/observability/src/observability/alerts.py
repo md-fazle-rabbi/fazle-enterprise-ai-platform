@@ -1,5 +1,5 @@
 """
-Slack webhook alerting, shared across whatever needs it, this and Day 7's
+Slack webhook alerting, shared across whatever needs it, this and the
 governance module both fire alerts through here rather than each having
 its own HTTP client code.
 """

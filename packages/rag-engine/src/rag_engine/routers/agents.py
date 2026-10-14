@@ -2,7 +2,7 @@
 Merges agent-mesh into the platform's single API surface, rather than it
 living as a separately-discovered service. Kill-switch admin lives here
 too, under its own prefix, not exposed the same way tenant-facing routes
-are, same stated no-auth-yet gap as the Day 3 review-queue endpoints.
+are, same stated no-auth-yet gap as the review-queue endpoints.
 """
 
 import uuid

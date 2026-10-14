@@ -1,0 +1,115 @@
+# Proof: the audit log refuses UPDATE and DELETE
+Run at 2026-10-14T09:11:08Z against the local compose database.
+Every change runs inside a transaction that is rolled back, so no row is left behind.
+\echo
+
+\echo '## 1. The rules and the grants'
+## 1. The rules and the grants
+SELECT rulename, definition FROM pg_rules WHERE tablename = 'audit_log' ORDER BY rulename;
+      rulename       |                      definition                       
+---------------------+-------------------------------------------------------
+ audit_log_no_delete | CREATE RULE audit_log_no_delete AS                   +
+                     |     ON DELETE TO public.audit_log DO INSTEAD NOTHING;
+ audit_log_no_update | CREATE RULE audit_log_no_update AS                   +
+                     |     ON UPDATE TO public.audit_log DO INSTEAD NOTHING;
+(2 rows)
+
+SELECT grantee, privilege_type FROM information_schema.role_table_grants
+WHERE table_name = 'audit_log' AND grantee = 'app_user' ORDER BY privilege_type;
+ grantee  | privilege_type 
+----------+----------------
+ app_user | INSERT
+ app_user | SELECT
+(2 rows)
+
+\echo
+
+\echo '## 2. As the database owner (a superuser): insert a row, then try to change and delete it'
+## 2. As the database owner (a superuser): insert a row, then try to change and delete it
+BEGIN;
+BEGIN
+INSERT INTO audit_log (id, tenant_id, event_type, event_data, trace_id, created_at, prev_hash, entry_hash)
+VALUES (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'tamper_test', '{}'::json, NULL, now(), 'test', 'tamper-test-' || gen_random_uuid());
+INSERT 0 1
+UPDATE audit_log SET event_type = 'tampered' WHERE event_type = 'tamper_test';
+UPDATE 0
+DELETE FROM audit_log WHERE event_type = 'tamper_test';
+DELETE 0
+SELECT event_type FROM audit_log WHERE event_type IN ('tamper_test', 'tampered');
+ event_type  
+-------------
+ tamper_test
+(1 row)
+
+\echo
+
+\echo '## 3. Same transaction, as app_user (the role the application uses)'
+## 3. Same transaction, as app_user (the role the application uses)
+SET LOCAL ROLE app_user;
+SET
+SELECT current_user;
+ current_user 
+--------------
+ app_user
+(1 row)
+
+SET LOCAL app.tenant_id = '11111111-1111-1111-1111-111111111111';
+SET
+SELECT event_type FROM audit_log WHERE tenant_id = '11111111-1111-1111-1111-111111111111';
+ event_type  
+-------------
+ tamper_test
+(1 row)
+
+UPDATE audit_log SET event_type = 'tampered';
+UPDATE 0
+DELETE FROM audit_log;
+DELETE 0
+SELECT event_type FROM audit_log WHERE tenant_id = '11111111-1111-1111-1111-111111111111';
+ event_type  
+-------------
+ tamper_test
+(1 row)
+
+TRUNCATE audit_log;
+ROLLBACK;
+ERROR:  permission denied for table audit_log
+ROLLBACK
+\echo
+
+\echo '## 4. Known gap: the rules do not cover TRUNCATE, so the owner can still empty the table (rolled back here)'
+## 4. Known gap: the rules do not cover TRUNCATE, so the owner can still empty the table (rolled back here)
+BEGIN;
+BEGIN
+SELECT count(*) AS rows_before FROM audit_log;
+ rows_before 
+-------------
+          40
+(1 row)
+
+TRUNCATE audit_log;
+TRUNCATE TABLE
+SELECT count(*) AS rows_inside_transaction FROM audit_log;
+ rows_inside_transaction 
+-------------------------
+                       0
+(1 row)
+
+ROLLBACK;
+ROLLBACK
+SELECT count(*) AS rows_after_rollback FROM audit_log;
+ rows_after_rollback 
+---------------------
+                  40
+(1 row)
+
+\echo
+
+\echo '## 5. Nothing is left behind'
+## 5. Nothing is left behind
+SELECT count(*) AS leftover FROM audit_log WHERE event_type IN ('tamper_test', 'tampered');
+ leftover 
+----------
+        0
+(1 row)
+

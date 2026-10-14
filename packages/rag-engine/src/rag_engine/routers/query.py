@@ -158,7 +158,7 @@ async def run_query(
     # ---------------------------------------------------------
     # 0. Semantic cache check
     #
-    # Same Redis instance Day 3's rate limiter and Day 5's kill
+    # Same Redis instance the rate limiter and the kill
     # switch already use.
     # ---------------------------------------------------------
     await on_stage("cache_lookup")

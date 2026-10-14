@@ -1,6 +1,6 @@
 """
-OpenTelemetry setup, exports to Langfuse Cloud's OTel endpoint. See Day 6
-part 1 for why this is Cloud, not self-hosted, at this stage.
+OpenTelemetry setup, exports to the Langfuse Cloud OTel endpoint. It uses Cloud, not a
+self-hosted instance, at this stage.
 """
 
 from core.settings import settings

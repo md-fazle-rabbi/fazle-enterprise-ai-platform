@@ -20,7 +20,7 @@ Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabb
 | Answer faithfulness | 100% RAGAS locally, CI gate at 0.90/0.85/0.80 | [`proof/ragas-scores.png`](proof/ragas-scores.png) |
 | Query latency | p95 1900ms, single user, unthrottled, Locust | [`proof/langfuse-trace-detail.png`](proof/langfuse-trace-detail.png) |
 | Kill switch | Under 5 seconds against a simulated runaway agent loop | [`proof/web-admin-kill-switch.png`](proof/web-admin-kill-switch.png) |
-| Audit log | Hash chained, insert only, UPDATE and DELETE blocked in the database | [`proof/day7-audit-log-tamper-resistant.png`](proof/day7-audit-log-tamper-resistant.png) |
+| Audit log | Hash chained, insert only, UPDATE and DELETE change nothing in the database | [`proof/audit-log-tamper-test.txt`](proof/audit-log-tamper-test.txt) |
 | HIPAA Safe Harbor coverage | 10 of 18 identifiers detected, gaps named | live `/governance/documents/hipaa-report` |
 
 *Latency is measured locally for a single user, with no third party throttling. See "Observability" for why concurrent p95 isn't published.*
@@ -113,7 +113,7 @@ Built for the teams that actually block AI launches.
 DPIA, DSAR and erasure workflows are deliberately not automated by an LLM. A DPIA needs human judgment about proportionality, so these ship as structured templates a qualified person completes.
 
 ## Supply chain security
-Every dependency surface is pinned, delayed or audited, and the reasoning is recorded in [ADR-028](docs/adr/ADR-028.md).
+Every dependency surface is pinned, delayed or audited, and the reasoning is recorded in [ADR-028](docs/adr/ADR-028-dependency-update-and-audit-policy.md).
 
 | Control | What it does |
 |---|---|
@@ -134,8 +134,8 @@ Every dependency surface is pinned, delayed or audited, and the reasoning is rec
 
 **Isolation and data safety**
 - Tenant isolation, at the API and in Postgres directly ([`proof/rls-api-isolation.png`](proof/rls-api-isolation.png), [`proof/rls-db-state.png`](proof/rls-db-state.png))
-- Audit log tamper resistance: database level UPDATE and DELETE blocks, shown live ([`proof/day7-audit-log-tamper-resistant.png`](proof/day7-audit-log-tamper-resistant.png))
-- Chat history isolated per user and tenant by the database, including the fail-closed case ([`proof/back-end-conversations-tests.png`](proof/back-end-conversations-tests.png))
+- Audit log tamper resistance: database level UPDATE and DELETE rules, tested as the owner and as the application role ([`proof/audit-log-tamper-test.txt`](proof/audit-log-tamper-test.txt))
+- Chat history isolated per user and tenant by the database, including the fail-closed case ([`proof/backend-conversations-tests.png`](proof/backend-conversations-tests.png))
 
 **Answer quality**
 - RAGAS gate: 100% faithfulness locally, thresholds 0.90/0.85/0.80, enforced in CI ([`proof/ragas-scores.png`](proof/ragas-scores.png))
@@ -183,6 +183,7 @@ Stated plainly, not left for a client to discover.
 - `/admin/kill-switch/*` and `/review-queue` need a Keycloak token with the `platform-admin` role, but have no network restriction (no IP allowlist).
 - Keycloak runs in `start-dev` mode with an embedded database, so realm data resets when the container is recreated. The demo users (alice, bob, carol) are synthetic.
 - The `app` container mounts the Docker socket for the sandbox runner. `:ro` protects only the socket file, not the API calls through it, so a compromised container could start containers on the host. A socket proxy is not in place.
+- The audit log is insert only through two database rules and grants: the application role (`app_user`) can only `SELECT` and `INSERT`, and `UPDATE` and `DELETE` change nothing, as `proof/audit-log-tamper-test.txt` shows. The rules do not cover `TRUNCATE`, so the database owner can still empty the table (shown in the same file, rolled back), and the owner is a Postgres superuser that could also drop the rules. `verify_chain` checks the rows that exist, so removing the newest rows would not be detected (read from the code, not tested)
 
 **Auth and tenancy**
 - Parallel requests can refresh the same user's token at once. That is safe only while Keycloak's refresh token rotation stays off (as far as I know, its default).
@@ -195,7 +196,7 @@ Stated plainly, not left for a client to discover.
 - `/ingest/image` and `/ingest/pdf` take file uploads, which the middleware never reads, so each handler runs the firewall on the text the vision model or OCR extracted; `tests/test_ingest_firewall.py` runs the real `assess()` function against an injected image and an injected PDF page, and `proof/pdf-image-firewall-curl.txt` shows the same through the running stack; a PDF with one blocked page is rejected as a whole
 - The firewall does not scan filenames; `source_path` does not appear in `generation.py`, `query.py` or `search.py`, so those paths do not send it to the model. Text that is stored (/ingest, and text read from images and PDF pages) is refused at the flag line (0.60) instead of the block line (0.95), because an injection hidden in a long benign document scored 0.88 in a live test and would otherwise be stored. Questions are refused only at 0.95. An injection that scores below 0.60 inside long benign text was not tested. proof/classifier-redteam.txt shows the case.
 - The classifier (Prompt Guard 2, 86M) reads 512 tokens at a time, so longer text is split into overlapping segments and the highest score wins; at most 64 segments (about 28,000 tokens) are scored, and anything after that is checked by the regex layer only, which `tests/test_classifier_segments.py` pins
-- The classifier layer was inactive until 2026-10-09: the code compared the model's label to a Prompt Guard 1 name, so malicious verdicts became near zero scores and the regex layer did all the blocking (see `proof/classifier-check-before.txt`); the thresholds (flag 0.60, block 0.95) have only been checked against the golden set and the six cases in `evals/classifier_check.py`, so the false positive rate on real documents is unknown
+- The classifier layer was inactive until 2026-10-09: the code compared the model's label to a Prompt Guard 1 name, so malicious verdicts became near zero scores and the regex layer did all the blocking (before the fix: `proof/web-chat-bff-red-team.txt`, after: `proof/classifier-check.txt`); the thresholds (flag 0.60, block 0.95) have only been checked against the golden set and the six cases in `evals/classifier_check.py`, so the false positive rate on real documents is unknown
 - The p95 latency in the "At a glance" table was measured before the classifier fix and before long text was scored in segments, and has not been re-measured
 - Re-uploading a PDF after the text redaction rules have changed does not re-redact it, unlike text and images: the PDF route returns the stored document as a duplicate
 - The image and PDF routes do not handle a lost insert race the way `/ingest` does, so two identical uploads sent at the same moment may fail; this was not tested

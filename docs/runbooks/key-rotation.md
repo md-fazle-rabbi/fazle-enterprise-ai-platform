@@ -16,7 +16,7 @@ team member had key access, or an audit finding requires it.
 
 3. **Agents fetch**: no manual push needed, agents already pull the
    current key set from Keycloak's JWKS endpoint on each verification
-   (PyJWKClient, from Day 4's jwt_auth.py), cached and re-fetched on an
+   (PyJWKClient, from jwt_auth.py), cached and re-fetched on an
    unrecognized key id.
 
 4. **Grace period**: minimum 24 hours. New signing uses the new key
