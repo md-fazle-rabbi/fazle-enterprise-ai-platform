@@ -27,6 +27,9 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: workspaceRoot,
   turbopack: { root: workspaceRoot },
   poweredByHeader: false,
+  // Why: `next dev` writes AGENTS.md and CLAUDE.md into apps/web on every run. This project has
+  // no coding agent, and `git add .` would commit them, so the writing is turned off.
+  agentRules: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

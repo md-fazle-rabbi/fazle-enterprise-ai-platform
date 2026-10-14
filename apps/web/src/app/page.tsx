@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { BackendStatus } from "@/components/backend-status";
 import { DocumentsPanel } from "@/components/documents-panel";
+import { UploadForm } from "@/components/upload-form";
 import { UserPanel } from "@/components/user-panel";
 import { TenantSwitcher } from "@/components/tenant-switcher";
 import { requireSession } from "@/lib/auth/session";
@@ -48,6 +49,7 @@ export default async function HomePage() {
         Go to chat
       </Link>
       <DocumentsPanel result={documents} />
+      {documents.status === "ok" ? <UploadForm /> : null}
       <BackendStatus reachable={reachable} />
     </main>
   );

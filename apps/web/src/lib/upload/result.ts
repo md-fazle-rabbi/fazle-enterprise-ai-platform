@@ -2,22 +2,28 @@
 // form switches on, and the message is always safe to show. A message is either fixed text from
 // this file, or a backend refusal that passed the checks in forward.ts. It never carries a
 // stack trace, a path or anything from a file the user sent.
-export type UploadErrorCode =
-  | "invalid_request"
-  | "forbidden"
-  | "signed_out"
-  | "no_workspace"
-  | "rate_limited"
-  | "upload_in_progress"
-  | "too_large"
-  | "unsupported_type"
-  | "invalid_file"
-  | "empty_file"
-  | "rejected"
-  | "busy"
-  | "unavailable"
-  | "timeout"
-  | "internal";
+// Why: the list is the source of truth and the type is derived from it, so the browser side
+// can check a code with z.enum(UPLOAD_ERROR_CODES) and a new code cannot be added to one and
+// forgotten in the other.
+export const UPLOAD_ERROR_CODES = [
+  "invalid_request",
+  "forbidden",
+  "signed_out",
+  "no_workspace",
+  "rate_limited",
+  "upload_in_progress",
+  "too_large",
+  "unsupported_type",
+  "invalid_file",
+  "empty_file",
+  "rejected",
+  "busy",
+  "unavailable",
+  "timeout",
+  "internal",
+] as const;
+
+export type UploadErrorCode = (typeof UPLOAD_ERROR_CODES)[number];
 
 export type UploadError = {
   code: UploadErrorCode;

@@ -212,6 +212,7 @@ Stated plainly, not left for a client to discover.
 - The web upload route holds about two to three copies of a file in memory while it checks it, up to roughly 30 MiB for a 10 MiB PDF, one upload per user at a time; this is arithmetic, not a measurement
 - The upload route waits 60 seconds for text and images and 180 seconds for a PDF; these are starting guesses. A timeout (504) can mean the backend finished anyway, so check the document list before uploading again
 - A `.txt` or `.md` file is judged by its name and must be valid UTF-8; every other file is judged by its first bytes, not by its extension or the type the browser reports
+- The upload form takes one file at a time, with no drag and drop and no cancel button. Closing the page does not stop the server, which may still finish the upload. The end to end tests scan it with axe, but it has not been tried with a real screen reader
 - A client that keeps sending after a 413 can get a connection reset instead of the response; the 413 is pinned by tests, but a very large real upload was not checked in a browser or with every client
 - A PDF page far larger than the page budget is rendered at a lower resolution and may read poorly, and the 20 rendered pages are held in memory together (up to 160 MiB in the worst case, not measured)
 - Only PNG, JPEG and WEBP images are accepted; GIF is refused, and HEIC and HEIF are refused because Pillow here cannot read them
