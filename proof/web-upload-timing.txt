@@ -1,0 +1,37 @@
+# Proof: upload timing through the running stack (local, free tier keys)
+Every file is generated with a new nonce, so none is a duplicate.
+Cookie value is not stored in this file.
+Run at 2026-10-14T04:26:52Z
+
+## Counter reset
+
+## Text, about 5 KB (md)
+{"status":"ok","kind":"text","documentId":"8803e441-b553-4bbd-b96c-6d4e8e214e3d","deduplicated":false,"chunkCount":3}
+HTTP 201  total=5.726035s
+
+(waiting 30 s for the free embedding limit)
+
+## Image, PNG, 1 page
+{"status":"ok","kind":"image","documentId":"1a33f67d-5253-4f4c-affc-f1a6f1c3b0c4","deduplicated":false,"modality":"image"}
+HTTP 201  total=3.290351s
+
+(waiting 30 s for the free embedding limit)
+
+## PDF, 5 pages
+{"status":"ok","kind":"pdf","documentId":"53d50801-6bbf-4280-b569-c7cfe6de1cc7","deduplicated":false,"pageCount":5,"skippedPages":[]}
+HTTP 201  total=19.189206s
+
+(waiting 30 s for the free embedding limit)
+
+## PDF, 10 pages
+{"status":"ok","kind":"pdf","documentId":"de820630-68c8-42fa-9f87-619a8bd1f5d0","deduplicated":false,"pageCount":10,"skippedPages":[]}
+HTTP 201  total=38.791919s
+
+(waiting 30 s for the free embedding limit)
+
+## PDF, 20 pages
+{"status":"ok","kind":"pdf","documentId":"8081dab5-2699-47d0-84bd-5c27de44faba","deduplicated":false,"pageCount":20,"skippedPages":[]}
+HTTP 201  total=92.432139s
+
+## Counter reset, so the browser is not locked out afterwards
+deleted db1 web:rl:upload:fbf097b8-535d-424a-a1e2-2ef2a66188ff

@@ -9,9 +9,9 @@ export type BackendRequest = { path: string; init: BackendInit };
 
 // Why: starting guesses, not measurements. The backend embeds every chunk or page through the
 // shared free tier Voyage quota (3 requests a minute), so a slow answer is normal. A PDF waits
-// longest because every page is a vision call. They are set once here and get measured against
-// a real 20 page PDF before they are trusted (ADR-035).
-export const BACKEND_TIMEOUT_MS = { text: 60_000, image: 60_000, pdf: 180_000 } as const;
+// longest because every page is a vision call. Measured on 2026-10-14 against
+// a real 20 page PDF: 92 s, so 180 s leaves about twice the time. Text took 6 s, an image 3 s.
+export const BACKEND_TIMEOUT_MS = { text: 20_000, image: 20_000, pdf: 180_000 } as const;
 export const LONGEST_BACKEND_TIMEOUT_MS = Math.max(...Object.values(BACKEND_TIMEOUT_MS));
 
 export type UploadKind = "text" | "image" | "pdf";

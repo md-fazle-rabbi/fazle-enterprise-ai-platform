@@ -1,9 +1,30 @@
+# Python
 .venv
-__pycache__
-*.pyc
-.git
+**/.venv
+**/__pycache__
+**/*.pyc
 .pytest_cache
 .ruff_cache
+**/.pytest_cache
+**/.ruff_cache
+
+# Node / Next (web)
+**/node_modules
+**/.next
+**/out
+**/coverage
+**/e2e/test-results
+**/playwright-report
+**/playwright/.cache
+**/*.tsbuildinfo
+
+# Repo / local data
+.git
 proof/
 *.csv
+
+# Secrets
 .env
+.env.*
+**/.env
+**/.env.*

@@ -1,0 +1,78 @@
+# Proof: POST /api/documents through the running stack
+Target: http://localhost:3000 (local), signed in as alice. Cookie value is not stored in this file.
+Run at 2026-10-14T04:21:03Z
+
+## Counter reset (so the run starts from zero)
+deleted db1 web:rl:upload:fbf097b8-535d-424a-a1e2-2ef2a66188ff
+
+## 1. Text file, md (expect 201, kind text)
+{"status":"ok","kind":"text","documentId":"656d639e-aa2d-4c9a-ac31-f8f0d0ec61e6","deduplicated":true,"chunkCount":2}
+HTTP 201
+
+## 2. PNG (expect 201, kind image)
+{"status":"ok","kind":"image","documentId":"a5876662-d15f-47d8-9e27-4e814f449cf8","deduplicated":true,"modality":"image"}
+HTTP 201
+
+## 3. Clean PDF (expect 201, kind pdf, pageCount 2)
+{"status":"ok","kind":"pdf","documentId":"ae572b63-003c-4ec4-9381-3d4face3604c","deduplicated":true,"pageCount":2,"skippedPages":[]}
+HTTP 201
+
+## 4. Injected PDF (expect 400 naming page 2)
+{"code":"rejected","message":"PDF rejected: page 2 was blocked as possible prompt injection."}
+HTTP 400
+
+## 5. No session cookie (expect 401)
+{"code":"signed_out","message":"Your session ended. Sign in again."}
+HTTP 401
+
+## 6. Another origin (expect 403)
+{"code":"forbidden","message":"This request was refused."}
+HTTP 403
+
+## 7. Not multipart (expect 415, code invalid_request)
+{"code":"invalid_request","message":"The upload could not be read. Choose one file and try again."}
+HTTP 415
+
+## 8. Windows executable named .exe (expect 415 unsupported_type)
+{"code":"unsupported_type","message":"This file type is not supported. Upload a PDF, PNG, JPEG, WEBP, TXT or MD file."}
+HTTP 415
+
+## 9. PNG bytes named .txt (expect 422 invalid_file)
+{"code":"invalid_file","message":"The file could not be read as text. Upload a UTF-8 .txt or .md file."}
+HTTP 422
+
+## 10. Empty file (expect 400 empty_file)
+{"code":"empty_file","message":"The file is empty."}
+HTTP 400
+
+## 11. 11 MiB with a declared Content-Length (expect 413 before the body is read)
+{"code":"too_large","message":"The upload is too large. The biggest file allowed is 10 MiB."}
+HTTP 413
+
+## 12. 11 MiB chunked, no Content-Length (expect 413 from the byte counter)
+{"code":"too_large","message":"The upload is too large. The biggest file allowed is 10 MiB."}
+HTTP 413
+
+## Counter reset (so the next test is not limited by the ones above)
+deleted db1 web:rl:upload:fbf097b8-535d-424a-a1e2-2ef2a66188ff
+
+## 13. One upload at a time (second request while the first is still sending)
+slot keys while the first is open:
+db1: web:conc:upload:fbf097b8-535d-424a-a1e2-2ef2a66188ff
+second, expect 429 upload_in_progress:
+{"code":"upload_in_progress","message":"Another upload is still running. Wait for it to finish."}
+HTTP 429
+first, slow:  HTTP 415
+slot keys after it finished (empty = no leaked slot):
+
+## Counter reset again
+deleted db1 web:rl:upload:fbf097b8-535d-424a-a1e2-2ef2a66188ff
+
+## 14. Rate limit, 12 empty uploads (default 10 per 600 s: expect ten 400 then 429 429)
+400 400 400 400 400 400 400 400 400 400 429 429 
+Retry-After on the next request:
+HTTP/1.1 429 Too Many Requests
+retry-after: 600
+
+## Counter reset, so the browser is not locked out afterwards
+deleted db1 web:rl:upload:fbf097b8-535d-424a-a1e2-2ef2a66188ff
