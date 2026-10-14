@@ -12,6 +12,9 @@
   axe scan.
 - Proof through the running stack: `proof/web-upload-curl.txt` covers the refusals, one upload
   at a time and the rate limit, and `proof/web-upload-timing.txt` covers the timings.
+- A test that fails when the README names a file that does not exist
+  (`apps/web/src/readme-links.test.ts`), and a proof that the audit log ignores UPDATE and
+  DELETE (`proof/audit-log-tamper-test.txt`).
 
 ### Security
 - The upload route checks the Origin, the session and a per user rate limit before it reads
@@ -27,6 +30,10 @@
 ### Changed
 - Upload timeouts are measured, not guessed: text and images 20 seconds, a PDF 180 seconds.
   A 20 page PDF took 92 seconds on the free tier (`proof/web-upload-timing.txt`).
+- The web coverage gate is now statements 81, branches 85, functions 69 and lines 82, from a
+  measured 83.54, 87.07, 71.22 and 84.77.
+- README: the Content-Security-Policy limitation, the end to end test section and the upload
+  proof are brought up to date.
 
 ## 2026-10-11
 

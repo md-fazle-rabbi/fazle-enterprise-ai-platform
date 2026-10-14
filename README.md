@@ -38,7 +38,7 @@ Two things stop enterprise AI before production: it makes things up with confide
 This platform handles both at the infrastructure layer, not with prompting tricks. Postgres itself enforces tenant isolation, so no future engineer can bypass it by accident in app code. Every claim in an answer traces to a retrieved, citable source, and CI fails the build if faithfulness drops. A governance layer on top speaks the language procurement and DPO teams use: EU AI Act classification, HIPAA and GDPR documents, and a vendor risk questionnaire.
 
 ## What's inside
-Four packages behind one API, plus a web app in `apps/web`.
+Four packages behind one API, plus a web app in `apps/web` (sign in with Keycloak, cited chat with saved history, a document list for the signed in tenant and an upload form).
 
 - **rag-engine (trust).** Hybrid search (pgvector plus Postgres full text, RRF fused), enforced citation tags, a CRAG router that grades context before generation, a two layer prompt injection firewall, PII redaction for text, images and PDFs, semantic caching, and a RAGAS gate in CI.
 - **agent-mesh (control).** LangGraph agents, RS256 signed agent to agent messages, Keycloak identity, OPA authorization, a two layer code sandbox, and a kill switch measured under 5 seconds.
@@ -157,14 +157,22 @@ Every dependency surface is pinned, delayed or audited, and the reasoning is rec
 - Answers save to the signed in user's history on the server, another user's conversation looks missing, and deleting needs a matching Origin ([`proof/web-history-api.txt`](proof/web-history-api.txt))
 - Past chats survive a reload with citations intact and stay private per user and workspace, with an accessibility scan in the end to end test ([`proof/web-history-sidebar.png`](proof/web-history-sidebar.png), [`proof/web-e2e-pass.png`](proof/web-e2e-pass.png))
 
+**Document upload**
+- Fourteen cases through the running stack: a text file, an image and a PDF are accepted, a PDF with an injected page is rejected and the page is named, and a missing session, another origin, a wrong type, an empty file and two oversized bodies are each refused with the right status. One upload at a time and the rate limit (ten, then 429 with `Retry-After`) are in the same file ([`proof/web-upload-curl.txt`](proof/web-upload-curl.txt))
+- Timing with new files on the free tier: text 5.7 s, an image 3.3 s, PDFs of 5, 10 and 20 pages 19, 39 and 92 s, with no page skipped. The route timeouts come from it ([`proof/web-upload-timing.txt`](proof/web-upload-timing.txt))
+- 60 tests for the byte checks and 201 for the route and the form ([`proof/web-upload-validation-tests.txt`](proof/web-upload-validation-tests.txt), [`proof/web-upload-route-tests.txt`](proof/web-upload-route-tests.txt))
+- Five browser tests for the form, with axe scans and two screenshots ([`proof/web-upload-e2e.txt`](proof/web-upload-e2e.txt), [`proof/web-upload-success.png`](proof/web-upload-success.png), [`proof/web-upload-refused.png`](proof/web-upload-refused.png))
+
 ## End to end testing
-Two Playwright tests cover what a user sees.
+Seven Playwright tests in two spec files cover what a user sees: two for sign in and chat (`login-and-chat.spec.ts`) and five for the document upload form (`upload.spec.ts`).
 
 The main test goes from an anonymous visit to the login redirect, signs in through the real Keycloak, asks a question and sees a cited answer. Then it reloads, reopens that chat from the sidebar and checks the cited answer comes back. An axe accessibility scan runs on the login page, the chat page with an answer, and the sidebar with loaded history.
 
 The second test mocks a stream that ends with no answer and checks the chat shows an error and re-enables Send instead of hanging. It never calls the model.
 
-Both need the full stack (`docker compose up -d db redis keycloak app` and `npm run dev` in `apps/web`), alice's tenant already holding the refund-policy document from the `/ingest` example, and alice's Keycloak password in the environment:
+The upload tests sign in as alice, upload a new text file and see it listed without a reload, upload the same content again and see it recognised, and see the reason when an `.exe` file is refused. The other three need no real upload: asking for a file first, a mocked rate limit answer, and a mocked slow upload that shows the progress message. An axe scan runs in four of the five. The real ones send three uploads to the real route per run, and the limit is 10 per 10 minutes, so more than three runs in ten minutes will be rate limited. Set `E2E_PROOF_DIR=../../proof` to save the two screenshots; it is off by default, so an ordinary run never rewrites them.
+
+All of them need the full stack (`docker compose up -d db redis keycloak app` and `npm run dev` in `apps/web`), alice's tenant already holding the refund-policy document from the `/ingest` example, and alice's Keycloak password in the environment:
 
 ```bash
 cd apps/web
@@ -179,7 +187,7 @@ Stated plainly, not left for a client to discover.
 - Web session data, including Keycloak tokens, sits unencrypted in Redis, and the compose Redis has no password or TLS.
 - `ALLOW_UNAUTHENTICATED_TENANT_HEADER` defaults to `true` in compose because the load test, the RAGAS run and the research agent still send a raw `X-Tenant-ID`. Set it to `false` to require a real token.
 - `proxy.ts` only checks that a session cookie exists. The real check (`getSession`, against Redis) runs inside each page, so a page that forgets it has only the optimistic gate.
-- The web app sends basic security headers but no Content-Security-Policy yet.
+- The web app sets a Content-Security-Policy with a new nonce on every page request, the login page included, and sends `nosniff`, `X-Frame-Options: DENY`, a referrer policy and a permissions policy on every path. The policy is not sent on `/api` routes, and `style-src` still allows `'unsafe-inline'`. In development the policy also allows `'unsafe-eval'` and `ws:`. The policy was read from the code and from a real response ([`proof/web-security-headers.txt`](proof/web-security-headers.txt)); no outside CSP scanner was run
 - `/admin/kill-switch/*` and `/review-queue` need a Keycloak token with the `platform-admin` role, but have no network restriction (no IP allowlist).
 - Keycloak runs in `start-dev` mode with an embedded database, so realm data resets when the container is recreated. The demo users (alice, bob, carol) are synthetic.
 - The `app` container mounts the Docker socket for the sandbox runner. `:ro` protects only the socket file, not the API calls through it, so a compromised container could start containers on the host. A socket proxy is not in place.
@@ -223,9 +231,9 @@ Stated plainly, not left for a client to discover.
 - The review queue has no pagination or filtering and loads every pending item for the workspace, matching the API's `/review-queue`. Who resolved an item is logged, not stored as a column.
 
 **Testing and delivery**
-- End to end tests cover one main path plus a mocked stalled stream, on Chromium only. They are not part of the fast `npm run check` loop because they need the full stack and a real model call.
+- End to end tests cover one main chat path, a mocked stalled stream and the upload form, on Chromium only. They are not part of the fast `npm run check` loop because they need the full stack and a real model call.
 - The web Docker image builds with a placeholder `KEYCLOAK_WEB_CLIENT_SECRET` that only satisfies `next build`. The real secret is supplied at container start.
-- The web coverage gate in CI (statements 78, branches 82, functions 66, lines 79 percent) sits 2 points below measured coverage (80.16, 84.08, 68.08, 81.4), so it blocks drops without claiming high coverage. Page and route files under `src/app` have no unit tests, which is why functions coverage is about 68 percent. The gate was shown to fail by forcing `lines=99` ([`proof/web-coverage-gate-negative-test.txt`](proof/web-coverage-gate-negative-test.txt)).
+- The web coverage gate in CI (statements 81, branches 85, functions 69, lines 82 percent) sits 2 to 3 points below measured coverage (83.54, 87.07, 71.22, 84.77), so it blocks drops without claiming high coverage. Page and route files under `src/app` have no unit tests, which is why functions coverage is about 71 percent. The gate passes at the current numbers ([`proof/web-coverage-gate.txt`](proof/web-coverage-gate.txt)) and was shown to fail by forcing `lines=99` ([`proof/web-coverage-gate-negative-test.txt`](proof/web-coverage-gate-negative-test.txt)).
 - `npm audit` gates production dependencies at high severity for `apps/web` and the repo root (0 vulnerabilities at the last run). It has been shown to pass, not yet to fail on a real finding in CI. Dev dependencies are not gated.
 - One dev-only advisory is open: `braces` (GHSA-vfj7-8cjw-p6xm), reached through `eslint-config-next`. No patched version is listed and it is in no production dependency. It is tracked with a review date in `docs/security-exceptions.md`.
 - A signed out visitor who opens an unknown address is sent to the login page by `proxy.ts` and never sees the 404 page, because the proxy only checks for a session cookie and runs before routing

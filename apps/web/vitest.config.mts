@@ -41,15 +41,15 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/*.test.{ts,tsx}", "src/**/fixtures.ts", "src/**/fake-redis.ts"],
-      // Why: a floor, not a target. Each number is the measured value (80.16, 84.08,
-      // 68.08, 81.4 on 2026-10-09) rounded down, minus 2, so ordinary refactors pass
+      // Why: a floor, not a target. Each number is the measured value (83.54, 87.07,
+      // 71.22, 84.77 on 2026-10-14) rounded down, minus 2, so ordinary refactors pass
       // but a real drop in testing fails CI. Raise these as coverage improves, never
       // lower them to make a failing run pass.
       thresholds: {
-        statements: 78,
-        branches: 82,
-        functions: 66,
-        lines: 79,
+        statements: 81,
+        branches: 85,
+        functions: 69,
+        lines: 82,
       },
       // Why: still write the report when a threshold fails, so the CI artifact and the
       // local table show which files caused the drop.

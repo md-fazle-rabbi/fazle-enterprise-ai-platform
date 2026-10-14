@@ -1,0 +1,30 @@
+# Proof: security headers from the running web app
+Run at 2026-10-14T09:44:40Z, http://localhost:3000
+Served by: the web container from docker compose
+
+## GET /login (a page route: the policy with a nonce)
+HTTP/1.1 200 OK
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+content-security-policy: default-src 'self'; script-src 'self' 'nonce-NGE5ZjczM2QtYWU1YS00ZTExLWE2M2QtMDZmMzY4YTFkY2Zh' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
+Link: </_next/static/media/GeistMono_Variable.p.3ms9vq719j3f8.woff2>; rel=preload; as="font"; crossorigin=""; nonce="NGE5ZjczM2QtYWU1YS00ZTExLWE2M2QtMDZmMzY4YTFkY2Zh"; type="font/woff2", </_next/static/media/Geist_Variable-s.p.0mrjj4bg00-he.woff2>; rel=preload; as="font"; crossorigin=""; nonce="NGE5ZjczM2QtYWU1YS00ZTExLWE2M2QtMDZmMzY4YTFkY2Zh"; type="font/woff2"
+Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate
+Content-Type: text/html; charset=utf-8
+Date: Wed, 14 Oct 2026 09:44:41 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+## GET /api/documents (an API route: the static headers, no Content-Security-Policy)
+HTTP/1.1 405 Method Not Allowed
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+Date: Wed, 14 Oct 2026 09:44:41 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
