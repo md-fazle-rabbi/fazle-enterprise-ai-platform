@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## 2026-10-14
+
+### Added
+- `POST /api/documents` in the web app (ADR-035). It accepts one PDF, PNG, JPEG, WEBP, TXT
+  or MD file and forwards it to `/ingest`, `/ingest/image` or `/ingest/pdf`. The home page has
+  an upload form for it with an uploading state and a clear message for each refusal.
+- Playwright end to end tests for the upload form (`apps/web/e2e/upload.spec.ts`), with an
+  axe scan.
+- Proof through the running stack: `proof/web-upload-curl.txt` covers the refusals, one upload
+  at a time and the rate limit, and `proof/web-upload-timing.txt` covers the timings.
+
+### Security
+- The upload route checks the Origin, the session and a per user rate limit before it reads
+  the body: 10 uploads per 10 minutes and 1 at a time, in Redis, apart from the chat limits.
+  Settings: `UPLOAD_RATE_LIMIT_MAX`, `UPLOAD_RATE_LIMIT_WINDOW_SECONDS`, `UPLOAD_MAX_CONCURRENT`.
+- The body is counted as it arrives and stopped past 10 MiB plus 64 KiB, or refused up front
+  when `Content-Length` is already over. The file type is decided by magic bytes, and a
+  `.txt` or `.md` name by strict UTF-8, so a wrong extension or MIME type is not trusted.
+  The file name is cleaned before it becomes `source_path`.
+- Backend answers are checked with a schema. Only a plain string `detail` from a 400, 413,
+  415 or 422 reaches the browser, and a server error body never does.
+
+### Changed
+- Upload timeouts are measured, not guessed: text and images 20 seconds, a PDF 180 seconds.
+  A 20 page PDF took 92 seconds on the free tier (`proof/web-upload-timing.txt`).
+
 ## 2026-10-11
 
 ### Security

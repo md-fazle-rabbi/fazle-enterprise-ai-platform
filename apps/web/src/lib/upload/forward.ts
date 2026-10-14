@@ -7,7 +7,7 @@ export type AcceptedFile = Extract<Classified, { ok: true }>;
 
 export type BackendRequest = { path: string; init: BackendInit };
 
-// Why: starting guesses, not measurements. The backend embeds every chunk or page through the
+// Why: measured with headroom. The backend embeds every chunk or page through the
 // shared free tier Voyage quota (3 requests a minute), so a slow answer is normal. A PDF waits
 // longest because every page is a vision call. Measured on 2026-10-14 against
 // a real 20 page PDF: 92 s, so 180 s leaves about twice the time. Text took 6 s, an image 3 s.

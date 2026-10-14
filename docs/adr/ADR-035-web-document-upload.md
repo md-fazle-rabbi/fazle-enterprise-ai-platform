@@ -45,7 +45,7 @@ The docs say nothing on how much memory `request.formData()` uses before it retu
    `UPLOAD_RATE_LIMIT_WINDOW_SECONDS` and `UPLOAD_MAX_CONCURRENT`.
 9. The session is read again from Redis right before the backend call, because a large
    upload takes time and another request may have refreshed the tokens meanwhile.
-10. Backend timeouts are 60 seconds for text and images and 180 seconds for a PDF. A timeout
+10. Backend timeouts are 20 seconds for text and images and 180 seconds for a PDF. A timeout
     answers 504 with a message that says to check the document list before trying again.
 
 ## Options considered
@@ -73,8 +73,10 @@ Negative:
 - Each upload holds about two to three copies of the file in memory (the counted chunks,
   the joined bytes and the parsed file), up to roughly 30 MiB for a 10 MiB PDF, one upload per
   user at a time. This is arithmetic, not a measurement.
-- The 60 and 180 second timeouts are starting guesses. The backend embeds through a free
-  tier with 3 requests a minute, so a slow answer is normal.
+- The timeouts come from one local run on the free tier (`proof/web-upload-timing.txt`): text 6 s,
+  an image 3 s and a 20 page PDF 92 s. That is one sample and the free tier speed changes, so the
+  PDF limit keeps about twice the measured time. A slow answer is normal, because the backend
+  embeds through a free tier with 3 requests a minute.
 - A 504 does not mean the backend failed. It may finish the work after the web app gave up.
 - The limits are per user, so many users can still use up the shared embedding quota.
 - A `.txt` file that is valid text is stored as text whatever its content, and a binary file
