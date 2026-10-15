@@ -17,7 +17,7 @@ Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabb
 | Claim | Result | Evidence |
 |---|---|---|
 | Tenant isolation | Enforced by Postgres Row Level Security, not app code | [`proof/rls-api-isolation.png`](proof/rls-api-isolation.png), [`proof/rls-db-state.png`](proof/rls-db-state.png) |
-| Answer faithfulness | 100% RAGAS locally, CI gate at 0.90/0.85/0.80 | [`proof/ragas-scores.png`](proof/ragas-scores.png) |
+| Answer quality | RAGAS on 5 golden questions: faithfulness 1.00, answer relevancy 0.86, context precision 1.00. CI gate at 0.90/0.85/0.80 | [`proof/ragas-scores.png`](proof/ragas-scores.png), [`proof/ragas-scores.txt`](proof/ragas-scores.txt) |
 | Query latency | p95 3.9 s cold and 1.7 s from the semantic cache, free tier keys, single user, 20 requests each | [`proof/query-latency.txt`](proof/query-latency.txt) |
 | Kill switch | Under 5 seconds against a simulated runaway agent loop | [`proof/web-admin-kill-switch.png`](proof/web-admin-kill-switch.png) |
 | Audit log | Hash chained, insert only, UPDATE and DELETE change nothing in the database | [`proof/audit-log-tamper-test.txt`](proof/audit-log-tamper-test.txt) |
@@ -138,7 +138,7 @@ Every dependency surface is pinned, delayed or audited, and the reasoning is rec
 - Chat history isolated per user and tenant by the database, including the fail-closed case ([`proof/backend-conversations-tests.png`](proof/backend-conversations-tests.png))
 
 **Answer quality**
-- RAGAS gate: 100% faithfulness locally, thresholds 0.90/0.85/0.80, enforced in CI ([`proof/ragas-scores.png`](proof/ragas-scores.png))
+- RAGAS gate: faithfulness 1.00, answer relevancy 0.86 and context precision 1.00 against floors of 0.90, 0.85 and 0.80, enforced in CI ([`proof/ragas-scores.png`](proof/ragas-scores.png), [`proof/ragas-scores.txt`](proof/ragas-scores.txt))
 
 **Agent control**
 - Kill switch under 5 seconds against a simulated runaway loop
@@ -206,6 +206,7 @@ Stated plainly, not left for a client to discover.
 - The classifier (Prompt Guard 2, 86M) reads 512 tokens at a time, so longer text is split into overlapping segments and the highest score wins; at most 64 segments (about 28,000 tokens) are scored, and anything after that is checked by the regex layer only, which `tests/test_classifier_segments.py` pins
 - The classifier layer was inactive until 2026-10-09: the code compared the model's label to a Prompt Guard 1 name, so malicious verdicts became near zero scores and the regex layer did all the blocking (before the fix: `proof/web-chat-bff-red-team.txt`, after: `proof/classifier-check.txt`); the thresholds (flag 0.60, block 0.95) have only been checked against the golden set and the six cases in `evals/classifier_check.py`, so the false positive rate on real documents is unknown
 - The latency numbers come from one user on one machine, a test corpus of three documents with one chunk each, and 20 requests per case, so retrieval time on a large corpus and concurrent load are not measured. The Locust profile in `packages/observability/loadtest/locustfile.py` still sends one question for every request, so it measures the cached path
+- The RAGAS gate runs 5 questions over 3 one-chunk documents, with a free tier judge model. One question can move the context precision average by up to 0.2, answer relevancy was between 0.852 and 0.866 over four local runs (floor 0.85). A pass is evidence on a small set, not a guarantee on a large corpus.
 - Re-uploading a PDF after the text redaction rules have changed does not re-redact it, unlike text and images: the PDF route returns the stored document as a duplicate
 - The image and PDF routes do not handle a lost insert race the way `/ingest` does, so two identical uploads sent at the same moment may fail; this was not tested
 - `/api/chat` allows 20 questions per 60 seconds per user (sliding window, counted before the body is read, so malformed requests use it up) and 2 answers at once. Limits live in Redis, hold across app instances, and fail closed if Redis is down. No other route is throttled. The login route has no limit because limiting anonymous callers needs a trusted client IP, and there is no trusted proxy here.

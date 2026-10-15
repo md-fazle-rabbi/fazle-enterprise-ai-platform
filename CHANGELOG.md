@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## 2026-10-15
+
+### Fixed
+- The search ranking was thrown away before the answer was built. `expand_to_parents` loaded
+  the matched chunks with no `ORDER BY`, so the context, the `[1]` and `[2]` citation numbers
+  and the order scored by RAGAS followed storage order, not rank. It now follows the search
+  ranking (ADR-036).
+- The sparse half of hybrid search needed every word of the question to be in a chunk, so 3 of
+  the 5 golden questions had no sparse hit. It now matches any word and ranks a chunk that
+  matches more words higher (ADR-036).
+
+### Changed
+- Reciprocal Rank Fusion breaks equal scores by the better rank in the sparse list, then the
+  dense list, then the chunk id. The order no longer depends on which list the loop saw first.
+  Tests: `tests/test_search.py` and `tests/test_parent_retrieval.py`.
+- RAGAS after the fixes: faithfulness 1.0000, answer relevancy 0.8605, context precision
+  1.0000, gate passed (`proof/ragas-scores.txt`, `proof/ragas-scores.png`). The run before the
+  fixes scored context precision 0.7000 and failed the gate. The 0.8000 of 2026-09-15 most
+  likely came from the same ordering defect.
+
 ## 2026-10-14
 
 ### Added

@@ -1,0 +1,20 @@
+# RAGAS gate run
+# date: 2026-10-15
+# command: cd packages/rag-engine && uv run python -m evals.run_ragas
+# judge: gemini-3.5-flash-lite, 5 golden questions, 3 corpus documents, top_k 2
+# working tree includes the retrieval ordering fix (parent_retrieval.py) and the OR sparse query (search.py)
+
+Per-question breakdown:
+                                                                user_input  faithfulness  answer_relevancy  context_precision
+              What makes Row-Level Security apply even to the table owner?        1.0000            0.8349             1.0000
+                               What is the token budget used for chunking?        1.0000            0.9030             1.0000
+                       What value of k is used for Reciprocal Rank Fusion?        1.0000            0.9229             1.0000
+Does RLS enforce isolation at the application layer or the database layer?        1.0000            0.7840             1.0000
+             What does sparse search catch that dense search alone misses?        1.0000            0.8578             1.0000
+
+RAGAS results:
+  faithfulness: 1.0000 (floor 0.90) [PASS]
+  answer_relevancy: 0.8605 (floor 0.85) [PASS]
+  context_precision: 1.0000 (floor 0.80) [PASS]
+
+RAGAS gate passed.
