@@ -22,6 +22,7 @@ Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabb
 | Kill switch | Under 5 seconds against a simulated runaway agent loop | [`proof/web-admin-kill-switch.png`](proof/web-admin-kill-switch.png) |
 | Audit log | Hash chained, insert only, UPDATE and DELETE change nothing in the database | [`proof/audit-log-tamper-test.txt`](proof/audit-log-tamper-test.txt) |
 | HIPAA Safe Harbor coverage | 10 of 18 identifiers detected, gaps named | live `/governance/documents/hipaa-report` |
+| Production readiness | 13 areas self assessed, each with its proof and its biggest gap: 10 proven, 2 partly, 1 not done by design | [`docs/production-readiness-scorecard.md`](docs/production-readiness-scorecard.md) |
 
 *Latency is measured locally for a single user, one request every 21 seconds to stay under the embedding free tier limit, and every request got a 200. See "Observability" for why concurrent p95 isn't published.*
 
@@ -32,7 +33,7 @@ Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabb
 - Every control here reduces risk. None of them, alone or together, removes it.
 - The project runs locally by design. See "Run it locally" for why.
 
-## The problem
+## The problem it solves
 Two things stop enterprise AI before production: it makes things up with confidence, and it leaks one customer's data into another customer's answer. Legal, security and procurement teams block launches over exactly these two.
 
 This platform handles both at the infrastructure layer, not with prompting tricks. Postgres itself enforces tenant isolation, so no future engineer can bypass it by accident in app code. Every claim in an answer traces to a retrieved, citable source, and CI fails the build if faithfulness drops. A governance layer on top speaks the language procurement and DPO teams use: EU AI Act classification, HIPAA and GDPR documents, and a vendor risk questionnaire.

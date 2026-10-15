@@ -4,6 +4,10 @@
 
 ## 2026-10-15
 
+### Added
+- A production readiness scorecard (`docs/production-readiness-scorecard.md`): 13 areas, each
+  with its proof and its biggest gap. 10 are proven, 2 partly and 1 not done by design.
+
 ### Fixed
 - The search ranking was thrown away before the answer was built. `expand_to_parents` loaded
   the matched chunks with no `ORDER BY`, so the context, the `[1]` and `[2]` citation numbers
