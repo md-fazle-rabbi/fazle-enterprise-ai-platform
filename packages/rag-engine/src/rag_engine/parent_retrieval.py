@@ -23,12 +23,22 @@ async def expand_to_parents(
     entry, not duplicated. chunk_id in the result stays the originally
     matched chunk, kept as a stable citation anchor even though text is
     the expanded section.
+
+    The result follows the order of chunk_ids, which is the search ranking,
+    best match first.
     """
-    matched = (
-        await session.scalars(select(Chunk).where(Chunk.id.in_(chunk_ids)))
-    ).all()
-    if not matched:
+    rows = (await session.scalars(select(Chunk).where(Chunk.id.in_(chunk_ids)))).all()
+    if not rows:
         return []
+
+    # Why: WHERE id IN (...) has no ORDER BY, so the database returns rows in
+    # whatever order it finds them (here the order they were inserted), not in
+    # ranking order. That threw the fusion ranking away: the generator saw the
+    # context, and cited [1] and [2], in storage order, and which chunk anchored
+    # a shared section was arbitrary. Sorting by position in chunk_ids restores
+    # the ranking the search computed.
+    position = {chunk_id: index for index, chunk_id in enumerate(chunk_ids)}
+    matched = sorted(rows, key=lambda chunk: position[chunk.id])
 
     seen: set[tuple[uuid.UUID, tuple[str, ...]]] = set()
     parents: list[dict[str, Any]] = []

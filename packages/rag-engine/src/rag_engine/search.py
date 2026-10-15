@@ -11,6 +11,7 @@ BM25 extension is a documented upgrade path, tracked in Known Limitations,
 not a claimed feature this doesn't actually have.
 """
 
+import math
 import uuid
 
 from sqlalchemy import select, text
@@ -20,6 +21,29 @@ from rag_engine.embeddings import embed_query
 from rag_engine.models import Chunk
 
 RRF_K = 60
+
+# Why: plainto_tsquery joins every word of the question with AND. One word the
+# chunk does not contain ("value", "catch") then kills the whole sparse leg, and
+# "hybrid" search silently becomes dense-only for most natural questions. Measured
+# on the evaluation corpus: 3 of 5 questions returned no sparse hit at all.
+# plainto_tsquery still does the parsing, stemming and stop word removal (so the
+# lexemes match the stored english tsvector); its AND is swapped for OR, and
+# ts_rank_cd ranks chunks that match more of the question words higher. The
+# 'simple' config in to_tsquery stops the already stemmed lexemes being stemmed twice.
+# A question made only of stop words gives an empty query, which matches nothing.
+_SPARSE_SQL = text("""
+    WITH parsed AS (
+        SELECT to_tsquery(
+                   'simple',
+                   replace(CAST(plainto_tsquery('english', :q) AS text), ' & ', ' | ')
+               ) AS tsq
+    )
+    SELECT chunks.id
+    FROM chunks, parsed
+    WHERE chunks.search_vector @@ parsed.tsq
+    ORDER BY ts_rank_cd(chunks.search_vector, parsed.tsq) DESC, chunks.id
+    LIMIT :limit
+""")
 
 
 async def _dense_search(
@@ -37,16 +61,7 @@ async def _dense_search(
 async def _sparse_search(
     session: AsyncSession, query_text: str, limit: int
 ) -> list[tuple[uuid.UUID, int]]:
-    result = await session.execute(
-        text("""
-            SELECT id
-            FROM chunks
-            WHERE search_vector @@ plainto_tsquery('english', :q)
-            ORDER BY ts_rank_cd(search_vector, plainto_tsquery('english', :q)) DESC
-            LIMIT :limit
-        """),
-        {"q": query_text, "limit": limit},
-    )
+    result = await session.execute(_SPARSE_SQL, {"q": query_text, "limit": limit})
     ids = result.scalars().all()
     return [(chunk_id, rank) for rank, chunk_id in enumerate(ids, start=1)]
 
@@ -54,11 +69,35 @@ async def _sparse_search(
 def _reciprocal_rank_fusion(
     *rank_lists: list[tuple[uuid.UUID, int]], k: int = RRF_K
 ) -> list[tuple[uuid.UUID, float]]:
+    """
+    Fuse ranked lists. On an equal fused score the chunk with the better rank
+    in the LAST list wins, then the one with the better rank in the earlier
+    lists, then the smaller chunk id.
+
+    Why: two chunks that swap places between the lists (dense 1 and sparse 2,
+    against dense 2 and sparse 1) get exactly the same score. Without a rule
+    the winner was whichever chunk the loop happened to see first, so the order
+    depended on insertion order, not on evidence. hybrid_search passes (dense,
+    sparse), so on a tie the chunk with the stronger keyword match wins. That
+    is a design choice: a tie means the legs disagree, and a keyword hit is the
+    more explainable signal than a small cosine difference between near
+    identical chunks.
+    """
     scores: dict[uuid.UUID, float] = {}
-    for ranks in rank_lists:
+    ranks_by_list: dict[uuid.UUID, list[float]] = {}
+    for position, ranks in enumerate(rank_lists):
         for chunk_id, rank in ranks:
             scores[chunk_id] = scores.get(chunk_id, 0.0) + 1.0 / (k + rank)
-    return sorted(scores.items(), key=lambda item: item[1], reverse=True)
+            per_list = ranks_by_list.setdefault(chunk_id, [math.inf] * len(rank_lists))
+            per_list[position] = rank
+
+    def sort_key(item: tuple[uuid.UUID, float]) -> tuple[float, list[float], str]:
+        chunk_id, score = item
+        # Why: rounding keeps two scores that differ only in the last float bit
+        # (the same terms added in a different order) counted as a tie.
+        return (-round(score, 12), ranks_by_list[chunk_id][::-1], str(chunk_id))
+
+    return sorted(scores.items(), key=sort_key)
 
 
 async def hybrid_search(
