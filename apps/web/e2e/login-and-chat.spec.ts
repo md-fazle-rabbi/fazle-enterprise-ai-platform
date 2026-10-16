@@ -1,5 +1,16 @@
+import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+
+// Why: set E2E_PROOF_DIR=../../proof to save screenshots of the finished states there. It is
+// off by default, so an ordinary run never rewrites the committed images.
+const PROOF_DIR = process.env.E2E_PROOF_DIR;
+
+async function saveProof(page: Page, name: string): Promise<void> {
+  if (PROOF_DIR) {
+    await page.screenshot({ path: path.join(PROOF_DIR, name), fullPage: true });
+  }
+}
 
 // Why: read from the environment, never hard-coded or committed. Set it by copying
 // DEMO_USER_PASSWORD out of the repo root .env (see the README's End to end testing
@@ -111,6 +122,7 @@ test.describe("chat end to end", () => {
     // The chat page with a live, cited answer is the richest state in the app and the one
     // most likely to introduce a violation the login page can't: dynamic content, inline
     // links, a sources list.
+    await saveProof(page, "web-chat-ui-answer.png");
     await expectNoAccessibilityViolations(page, "chat page");
 
     // 6. The exchange was saved to history: after a reload it is in the past chats list,
@@ -140,6 +152,7 @@ test.describe("chat end to end", () => {
     ).toBeVisible();
 
     // With the sidebar and a loaded history on screen, scan once more.
+    await saveProof(page, "web-history-sidebar.png");
     await expectNoAccessibilityViolations(page, "chat page with loaded history");
   });
 
@@ -174,5 +187,25 @@ test.describe("chat end to end", () => {
       page.getByRole("button", { name: "Send" }),
       "Send was not re-enabled after the error",
     ).toBeEnabled();
+  });
+
+  test("signing out ends the Keycloak session, so the next sign in asks for a password", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/login/);
+    await signInFromLoginPage(page);
+
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/login/);
+
+    // Why: if Keycloak still held the session, it would send the browser straight back to the
+    // app signed in and the password field would never appear. Before the CSP form-action fix
+    // the browser dropped the redirect to Keycloak's logout page, and this is what it showed.
+    await page.getByRole("link", { name: "Sign in with Keycloak" }).click();
+    await expect(
+      page.locator("#username"),
+      "Keycloak did not ask for a login, so Sign out did not end its session",
+    ).toBeVisible();
   });
 });

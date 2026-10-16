@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, type FormEvent } from "react";
-import { primaryButtonClass } from "@/components/styles";
+import { cardClass, primaryButtonClass } from "@/components/styles";
 import { uploadDocument } from "@/lib/upload/client";
 import type { UploadSuccess } from "@/lib/upload/result";
 
@@ -83,10 +83,7 @@ export function UploadForm() {
   }
 
   return (
-    <section
-      aria-labelledby={headingId}
-      className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
-    >
+    <section aria-labelledby={headingId} className={`${cardClass} flex flex-col gap-3 p-5`}>
       <h2 id={headingId} className="text-lg font-medium">
         Upload a document
       </h2>
@@ -100,7 +97,7 @@ export function UploadForm() {
           type="file"
           accept={ACCEPT}
           aria-describedby={hintId}
-          className="text-sm file:mr-3 file:rounded-md file:border file:border-neutral-300 file:bg-transparent file:px-3 file:py-1.5 file:text-sm dark:file:border-neutral-700"
+          className="w-full rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-3 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-accent-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:border-neutral-700 dark:bg-neutral-950 dark:focus-visible:outline-accent-soft"
         />
         <p id={hintId} className="text-sm text-neutral-600 dark:text-neutral-300">
           PDF up to 10 MiB and 20 pages. PNG, JPEG or WEBP up to 8 MiB. TXT or MD up to 100,000

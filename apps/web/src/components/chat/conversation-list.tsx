@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { primaryButtonClass } from "@/components/styles";
 import type { ConversationSummary } from "@/lib/conversations/browser";
 import type { ConversationsState } from "./use-conversations";
 
@@ -14,10 +15,12 @@ type ConversationListProps = {
   onDelete: (id: string) => Promise<boolean>;
 };
 
-const NEW_CHAT_CLASS =
-  "inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-60 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200 dark:focus-visible:outline-white";
-const SMALL_BUTTON_CLASS =
-  "rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-700 dark:hover:bg-neutral-800";
+// Why: the same accent button as the rest of the app. Only the width differs, so it fills the
+// sidebar. The focus ring comes from the shared class.
+const NEW_CHAT_CLASS = `${primaryButtonClass} w-full justify-center disabled:opacity-60`;
+const FOCUS_RING =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-accent-soft";
+const SMALL_BUTTON_CLASS = `rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-700 dark:hover:bg-neutral-800 ${FOCUS_RING}`;
 
 type RowProps = {
   item: ConversationSummary;
@@ -52,7 +55,7 @@ function ConversationRow({ item, active, disabled, onOpen, onDelete }: RowProps)
           disabled={disabled}
           aria-current={active ? "true" : undefined}
           title={item.title}
-          className={`min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm hover:bg-neutral-100 disabled:opacity-60 dark:hover:bg-neutral-800 ${active ? "bg-neutral-100 font-medium dark:bg-neutral-800" : ""}`}
+          className={`min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm disabled:opacity-60 ${FOCUS_RING} ${active ? "bg-accent/10 font-medium text-accent-strong dark:bg-accent/25 dark:text-white" : "hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}
         >
           {item.title}
         </button>

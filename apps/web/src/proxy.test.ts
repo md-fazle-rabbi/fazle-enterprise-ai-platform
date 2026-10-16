@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { config, proxy } from "./proxy";
 
 function request(path: string, cookie?: string) {
@@ -90,5 +90,31 @@ describe("proxy matcher", () => {
     ]) {
       expect(matcher.test(path), path).toBe(false);
     }
+  });
+});
+
+describe("proxy form-action", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const formAction = (csp: string | null) => csp?.match(/form-action ([^;]*);/)?.[1];
+
+  it("lets a form redirect to Keycloak, which is how Sign out ends its session", () => {
+    vi.stubEnv("KEYCLOAK_PUBLIC_URL", "https://sso.example.test");
+    const csp = proxy(request("/", "fazle_sid=abc")).headers.get("content-security-policy");
+    expect(formAction(csp)).toBe("'self' https://sso.example.test");
+  });
+
+  it("uses the local Keycloak address when none is set", () => {
+    vi.stubEnv("KEYCLOAK_PUBLIC_URL", undefined);
+    const csp = proxy(request("/", "fazle_sid=abc")).headers.get("content-security-policy");
+    expect(formAction(csp)).toBe("'self' http://localhost:8080");
+  });
+
+  it("adds nothing when the value is not an address", () => {
+    vi.stubEnv("KEYCLOAK_PUBLIC_URL", "not an address");
+    const csp = proxy(request("/", "fazle_sid=abc")).headers.get("content-security-policy");
+    expect(formAction(csp)).toBe("'self'");
   });
 });

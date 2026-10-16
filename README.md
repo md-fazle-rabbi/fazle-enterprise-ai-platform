@@ -165,13 +165,17 @@ Every dependency surface is pinned, delayed or audited, and the reasoning is rec
 - Five browser tests for the form, with axe scans and two screenshots ([`proof/web-upload-e2e.txt`](proof/web-upload-e2e.txt), [`proof/web-upload-success.png`](proof/web-upload-success.png), [`proof/web-upload-refused.png`](proof/web-upload-refused.png))
 
 ## End to end testing
-Seven Playwright tests in two spec files cover what a user sees: two for sign in and chat (`login-and-chat.spec.ts`) and five for the document upload form (`upload.spec.ts`).
+Eight Playwright tests in two spec files cover what a user sees: three for sign in, chat and sign out (`login-and-chat.spec.ts`) and five for the document upload form (`upload.spec.ts`).
 
 The main test goes from an anonymous visit to the login redirect, signs in through the real Keycloak, asks a question and sees a cited answer. Then it reloads, reopens that chat from the sidebar and checks the cited answer comes back. An axe accessibility scan runs on the login page, the chat page with an answer, and the sidebar with loaded history.
 
 The second test mocks a stream that ends with no answer and checks the chat shows an error and re-enables Send instead of hanging. It never calls the model.
 
-The upload tests sign in as alice, upload a new text file and see it listed without a reload, upload the same content again and see it recognised, and see the reason when an `.exe` file is refused. The other three need no real upload: asking for a file first, a mocked rate limit answer, and a mocked slow upload that shows the progress message. An axe scan runs in four of the five. The real ones send three uploads to the real route per run, and the limit is 10 per 10 minutes, so more than three runs in ten minutes will be rate limited. Set `E2E_PROOF_DIR=../../proof` to save the two screenshots; it is off by default, so an ordinary run never rewrites them.
+The third test signs in, clicks Sign out once and expects the login page. It then clicks Sign in and expects Keycloak to ask for a username again, so it checks that the Keycloak session ended and not only the app's own.
+
+The upload tests sign in as alice, upload a new text file and see it listed without a reload, upload the same content again and see it recognised, and see the reason when an `.exe` file is refused. The other three need no real upload: asking for a file first, a mocked rate limit answer, and a mocked slow upload that shows the progress message. An axe scan runs in four of the five. The real ones send three uploads to the real route per run, and the limit is 10 per 10 minutes, so more than three runs in ten minutes will be rate limited. Set `E2E_PROOF_DIR=../../proof` to save the screenshots of both specs; it is off by default, so an ordinary run never rewrites them.
+
+The real uploads leave `e2e-upload` documents in alice's tenant. A later chat answer can then be flagged `low_grounding`, so delete those documents before taking chat screenshots.
 
 All of them need the full stack (`docker compose up -d db redis keycloak app` and `npm run dev` in `apps/web`), alice's tenant already holding the refund-policy document from the `/ingest` example, and alice's Keycloak password in the environment:
 
@@ -242,7 +246,6 @@ Stated plainly, not left for a client to discover.
 - The `global-error` page, which replaces the whole document, has a render test and was checked in a browser once by throwing from the root layout in development; its retry button has no click test
 - Unknown `/api/*` paths return the HTML 404 page, not JSON (checked with curl, see `proof/web-error-pages.txt`)
 - The landing page lives at `/login`, because every signed out visit is sent there and the end to end tests depend on it; its six numbers are copied by hand from the "At a glance" table, so they have to be updated together
-- Only the sign in page, the buttons and the fonts have the new design; the home, chat and admin panels still use the older plain card styles
 - The landing page links to GitHub and LinkedIn, which need internet; nothing on the page loads from outside the app
 - The web app has only an SVG icon and no `favicon.ico` fallback, so a browser without SVG icon support shows no tab icon; Safari was not tested
 - The web app sets no Open Graph tags or share image, because it runs locally and nothing fetches a link preview from it; the repository social preview image is in `docs/branding` and has to be uploaded by hand in the repository settings

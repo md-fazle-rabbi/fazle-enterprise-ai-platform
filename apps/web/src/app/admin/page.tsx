@@ -8,15 +8,22 @@ export default async function AdminPage() {
   const session = await requireAdminSession();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
-      <Link href="/" className="text-sm text-neutral-600 hover:underline dark:text-neutral-300">
-        ← Back to home
-      </Link>
-      <h1 className="text-3xl font-semibold">Admin</h1>
-      <TenantSwitcher
-        tenants={session.data.user.tenants}
-        currentTenantId={session.data.currentTenantId}
-      />
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 py-8 sm:px-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <Link
+            href="/"
+            className="w-fit rounded-md text-sm text-neutral-600 hover:text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:text-neutral-300 dark:hover:text-accent-soft dark:focus-visible:outline-accent-soft"
+          >
+            ← Back to home
+          </Link>
+          <h1 className="text-3xl font-semibold tracking-tight">Admin</h1>
+        </div>
+        <TenantSwitcher
+          tenants={session.data.user.tenants}
+          currentTenantId={session.data.currentTenantId}
+        />
+      </header>
       <KillSwitchPanel />
       {/* Why: keyed on the current tenant so switching workspace remounts this panel and
           refetches, instead of leaving the previous tenant's items on screen. Its own

@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  cardClass,
+  inputClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from "@/components/styles";
 
 type ReviewItem = {
   id: string;
@@ -63,8 +69,8 @@ function ReviewQueueItemRow({
   }
 
   return (
-    <li className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
-      <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+    <li className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-950">
+      <p className="w-fit rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
         Flagged: {item.flag_reasons.join(", ")}
       </p>
       <p className="text-sm">
@@ -86,14 +92,14 @@ function ReviewQueueItemRow({
             onChange={(event) => setNote(event.target.value)}
             rows={2}
             disabled={pending}
-            className="rounded-md border border-neutral-300 p-2 text-sm disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900"
+            className={`${inputClass} disabled:opacity-60`}
           />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => void resolve()}
               disabled={pending}
-              className="w-fit rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+              className={`${primaryButtonClass} disabled:opacity-60`}
             >
               Confirm resolve
             </button>
@@ -101,18 +107,14 @@ function ReviewQueueItemRow({
               type="button"
               onClick={() => setOpen(false)}
               disabled={pending}
-              className="w-fit rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-700 dark:hover:bg-neutral-800"
+              className={`${secondaryButtonClass} disabled:opacity-60`}
             >
               Cancel
             </button>
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="w-fit rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-        >
+        <button type="button" onClick={() => setOpen(true)} className={secondaryButtonClass}>
           Resolve
         </button>
       )}
@@ -160,7 +162,7 @@ export function ReviewQueuePanel() {
   return (
     <section
       aria-labelledby="review-queue-heading"
-      className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
+      className={`${cardClass} flex flex-col gap-3 p-5`}
     >
       <h2 id="review-queue-heading" className="text-lg font-medium">
         Review queue

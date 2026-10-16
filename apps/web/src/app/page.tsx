@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { primaryButtonClass } from "@/components/styles";
+import { primaryButtonClass, secondaryButtonClass } from "@/components/styles";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { BackendStatus } from "@/components/backend-status";
@@ -22,8 +22,8 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 p-8">
-      <h1 className="text-3xl font-semibold">Fazle Enterprise AI Platform</h1>
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 py-10 sm:px-8">
+      <h1 className="text-3xl font-semibold tracking-tight">Fazle Enterprise AI Platform</h1>
       <p className="text-neutral-600 dark:text-neutral-300">
         Web console for the enterprise RAG platform.
       </p>
@@ -37,17 +37,18 @@ export default async function HomePage() {
         tenants={session.data.user.tenants}
         currentTenantId={session.data.currentTenantId}
       />
-      {session.data.user.roles.includes("platform-admin") ? (
-        <Link
-          href="/admin"
-          className="w-fit text-sm text-neutral-600 hover:underline dark:text-neutral-300"
-        >
-          Admin
+      {/* Why: "Go to chat" is the one main action on this page, so it is the only accent
+          button. Admin is a quieter secondary button next to it. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Link href="/chat" className={primaryButtonClass}>
+          Go to chat
         </Link>
-      ) : null}
-      <Link href="/chat" className={primaryButtonClass}>
-        Go to chat
-      </Link>
+        {session.data.user.roles.includes("platform-admin") ? (
+          <Link href="/admin" className={secondaryButtonClass}>
+            Admin
+          </Link>
+        ) : null}
+      </div>
       <DocumentsPanel result={documents} />
       {documents.status === "ok" ? <UploadForm /> : null}
       <BackendStatus reachable={reachable} />

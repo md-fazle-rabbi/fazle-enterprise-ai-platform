@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
-import { primaryButtonClass } from "@/components/styles";
+import { inputClass, primaryButtonClass, secondaryButtonClass } from "@/components/styles";
 
 const MAX_QUESTION_LENGTH = 2_000;
 
@@ -15,6 +15,7 @@ export function ChatForm({ busy, onAsk, onStop }: ChatFormProps) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const errorId = useId();
+  const hintId = useId();
 
   function submit(): void {
     // Why: the field stays readOnly, not disabled, while busy (see below), so it can still
@@ -58,7 +59,7 @@ export function ChatForm({ busy, onAsk, onStop }: ChatFormProps) {
       </label>
       <textarea
         id="chat-question"
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={error ? `${hintId} ${errorId}` : hintId}
         aria-invalid={error ? true : undefined}
         value={value}
         onChange={(event) => setValue(event.target.value)}
@@ -68,14 +69,14 @@ export function ChatForm({ busy, onAsk, onStop }: ChatFormProps) {
         // disabled, which would yank focus away from a keyboard user right after they hit
         // Enter. readOnly blocks typing without moving focus.
         readOnly={busy}
-        className={`rounded-md border border-neutral-300 p-2 text-sm dark:border-neutral-700 dark:bg-neutral-900 ${busy ? "opacity-60" : ""}`}
+        className={`${inputClass} resize-y ${busy ? "opacity-60" : ""}`}
       />
       {error ? (
         <p id={errorId} role="alert" className="text-sm text-red-700 dark:text-red-400">
           {error}
         </p>
       ) : null}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="submit"
           disabled={busy}
@@ -84,14 +85,13 @@ export function ChatForm({ busy, onAsk, onStop }: ChatFormProps) {
           {busy ? "Thinking…" : "Send"}
         </button>
         {busy ? (
-          <button
-            type="button"
-            onClick={onStop}
-            className="inline-flex w-fit items-center rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-          >
+          <button type="button" onClick={onStop} className={secondaryButtonClass}>
             Stop
           </button>
         ) : null}
+        <p id={hintId} className="ml-auto text-xs text-neutral-600 dark:text-neutral-300">
+          Enter to send, Shift+Enter for a new line
+        </p>
       </div>
     </form>
   );

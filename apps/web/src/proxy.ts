@@ -2,11 +2,26 @@ import { NextResponse, type NextRequest } from "next/server";
 import { safeReturnTo } from "@/lib/auth/return-to";
 import { SESSION_COOKIE_NAMES } from "@/lib/session/cookie";
 
+// Why: Sign out is a form POST, and this app answers it with a redirect to Keycloak's logout
+// page. Chrome, Brave and Edge apply form-action to every redirect after a form is sent, so
+// with 'self' alone the browser silently drops the trip to Keycloak. The page stays where it
+// is, the Keycloak session lives on, and the next "Sign in" signs the same person straight
+// back in. Only the Keycloak address is added, nothing wider. A value that is not an address
+// adds nothing, so the policy stays as strict as it was.
+function keycloakOrigin(): string | null {
+  try {
+    return new URL(process.env.KEYCLOAK_PUBLIC_URL ?? "http://localhost:8080").origin;
+  } catch {
+    return null;
+  }
+}
+
 // Why: a fresh nonce every request is what lets 'strict-dynamic' trust Next.js's own
 // framework scripts without domain-allowlisting or falling back to 'unsafe-inline'. Edge
 // Runtime only has the Web Crypto API, not node:crypto, hence the global `crypto` and
 // `Buffer` rather than an import -- this is Next's own documented pattern for proxy.ts.
 function buildCsp(nonce: string, isDev: boolean): string {
+  const keycloak = keycloakOrigin();
   const policy = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""};
@@ -16,7 +31,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
     connect-src 'self'${isDev ? " ws:" : ""};
     frame-ancestors 'none';
     base-uri 'self';
-    form-action 'self';
+    form-action 'self'${keycloak ? ` ${keycloak}` : ""};
     object-src 'none';
   `;
   return policy.replace(/\s{2,}/g, " ").trim();

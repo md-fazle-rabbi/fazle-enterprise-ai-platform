@@ -18,14 +18,14 @@ const MEASURED_RESULTS = [
     detail: "Enforced by Postgres, not by application code.",
   },
   {
-    label: "Answer faithfulness",
-    value: "100% RAGAS",
-    detail: "Measured locally. The CI gate is 0.90, 0.85 and 0.80.",
+    label: "Answer quality (RAGAS)",
+    value: "Faithfulness 1.00",
+    detail: "Relevancy 0.86, precision 1.00. CI gate 0.90, 0.85, 0.80.",
   },
   {
     label: "Query latency",
-    value: "p95 1900 ms",
-    detail: "Single user, unthrottled, measured with Locust.",
+    value: "p95 3.9 s cold",
+    detail: "1.7 s from the semantic cache. Free tier keys, single user.",
   },
   {
     label: "Kill switch",

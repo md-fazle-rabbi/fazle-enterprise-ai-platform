@@ -1,10 +1,13 @@
+> fazle-web@0.1.0 test:e2e
+> playwright test e2e/upload.spec.ts
+
 
 Running 5 tests using 1 worker
 
-  ✓  1 [chromium] › e2e/upload.spec.ts:36:3 › document upload end to end › alice uploads a text file, sees it listed, and a repeat is recognised (27.3s)
-  ✓  2 [chromium] › e2e/upload.spec.ts:73:3 › document upload end to end › shows the reason when a file type is refused (5.3s)
-  ✓  3 [chromium] › e2e/upload.spec.ts:88:3 › document upload end to end › asks for a file before uploading (2.9s)
-  ✓  4 [chromium] › e2e/upload.spec.ts:94:3 › document upload end to end › shows a rate limit answer with its message (3.7s)
-  ✓  5 [chromium] › e2e/upload.spec.ts:115:3 › document upload end to end › shows progress while a slow upload runs (4.7s)
+  ✓  1 [chromium] › e2e/upload.spec.ts:36:3 › document upload end to end › alice uploads a text file, sees it listed, and a repeat is recognised (4.3s)
+  ✓  2 [chromium] › e2e/upload.spec.ts:73:3 › document upload end to end › shows the reason when a file type is refused (2.4s)
+  ✓  3 [chromium] › e2e/upload.spec.ts:88:3 › document upload end to end › asks for a file before uploading (1.5s)
+  ✓  4 [chromium] › e2e/upload.spec.ts:94:3 › document upload end to end › shows a rate limit answer with its message (2.3s)
+  ✓  5 [chromium] › e2e/upload.spec.ts:115:3 › document upload end to end › shows progress while a slow upload runs (3.2s)
 
-  5 passed (46.1s)
+  5 passed (14.6s)

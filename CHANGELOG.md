@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+## 2026-10-16
+
+### Fixed
+- Signing out did not end the Keycloak session in Chromium browsers (Chrome, Brave, Edge).
+  The sign out form redirects to Keycloak, and the page's `form-action 'self'` rule made the
+  browser refuse that redirect after a form post. The app's own session was destroyed, but
+  Keycloak still knew the user, so the next "Sign in" logged straight back in as the same
+  person, with no password, also in a private window. It sometimes took a second click.
+  `form-action` now also allows the Keycloak address (`KEYCLOAK_PUBLIC_URL`, default
+  `http://localhost:8080`), so one click ends both sessions. ADR-009 said logout revokes the
+  session, which was not true in those browsers until this change. Tests: three in
+  `proxy.test.ts` and the Playwright test "signing out ends the Keycloak session".
+- The first message of a new chat could be missing from the history. The conversation was
+  created and its id returned, but the database commit happened after the response was sent,
+  so the follow-up save arrived first and got a 404 (seen once in an end to end run). Every
+  conversation route now commits before it responds (`scope="function"` on the session
+  dependency). `tests/test_conversation_commit_order.py` fails without that setting. It
+  guards the setting, it does not reproduce the race.
+- The landing page still showed "p95 1900 ms". It now shows the measured p95 3.9 s cold and
+  1.7 s from the semantic cache, and so does the social preview image.
+
+### Changed
+- The chat, home and admin screens use the same design as the sign in page: shared input and
+  card styles, message bubbles, a source badge per citation, a "Flagged for review" chip, a
+  hint under the question box and a header layout on the chat and admin pages.
+- The end to end specs save their proof screenshots when `E2E_PROOF_DIR` is set, and the
+  screenshots and run logs in `proof/` were refreshed.
+
+### Known issues
+- One end to end run stopped on "Thinking…" for 45 seconds. It passed on the next runs and
+  the cause is not known. The backend log of that run was not kept.
+- The upload end to end test leaves `e2e-upload` documents in the demo tenant. They can make
+  later answers get the `low_grounding` flag, so delete them before taking screenshots.
+
 ## 2026-10-15
 
 ### Added

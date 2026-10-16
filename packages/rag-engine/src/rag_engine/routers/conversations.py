@@ -81,7 +81,7 @@ class ExchangeIn(BaseModel):
 @router.post("", response_model=ConversationOut, status_code=201)
 async def create_conversation(
     ctx: Annotated[UserContext, Depends(get_user_context)],
-    session: Annotated[AsyncSession, Depends(get_user_session)],
+    session: Annotated[AsyncSession, Depends(get_user_session, scope="function")],
 ) -> Conversation:
     existing = await session.scalar(select(func.count()).select_from(Conversation))
     if (existing or 0) >= MAX_CONVERSATIONS_PER_USER:
@@ -102,7 +102,7 @@ async def create_conversation(
 
 @router.get("", response_model=list[ConversationOut])
 async def list_conversations(
-    session: Annotated[AsyncSession, Depends(get_user_session)],
+    session: Annotated[AsyncSession, Depends(get_user_session, scope="function")],
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[Conversation]:
@@ -118,7 +118,7 @@ async def list_conversations(
 @router.get("/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(
     conversation_id: uuid.UUID,
-    session: Annotated[AsyncSession, Depends(get_user_session)],
+    session: Annotated[AsyncSession, Depends(get_user_session, scope="function")],
 ) -> ConversationDetail:
     # Why 404 for someone else's conversation too: it is simply invisible under row level
     # security, so "not yours" and "does not exist" look the same, which leaks nothing.
@@ -147,7 +147,7 @@ async def add_exchange(
     conversation_id: uuid.UUID,
     body: ExchangeIn,
     ctx: Annotated[UserContext, Depends(get_user_context)],
-    session: Annotated[AsyncSession, Depends(get_user_session)],
+    session: Annotated[AsyncSession, Depends(get_user_session, scope="function")],
 ) -> list[MessageOut]:
     conversation = await session.get(Conversation, conversation_id)
     if conversation is None:
@@ -198,7 +198,7 @@ async def add_exchange(
 @router.delete("/{conversation_id}", status_code=204)
 async def delete_conversation(
     conversation_id: uuid.UUID,
-    session: Annotated[AsyncSession, Depends(get_user_session)],
+    session: Annotated[AsyncSession, Depends(get_user_session, scope="function")],
 ) -> None:
     conversation = await session.get(Conversation, conversation_id)
     if conversation is None:

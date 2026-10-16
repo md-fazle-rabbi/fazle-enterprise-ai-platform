@@ -59,7 +59,7 @@ export function TenantSwitcher({ tenants, currentTenantId }: TenantSwitcherProps
         value={currentTenantId ?? ""}
         onChange={handleChange}
         disabled={pending}
-        className="w-fit rounded-md border border-neutral-300 p-2 text-sm disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900"
+        className="w-fit rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:focus-visible:outline-accent-soft"
       >
         {tenants.map((tenantId) => (
           <option key={tenantId} value={tenantId}>

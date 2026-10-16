@@ -1,20 +1,16 @@
-
-> fazle-web@0.1.0 pretest:e2e
-> npm run e2e:reset-cache
-
-
-> fazle-web@0.1.0 e2e:reset-cache
-> docker compose -f ../../docker-compose.yml exec -T redis redis-cli del semantic_cache:***
-
-1
-
 > fazle-web@0.1.0 test:e2e
 > playwright test
 
 
-Running 2 tests using 1 worker
+Running 8 tests using 2 workers
 
-  ✓  1 [chromium] › e2e/login-and-chat.spec.ts:71:3 › chat end to end › an anonymous visitor signs in, asks a question, and gets a cited, accessible answer (16.0s)
-  ✓  2 [chromium] › e2e/login-and-chat.spec.ts:117:3 › chat end to end › shows an error instead of hanging when the chat stream ends without an answer (5.1s)
+  ✓  2 [chromium] › e2e/upload.spec.ts:36:3 › document upload end to end › alice uploads a text file, sees it listed, and a repeat is recognised (16.7s)
+  ✓  3 [chromium] › e2e/upload.spec.ts:73:3 › document upload end to end › shows the reason when a file type is refused (10.5s)
+  ✓  4 [chromium] › e2e/upload.spec.ts:88:3 › document upload end to end › asks for a file before uploading (5.5s)
+  ✓  5 [chromium] › e2e/upload.spec.ts:94:3 › document upload end to end › shows a rate limit answer with its message (6.7s)
+  ✓  6 [chromium] › e2e/upload.spec.ts:115:3 › document upload end to end › shows progress while a slow upload runs (5.3s)
+  ✓  1 [chromium] › e2e/login-and-chat.spec.ts:82:3 › chat end to end › an anonymous visitor signs in, asks a question, and gets a cited, accessible answer (50.2s)
+  ✓  7 [chromium] › e2e/login-and-chat.spec.ts:159:3 › chat end to end › shows an error instead of hanging when the chat stream ends without an answer (3.4s)
+  ✓  8 [chromium] › e2e/login-and-chat.spec.ts:192:3 › chat end to end › signing out ends the Keycloak session, so the next sign in asks for a password (3.9s)
 
-  2 passed (24.1s)
+  8 passed (59.6s)

@@ -20,7 +20,7 @@ describe("Landing", () => {
     render(<Landing signInUrl={SIGN_IN_URL} />);
     const results = screen.getByRole("list", { name: "Measured results" });
     expect(within(results).getAllByRole("listitem")).toHaveLength(6);
-    expect(within(results).getByText("p95 1900 ms")).toBeInTheDocument();
+    expect(within(results).getByText("p95 3.9 s cold")).toBeInTheDocument();
   });
 
   it("shows a sign in error only when there is one", () => {

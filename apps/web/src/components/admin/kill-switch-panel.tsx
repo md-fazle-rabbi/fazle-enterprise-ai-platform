@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { primaryButtonClass } from "@/components/styles";
+import { cardClass, inputClass, primaryButtonClass } from "@/components/styles";
 
 type Status = "loading" | "active" | "inactive" | "error";
 
@@ -84,7 +84,7 @@ export function KillSwitchPanel() {
   return (
     <section
       aria-labelledby="kill-switch-heading"
-      className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
+      className={`${cardClass} flex flex-col gap-3 p-5`}
     >
       <h2 id="kill-switch-heading" className="text-lg font-medium">
         Kill switch
@@ -123,7 +123,7 @@ export function KillSwitchPanel() {
             onChange={(event) => setReason(event.target.value)}
             rows={2}
             disabled={pending}
-            className="rounded-md border border-neutral-300 p-2 text-sm disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900"
+            className={`${inputClass} disabled:opacity-60`}
           />
           <button
             type="button"

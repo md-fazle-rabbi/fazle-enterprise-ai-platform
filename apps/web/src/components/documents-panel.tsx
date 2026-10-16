@@ -1,3 +1,4 @@
+import { cardClass } from "@/components/styles";
 import type { DocumentsResult } from "@/lib/documents";
 
 type DocumentsPanelProps = {
@@ -10,9 +11,14 @@ function PanelBody({ result }: DocumentsPanelProps) {
   switch (result.status) {
     case "ok":
       return result.documents.length > 0 ? (
-        <ul className="list-disc pl-5 text-sm">
+        <ul className="flex flex-col gap-2">
           {result.documents.map((document) => (
-            <li key={document.id}>{document.source_path}</li>
+            <li
+              key={document.id}
+              className="truncate rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm dark:border-neutral-800 dark:bg-neutral-950"
+            >
+              {document.source_path}
+            </li>
           ))}
         </ul>
       ) : (
@@ -31,10 +37,7 @@ function PanelBody({ result }: DocumentsPanelProps) {
 
 export function DocumentsPanel({ result }: DocumentsPanelProps) {
   return (
-    <section
-      aria-labelledby="documents-heading"
-      className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
-    >
+    <section aria-labelledby="documents-heading" className={`${cardClass} flex flex-col gap-3 p-5`}>
       <h2 id="documents-heading" className="text-lg font-medium">
         {result.status === "ok" ? `Documents (${result.documents.length})` : "Documents"}
       </h2>
