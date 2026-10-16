@@ -252,6 +252,7 @@ Stated plainly, not left for a client to discover.
 
 **API**
 - Concurrent p95 is not published (third party free tier ceiling, not an application limit).
+- The latency figures come from one day (14 October, 20 requests each, three test documents) and were not measured again. On 16 October two chat requests through the web app on a larger corpus took 8.2 s and 17.4 s before the output checks started, and a third stopped during generation. The cause is not isolated: the free tier on that day, the larger corpus and the streaming route are all possible.
 - GraphRAG entity extraction is stored but not used in retrieval.
 - Drift detection covers query embedding distribution only, not retrieval or generation quality.
 - The MCP tool interface still takes `tenant_id` as an LLM-visible argument, unlike the HTTP agent path, which binds it server side.

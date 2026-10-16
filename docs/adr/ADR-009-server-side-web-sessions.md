@@ -40,3 +40,22 @@ Risks and mitigations:
   SameSite Lax, a new id at every login.
 - The update path returns false for a missing session, so callers must treat
   that as logged out.
+
+## Update 2026-10-16: Sign out also has to end the Keycloak session
+"Logout really revokes" held for the web session: the Redis entry was destroyed and the
+cookie expired. It did not hold for the Keycloak session in Chromium based browsers (Chrome,
+Brave, Edge). Sign out is a form post that is answered with a redirect to Keycloak's end
+session address, and the page's `form-action 'self'` rule made the browser refuse that
+redirect. The user was left on the page without a web session, Keycloak still knew them, and
+the next "Sign in" logged straight back in with no password, also in a private window.
+
+Decision: `form-action` is now `'self'` plus the Keycloak origin (`KEYCLOAK_PUBLIC_URL`,
+default `http://localhost:8080`), set in `apps/web/src/proxy.ts`. No other directive was
+loosened.
+
+Tests: `proxy.test.ts` checks the directive with the variable set, unset and invalid, and the
+Playwright test "signing out ends the Keycloak session" checks that the next sign in asks for
+a password.
+
+Not done: ending the Keycloak session from the server, which would not depend on the
+browser following a redirect.

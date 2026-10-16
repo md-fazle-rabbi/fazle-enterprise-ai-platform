@@ -33,6 +33,9 @@
 ### Known issues
 - One end to end run stopped on "Thinking…" for 45 seconds. It passed on the next runs and
   the cause is not known. The backend log of that run was not kept.
+- The published p95 of 3.9 s was measured on 14 October with three test documents. Two later
+  chat requests on a larger corpus took 8.2 s and 17.4 s before the output checks. The figure
+  was not measured again and the cause of the difference is not known.
 - The upload end to end test leaves `e2e-upload` documents in the demo tenant. They can make
   later answers get the `low_grounding` flag, so delete them before taking screenshots.
 
