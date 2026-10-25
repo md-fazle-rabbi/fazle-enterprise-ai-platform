@@ -9,6 +9,8 @@
 
 **A multi-tenant RAG and agent platform built to survive a real security and compliance review: database-enforced tenant isolation, cited answers, a kill switch, and a governance layer.**
 
+## Hire me
+
 **Fazle Rabbi, Secure Production AI Systems Engineer.** Available for freelance engagements and full time roles.
 Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabbi-ai/ | Loom walkthrough (watch without setup): [link]
 
