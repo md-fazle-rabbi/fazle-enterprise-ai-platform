@@ -18,6 +18,9 @@
   each and 25 probes, so a weak signal.
 - Loosening the stock recognizer was measured and rejected: it redacted 5 of 5 phone strings
   but also "30 days", "2024-1234", "3.2.1", "15" and "2025".
+- The README badge "security review: pending Repo 2" is replaced by a badge that links to
+  Repo 2's report of the exploit run after the fix. The README adds a row to the table and
+  two limitations that say what the red team run did and did not test.
 
 ### Tests
 - Three tests in `tests/test_pii.py`: the seeded sentence, each cue word, and ordinary numbers
