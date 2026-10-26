@@ -78,3 +78,41 @@ def test_still_catches_absolute_date_next_to_a_duration_phrase():
     assert "<DATE_TIME>" in redacted
     assert "March 15, 2024" not in redacted
     assert "about 2 hours" in redacted  # the duration itself stays untouched
+
+
+def test_redacts_a_phone_number_with_no_area_code_after_a_phone_word():
+    # Regression test: found by the red-team toolkit's first run against this repo.
+    # Presidio's stock PhoneRecognizer only accepts numbers libphonenumber calls
+    # valid, and "+1-555-0100" (a country code plus 7 digits) is not one, so it was
+    # stored and returned unredacted while the name and email beside it were
+    # redacted. The cue pattern in pii.py catches it when a phone word comes first.
+    text = "Support contact: Jane Doe, jane.doe@example.com, phone +1-555-0100."
+    redacted, entities = redact_pii(text)
+    assert "555-0100" not in redacted
+    assert "PHONE_NUMBER" in entities
+
+
+def test_redacts_phone_numbers_after_each_cue_word():
+    for phrase in [
+        "Call +1-555-0100.",
+        "phone 555-0100",
+        "Phone number: 555 0100",
+        "Dial 555 0100 now.",
+        "tel: +1-202-555-0173",
+    ]:
+        redacted, entities = redact_pii(phrase)
+        assert "PHONE_NUMBER" in entities, f"not redacted: {phrase!r}"
+        assert not any(c.isdigit() for c in redacted), f"digits left: {redacted!r}"
+
+
+def test_phone_cue_leaves_ordinary_numbers_alone():
+    # Guards against the cue pattern over-reaching: a phone word with no digits right
+    # after it, and digit runs with no phone word before them, are not phone numbers.
+    for phrase in [
+        "Invoice 2024-1234 is overdue.",
+        "Upgrade to version 3.2.1 now.",
+        "Call volume rose 15 percent last quarter.",
+        "Order 123-4567 shipped.",
+    ]:
+        _redacted, entities = redact_pii(phrase)
+        assert "PHONE_NUMBER" not in entities, f"over-redacted: {phrase!r}"

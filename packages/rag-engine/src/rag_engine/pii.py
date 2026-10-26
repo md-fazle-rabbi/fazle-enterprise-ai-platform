@@ -8,7 +8,7 @@ regime's identifiers, stated here rather than implied by the module name.
 import re
 from functools import lru_cache
 
-from presidio_analyzer import AnalyzerEngine
+from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_anonymizer import AnonymizerEngine
 from presidio_anonymizer.entities import RecognizerResult as AnonymizerRecognizerResult
@@ -31,14 +31,14 @@ PII_ENTITIES = [
 ]
 
 # Bump this whenever redact_pii's *behavior* changes: a new false-positive
-# filter, a new/removed entity in PII_ENTITIES, or a Presidio major-version
-# upgrade that changes matching. ingest.py and ingest_image.py compare a
+# filter, a new recognizer, a new/removed entity in PII_ENTITIES, or a Presidio
+# major-version upgrade that changes matching. ingest.py and ingest_image.py compare a
 # stored document's pii_analyzer_version against this constant to decide
 # whether its chunks were redacted under a stale rule and need to be
 # re-derived from the original source. content_hash never changes when
 # this bumps -- this version string is the only signal that stored
 # redacted text may no longer reflect current behavior.
-PII_ANALYZER_VERSION = "2026-09-26-duration-hedge-v2"
+PII_ANALYZER_VERSION = "2026-10-27-phone-cue-v3"
 
 # Presidio's own AnalyzerEngine() default pulls in en_core_web_lg, a
 # different, much larger spaCy model than the one this repo's Dockerfile
@@ -71,11 +71,43 @@ _RELATIVE_DURATION_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Measured inside the running app container: Presidio's stock PhoneRecognizer only
+# accepts numbers libphonenumber considers valid. "phone +1-555-0100" (a country code
+# plus 7 digits, no area code) was never redacted, at ingest or in a generated answer,
+# while the name and email beside it were. The red-team toolkit
+# (fazle-ai-red-team-toolkit) found it: its first run reported 3 bypasses, and one
+# reproduced by hand returned the phone. Loosening the stock recognizer was measured
+# and rejected, because it also redacted "30 days", "2024-1234", "3.2.1", "15" and
+# "2025". This pattern is narrower: it needs a phone word right before the digits.
+#
+# Side effect: the phone word is redacted together with the number, so
+# "phone +1-555-0100" becomes "<PHONE_NUMBER>".
+#
+# Known limitation, not a guarantee: a malformed number with no phone word before it
+# ("reach us at 555-0100") is still not redacted, and a bare 7-digit number is
+# ambiguous enough that no rule here treats it as a phone number.
+_PHONE_CUE_REGEX = (
+    r"(?i)\b(?:phone|tel|telephone|mobile|cell|fax|call|dial)\b"
+    r"(?:\s+(?:number|no\.?))?\s*[:#-]?\s*"
+    r"\+?\d[\d\s().-]{5,18}\d"
+)
+# Why: redact_pii sets no score_threshold, so every result is kept. The score only
+# orders overlapping matches and never gates one.
+_PHONE_CUE_SCORE = 0.6
+
 
 @lru_cache(maxsize=1)
 def _get_analyzer() -> AnalyzerEngine:
     nlp_engine = NlpEngineProvider(nlp_configuration=_NLP_CONFIGURATION).create_engine()
-    return AnalyzerEngine(nlp_engine=nlp_engine)
+    analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
+    analyzer.registry.add_recognizer(
+        PatternRecognizer(
+            supported_entity="PHONE_NUMBER",
+            name="PhoneCueRecognizer",
+            patterns=[Pattern("phone_cue", _PHONE_CUE_REGEX, _PHONE_CUE_SCORE)],
+        )
+    )
+    return analyzer
 
 
 @lru_cache(maxsize=1)

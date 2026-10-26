@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## 2026-10-27
+
+### Security
+- Phone numbers with a country code but no area code (for example `phone +1-555-0100`) were
+  not redacted at ingest or in answers, because Presidio's stock `PhoneRecognizer` only
+  accepts numbers that libphonenumber considers valid. A new `PhoneCueRecognizer` redacts
+  digits that come right after a phone word (ADR-037). The phone word is redacted together
+  with the number. `PII_ANALYZER_VERSION` is now `2026-10-27-phone-cue-v3`, so posting the
+  same text again re-redacts a stored document.
+- Found by the red-team toolkit's first run against this stack: 25 probes, 3 bypasses
+  (EX-011, EX-012, EX-024), bypass rate 0.1200 against a limit of 0.05. Only EX-012 was
+  reproduced by hand. After the fix and a re-post of the same four synthetic documents, the
+  same 25 probes gave blocked 18, held 7, bypassed 0 (rate 0.0000, gate passed). One run
+  each and 25 probes, so a weak signal.
+- Loosening the stock recognizer was measured and rejected: it redacted 5 of 5 phone strings
+  but also "30 days", "2024-1234", "3.2.1", "15" and "2025".
+
+### Tests
+- Three tests in `tests/test_pii.py`: the seeded sentence, each cue word, and ordinary numbers
+  ("Invoice 2024-1234 is overdue.") that must not be flagged as `PHONE_NUMBER`.
+
+### Known issues
+- A malformed number with no phone word before it is still not redacted.
+- Cached answers from before the change can live up to 1 hour, because the cache has no
+  version tracking.
+
 ## 2026-10-16
 
 ### Fixed
