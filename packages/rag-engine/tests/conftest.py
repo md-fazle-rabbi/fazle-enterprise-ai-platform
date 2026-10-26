@@ -110,3 +110,30 @@ def mock_injection_firewall(monkeypatch):
     # handlers would call the real classifier.
     monkeypatch.setattr("rag_engine.routers.ingest_image.assess", _fake_assess)
     monkeypatch.setattr("rag_engine.routers.ingest_pdf.assess", _fake_assess)
+    # Why: run_query scores the retrieved passages with its own import of assess, for
+    # the trifecta check. Without this line every /query test loads the real model.
+    monkeypatch.setattr("rag_engine.routers.query.assess", _fake_assess)
+
+
+@pytest.fixture(autouse=True)
+def mock_classifier_loading(monkeypatch):
+    """Keeps the gated Llama-Prompt-Guard model out of the suite.
+
+    The app's lifespan() calls _get_pipeline() at startup, so every test that runs
+    the real lifespan would download the model and need HF_TOKEN. Dependabot PRs get
+    no repository secrets, so those tests failed there. main.py binds the name
+    itself, so it is patched on rag_engine.main.
+
+    The second patch is a safety net like forbid_real_voyage_calls: if a test still
+    reaches the real classifier through a call site that is not patched above, it
+    fails with a message that names the cause, instead of a 401 from Hugging Face.
+    test_classifier_segments patches _get_pipeline itself and is not affected."""
+
+    def _refuse():
+        raise AssertionError(
+            "A test loaded the real injection classifier. Patch assess where that "
+            "module imports it, in tests/conftest.py."
+        )
+
+    monkeypatch.setattr("rag_engine.main._get_pipeline", lambda: None)
+    monkeypatch.setattr("rag_engine.security.classifier._get_pipeline", _refuse)

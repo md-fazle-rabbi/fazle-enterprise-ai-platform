@@ -81,7 +81,7 @@ def _get_pipeline() -> tuple[Any, Any]:
     """
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-    token = os.environ.get("HF_TOKEN")
+    token = os.environ.get("HF_TOKEN") or None
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, token=token)
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_ID, token=token)
     model.eval()
