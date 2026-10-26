@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Why: a weekly run on main surfaces new advisories (Trivy, npm audit, CodeQL) even
+  # when nobody pushes, and keeps the SARIF uploads fresh. Without it main only goes
+  # red on the next unrelated push or PR.
+  schedule:
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 # Why: least privilege by default. A job-level `permissions:` block REPLACES this
@@ -86,8 +91,10 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       APP_DATABASE_URL: postgresql+asyncpg://app_user:ci_app_password@localhost:5432/fazle
       APP_DB_PASSWORD: ci_app_password
+      # Why: tests mock the gated classifier (tests/conftest.py), so no HF_TOKEN here.
+      # Only the optional real-API embedding test reads this key, and it skips itself
+      # when the key is empty, as on Dependabot PRs.
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -392,6 +399,12 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     needs: test
+    # Why: the gate makes paid Gemini and Voyage calls. Dependabot runs get no repository
+    # secrets, and evals/run_ragas.py then exits 0 without evaluating anything, so the job
+    # would show green for a check that never ran. Skipping it says so honestly, and a
+    # skipped job counts as passing for required checks. A weekly schedule should not
+    # spend API quota either. The gate still runs on pushes to main and on regular PRs.
+    if: ${{ github.event_name != 'schedule' && github.actor != 'dependabot[bot]' }}
 
     services:
       postgres:
