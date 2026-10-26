@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "redis": "^6.2.1"
+    "redis": "^6.3.0"
   },
   "scripts": {
     "audit:prod": "npm audit --omit=dev --audit-level=high"
