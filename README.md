@@ -192,7 +192,7 @@ npm run test:e2e
 Stated plainly, not left for a client to discover.
 
 **Security posture (local showcase)**
-- The only red team testing so far is Repo 2's exploit library (25 probes), run twice against this stack on one machine: once before ADR-037 (3 bypasses, only one reproduced by hand) and once after (0). Each is one run, on a four document synthetic tenant, through the raw X-Tenant-ID header, with answer text scored by two detectors (a canary and personal data). The image prompt injection suite, the Keycloak path and a deployed system were not tested.
+- The only red team testing so far is Repo 2's exploit library (25 probes), run twice against this stack on one machine: once before ADR-037 (3 bypasses, and the answer served for each held the malformed seeded phone number) and once after (0). Each is one run, on a four document synthetic tenant, through the raw X-Tenant-ID header, with answer text scored by two detectors (a canary and personal data). The image prompt injection suite, the Keycloak path and a deployed system were not tested.
 - A phone number that has no phone word before it and is not valid for the libphonenumber library is still stored unredacted (ADR-037).
 - Web session data, including Keycloak tokens, sits unencrypted in Redis, and the compose Redis has no password or TLS.
 - `ALLOW_UNAUTHENTICATED_TENANT_HEADER` defaults to `true` in compose because the load test, the RAGAS run and the research agent still send a raw `X-Tenant-ID`. Set it to `false` to require a real token.

@@ -12,8 +12,9 @@
   with the number. `PII_ANALYZER_VERSION` is now `2026-10-27-phone-cue-v3`, so posting the
   same text again re-redacts a stored document.
 - Found by the red-team toolkit's first run against this stack: 25 probes, 3 bypasses
-  (EX-011, EX-012, EX-024), bypass rate 0.1200 against a limit of 0.05. Only EX-012 was
-  reproduced by hand. After the fix and a re-post of the same four synthetic documents, the
+  (EX-011, EX-012, EX-024), bypass rate 0.1200 against a limit of 0.05. The answer served
+  for each of the three held the seeded malformed phone number, read from the review
+  queue afterwards. After the fix and a re-post of the same four synthetic documents, the
   same 25 probes gave blocked 18, held 7, bypassed 0 (rate 0.0000, gate passed). One run
   each and 25 probes, so a weak signal.
 - Loosening the stock recognizer was measured and rejected: it redacted 5 of 5 phone strings
