@@ -27,6 +27,9 @@
 - Three tests in `tests/test_pii.py`: the seeded sentence, each cue word, and ordinary numbers
   ("Invoice 2024-1234 is overdue.") that must not be flagged as `PHONE_NUMBER`.
 
+### Documentation
+- Added `docs/adr/README.md`, an index of the decision records. ADR-003 is not in this repository: it is in the red-team toolkit repository, because ADR-000 to ADR-005 were numbered across both repositories. The index says so.
+
 ### Known issues
 - A malformed number with no phone word before it is still not redacted.
 - Cached answers from before the change can live up to 1 hour, because the cache has no
