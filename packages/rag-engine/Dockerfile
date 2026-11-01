@@ -1,6 +1,6 @@
 # Build context is the repo root, docker-compose.yml sets context: .
 
-FROM python:3.13.15-slim-bookworm AS builder
+FROM python:3.13.17-slim-bookworm AS builder
 # Why: ghcr.io publishes no release date, so Dependabot cannot apply its cooldown
 # to this image. It is ignored in .github/dependabot.yml and bumped by hand, see
 # ADR-028. Keep this tag in sync with UV_VERSION in .github/workflows/ci.yml.
@@ -53,7 +53,7 @@ COPY packages/governance packages/governance
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --package rag-engine --inexact
 
-FROM python:3.13.15-slim-bookworm AS runtime
+FROM python:3.13.17-slim-bookworm AS runtime
 # Patch OS CVEs Debian has already fixed upstream, the base tag only
 # rebuilds on release, not on every security update, so this is what
 # actually closes most of what Trivy flags on a freshly pulled image.
