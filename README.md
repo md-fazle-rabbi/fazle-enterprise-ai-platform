@@ -5,13 +5,13 @@
 ![Python](https://img.shields.io/badge/python-3.13.15-blue)
 ![RAGAS Faithfulness](https://img.shields.io/badge/RAGAS_faithfulness-100%25-blue)
 ![p95 latency (cold, free tier, single user)](https://img.shields.io/badge/query_p95_cold_free_tier-3.9s-blue)
-[![Red team exploit run](https://img.shields.io/badge/red_team_exploit_run-0_of_25_bypassed_after_fix-blue)](https://github.com/md-fazle-rabbi/fazle-ai-red-team-toolkit/blob/main/proof/report-repo1-after-fix.md)
+[![Red team exploit run](https://img.shields.io/badge/red_team_exploit_run-0_of_25_bypassed-blue)](https://github.com/md-fazle-rabbi/fazle-ai-red-team-toolkit/blob/main/proof/report-repo1-after-fix.md)
 
 **A multi-tenant RAG and agent platform built to survive a real security and compliance review: database-enforced tenant isolation, cited answers, a kill switch, and a governance layer.**
 
 ## Hire me
 
-**Fazle Rabbi, Secure Production AI Systems Engineer.** Available for freelance engagements and full time roles.
+**Fazle Rabbi, Full-Stack AI Engineer specializing in secure production AI systems.** Available for freelance engagements and full time roles.
 Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabbi-ai/ | Loom walkthrough (watch without setup): [link]
 
 ## At a glance
@@ -264,7 +264,7 @@ Stated plainly, not left for a client to discover.
 - HIPAA Safe Harbor coverage is 10 of 18 identifiers. The live report endpoint has the current breakdown.
 
 ## About
-Freelance AI engineer specializing in secure production AI systems, based in Bangladesh. This is Repo 1 of a multi repo portfolio. Repo 2 is a red team toolkit that attacks the controls built here. Its first run found a gap in phone number redaction, fixed in ADR-037.
+Freelance Full-Stack AI Engineer specializing in secure production AI systems. This is Repo 1 of a multi repo portfolio. Repo 2 is a red team toolkit that attacks the controls built here. Its first run found a gap in phone number redaction, fixed in ADR-037.
 
 Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabbi-ai/
 
