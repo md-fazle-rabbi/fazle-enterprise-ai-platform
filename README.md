@@ -11,7 +11,7 @@
 
 ## Hire me
 
-**Fazle Rabbi, Full-Stack AI Engineer specializing in secure production AI systems.** Available for freelance engagements and full time roles.
+**Fazle Rabbi, AI Engineer specializing in secure production AI systems.** Available for freelance engagements and full time roles.
 Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabbi-ai/ | Loom walkthrough (watch without setup): [link]
 
 ## At a glance
@@ -264,7 +264,7 @@ Stated plainly, not left for a client to discover.
 - HIPAA Safe Harbor coverage is 10 of 18 identifiers. The live report endpoint has the current breakdown.
 
 ## About
-Freelance Full-Stack AI Engineer specializing in secure production AI systems. This is Repo 1 of a multi repo portfolio. Repo 2 is a red team toolkit that attacks the controls built here. Its first run found a gap in phone number redaction, fixed in ADR-037.
+Freelance AI Engineer specializing in secure production AI systems. This is Repo 1 of a multi repo portfolio. Repo 2 is a red team toolkit that attacks the controls built here. Its first run found a gap in phone number redaction, fixed in ADR-037.
 
 Contact: mfrabbi.ai@gmail.com | LinkedIn: https://www.linkedin.com/in/fazle-rabbi-ai/
 
