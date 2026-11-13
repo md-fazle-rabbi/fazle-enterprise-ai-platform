@@ -27,11 +27,11 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from governance.audit_log import append_entry
 from observability.alerts import send_slack_alert
 from opentelemetry import trace
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from rag_engine.cache import get_cached_answer, store_cached_answer
+from rag_engine.cache import get_cached_response, store_cached_response
 from rag_engine.crag import grade_relevance
 from rag_engine.db import get_session, get_tenant_id
 from rag_engine.embeddings import embed_query
@@ -144,6 +144,18 @@ def _to_citation(p: dict[str, Any]) -> Citation:
     )
 
 
+def _from_cache(cached: dict[str, Any]) -> QueryResponse | None:
+    try:
+        response = QueryResponse.model_validate(cached)
+    except ValidationError:
+        # Why: an entry written under an older response shape is a miss, not a 500.
+        logger.warning("cache.entry_invalid")
+        return None
+    return response.model_copy(
+        update={"flag_reasons": [*response.flag_reasons, "cache_hit"]}
+    )
+
+
 async def run_query(
     body: QueryRequest,
     tenant_id: uuid.UUID,
@@ -168,16 +180,11 @@ async def run_query(
         QueryLog(tenant_id=tenant_id, question=body.question, embedding=query_vector)
     )
 
-    cached = await get_cached_answer(redis, str(tenant_id), query_vector)
+    cached = await get_cached_response(redis, str(tenant_id), query_vector)
     if cached is not None:
-        return QueryResponse(
-            answer=cached,
-            citations=[],
-            retrieved_context=[],
-            retrieved_but_uncited_count=0,
-            flagged=False,
-            flag_reasons=["cache_hit"],
-        )
+        hit = _from_cache(cached)
+        if hit is not None:
+            return hit
 
     # ---------------------------------------------------------
     # 1-2. Retrieve candidate chunks, expand to parent sections
@@ -401,7 +408,28 @@ async def run_query(
     except QuotaExceeded as e:
         raise HTTPException(status_code=429, detail=str(e)) from e
 
-    await store_cached_answer(redis, str(tenant_id), query_vector, answer)
+    citations = [_to_citation(p) for p in cited]
+    retrieved_context = [_to_citation(p) for p in parents]
+    uncited_count = len(parents) - len(cited)
+
+    # Why: only an answer that passed every output check is cached, together with its
+    # sources. A hit replays the stored response as it is, so caching a flagged one
+    # (a canary leak, unredacted PII, weak grounding) would serve it again later with
+    # the flag gone.
+    if not reasons:
+        await store_cached_response(
+            redis,
+            str(tenant_id),
+            query_vector,
+            QueryResponse(
+                answer=answer,
+                citations=citations,
+                retrieved_context=retrieved_context,
+                retrieved_but_uncited_count=uncited_count,
+                flagged=False,
+                flag_reasons=[],
+            ).model_dump(mode="json"),
+        )
     if quota_state != "ok":
         reasons.append(f"quota_{quota_state}")
 
@@ -428,9 +456,9 @@ async def run_query(
     # ---------------------------------------------------------
     return QueryResponse(
         answer=answer,
-        citations=[_to_citation(p) for p in cited],
-        retrieved_context=[_to_citation(p) for p in parents],
-        retrieved_but_uncited_count=len(parents) - len(cited),
+        citations=citations,
+        retrieved_context=retrieved_context,
+        retrieved_but_uncited_count=uncited_count,
         flagged=bool(reasons),
         flag_reasons=reasons,
     )

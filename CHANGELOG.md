@@ -2,6 +2,49 @@
 
 ## [Unreleased]
 
+## 2026-11-13
+
+### Added
+- Deleting a document. `DELETE /documents/{id}` needs a real Keycloak login (the demo key and
+  the raw tenant header get 401). It finds the document under row level security, so another
+  tenant's id answers 404. It removes the chunks and the document, writes a `document.deleted`
+  entry to the audit log and, once the delete has committed, drops that tenant's cached
+  answers. The Documents panel on the home page has a Delete button on every row with a
+  confirm step. It calls `DELETE /api/documents/{id}` in the web app, which checks the
+  Origin, the session and the id before it calls the backend.
+
+### Fixed
+- Citations written as `[1, 2]` did not work. The model sometimes groups markers in one
+  bracket, and the backend and the web app only recognise `[1]` and `[2]`, one per bracket.
+  The backend counted such an answer as having no citations, so it was flagged, and the web
+  app showed the markers as plain text that could not be clicked. The answer is now
+  normalised to `[1][2]` before it is checked (`normalize_citations` in `generation.py`).
+- A cached answer lost its sources. The semantic cache kept only the answer text, so a
+  repeated question came back with empty `citations` and `retrieved_context` and its `[N]`
+  markers could not open a source. The cache now keeps the whole checked response. An entry
+  written in the old format is treated as a miss, so no flush is needed.
+- A flagged answer could be replayed without its flag. It was cached like any other and came
+  back with `flagged` false. Only an answer that passed every output check is cached now.
+
+### Tests
+- `tests/test_cache.py`: a hit keeps its sources, an old format entry misses, tenants are
+  kept apart, invalidation drops one tenant only, and the entry cap holds.
+- `tests/test_document_delete.py`: a real login is required, the document and its chunks are
+  removed, another tenant gets 404, and the tenant's cached answers are dropped.
+- Web: the delete handler, the browser call and the confirm step of a row.
+
+### Known issues
+- Uploading a document does not clear cached answers, only deleting one does. An answer
+  cached before an upload can miss the new document for up to 1 hour.
+- Retrieval always returns the top `top_k` sections, so a tenant with many unrelated
+  documents gets a correct answer flagged `low_grounding` (cited sections under half of the
+  retrieved ones), and a flagged answer is not cached. Seen on the demo tenant with 17
+  documents. With the unrelated ones removed and two refund documents left, the answer was
+  not flagged and a repeated question came from the cache with its sources.
+- `POST /documents` cannot create a document: the insert leaves `pii_analyzer_version` empty
+  and the column is NOT NULL. Documents are created through `/ingest`. The new delete tests
+  found it, and it is not changed here.
+
 ## [0.1.0] - 2026-10-27
 
 ## 2026-10-27

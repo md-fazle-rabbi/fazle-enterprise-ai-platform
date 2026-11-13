@@ -30,6 +30,7 @@ Rules:
 - Never use outside knowledge not present in the context chunks."""
 
 _CITATION_RE = re.compile(r"\[(\d+)\]")
+_GROUPED_CITATION_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)+)\]")
 
 logger = structlog.get_logger()
 _tracer = trace.get_tracer(__name__)
@@ -38,6 +39,16 @@ _tracer = trace.get_tracer(__name__)
 def _format_context(chunks: list[dict[str, Any]]) -> str:
     return "\n\n".join(
         f'<chunk id="{i + 1}">\n{c["text"]}\n</chunk>' for i, c in enumerate(chunks)
+    )
+
+
+def normalize_citations(answer_text: str) -> str:
+    # Why: the model sometimes groups markers as "[1, 2]". Both this module and the web app
+    # only recognise "[1]" and "[2]" one per bracket, so a grouped marker counted as no
+    # citation at all and could not be clicked. Splitting it keeps one marker format.
+    return _GROUPED_CITATION_RE.sub(
+        lambda m: "".join(f"[{n.strip()}]" for n in m.group(1).split(",")),
+        answer_text,
     )
 
 
@@ -77,7 +88,7 @@ async def generate_answer(question: str, chunks: list[dict[str, Any]]) -> str:
                 prompt_tokens=response.usage_metadata.prompt_token_count,
                 candidates_tokens=response.usage_metadata.candidates_token_count,
             )
-        return response.text
+        return normalize_citations(response.text)
 
 
 def extract_cited_indices(answer_text: str) -> set[int]:

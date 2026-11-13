@@ -1,3 +1,4 @@
+import { DocumentRow } from "@/components/document-row";
 import { cardClass } from "@/components/styles";
 import type { DocumentsResult } from "@/lib/documents";
 
@@ -13,12 +14,7 @@ function PanelBody({ result }: DocumentsPanelProps) {
       return result.documents.length > 0 ? (
         <ul className="flex flex-col gap-2">
           {result.documents.map((document) => (
-            <li
-              key={document.id}
-              className="truncate rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm dark:border-neutral-800 dark:bg-neutral-950"
-            >
-              {document.source_path}
-            </li>
+            <DocumentRow key={document.id} item={document} />
           ))}
         </ul>
       ) : (

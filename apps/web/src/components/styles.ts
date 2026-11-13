@@ -6,6 +6,12 @@ export const primaryButtonClass =
 export const secondaryButtonClass =
   "inline-flex w-fit items-center rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:border-neutral-700 dark:hover:bg-neutral-900 dark:focus-visible:outline-accent-soft";
 
+// Why: the compact button for actions inside a list row, such as delete and cancel. It is
+// quieter than the secondary button so a row of them does not compete with the page's one
+// main action.
+export const smallButtonClass =
+  "rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:border-neutral-700 dark:hover:bg-neutral-800 dark:focus-visible:outline-accent-soft";
+
 // Why: one text field look for the whole app. The focus ring is the accent, drawn as an
 // outline so it stays visible in Windows high contrast mode, where box shadows are removed.
 export const inputClass =
