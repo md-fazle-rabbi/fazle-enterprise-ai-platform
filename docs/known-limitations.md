@@ -1,0 +1,74 @@
+Stated plainly, not left for a client to discover.
+
+**Security posture (local showcase)**
+- The only red team testing so far is the red-team toolkit's exploit library (25 probes), run twice against this stack on one machine: once before ADR-037 (3 bypasses, and the answer served for each held the malformed seeded phone number) and once after (0). Each is one run, on a four document synthetic tenant, through the raw X-Tenant-ID header, with answer text scored by two detectors (a canary and personal data). The image prompt injection suite, the Keycloak path and a deployed system were not tested.
+- A phone number that has no phone word before it and is not valid for the libphonenumber library is still stored unredacted (ADR-037).
+- Web session data, including Keycloak tokens, sits unencrypted in Redis, and the compose Redis has no password or TLS.
+- `ALLOW_UNAUTHENTICATED_TENANT_HEADER` defaults to `true` in compose because the load test, the RAGAS run and the research agent still send a raw `X-Tenant-ID`. Set it to `false` to require a real token.
+- `proxy.ts` only checks that a session cookie exists. The real check (`getSession`, against Redis) runs inside each page, so a page that forgets it has only the optimistic gate.
+- The web app sets a Content-Security-Policy with a new nonce on every page request, the login page included, and sends `nosniff`, `X-Frame-Options: DENY`, a referrer policy and a permissions policy on every path. The policy is not sent on `/api` routes, and `style-src` still allows `'unsafe-inline'`. In development the policy also allows `'unsafe-eval'` and `ws:`. The policy was read from the code and from a real response ([`proof/web-security-headers.txt`](../proof/web-security-headers.txt)); no outside CSP scanner was run
+- `/admin/kill-switch/*` and `/review-queue` need a Keycloak token with the `platform-admin` role, but have no network restriction (no IP allowlist).
+- Keycloak runs in `start-dev` mode with an embedded database, so realm data resets when the container is recreated. The demo users (alice, bob, carol) are synthetic.
+- The `app` container mounts the Docker socket for the sandbox runner. `:ro` protects only the socket file, not the API calls through it, so a compromised container could start containers on the host. A socket proxy is not in place.
+- The audit log is insert only through two database rules and grants: the application role (`app_user`) can only `SELECT` and `INSERT`, and `UPDATE` and `DELETE` change nothing, as `proof/audit-log-tamper-test.txt` shows. The rules do not cover `TRUNCATE`, so the database owner can still empty the table (shown in the same file, rolled back), and the owner is a Postgres superuser that could also drop the rules. `verify_chain` checks the rows that exist, so removing the newest rows would not be detected (read from the code, not tested)
+
+**Auth and tenancy**
+- Parallel requests can refresh the same user's token at once. That is safe only while Keycloak's refresh token rotation stays off (as far as I know, its default).
+- A new user starts on the first tenant in their Keycloak group list, an order Keycloak does not guarantee. They can switch with the workspace selector, and the API re-checks on every call.
+- Switching workspace remounts the chat and review queue panels, so unsent text or an unsaved review note is lost. Saved chats are not.
+
+**Query pipeline and chat**
+- `POST /query/stream` streams stage events and the final answer, not tokens. If the client disconnects before the result, database writes (query log, audit entry, review item) roll back, but a Redis side effect (quota use, cache write) may already have happened. Clients must not retry an error event blindly, since a retry re-runs generation and spends quota again.
+- The injection firewall middleware matches request paths exactly and only reads the JSON `question` and `text` fields, so every new endpoint that takes free text has to be added by hand; `/query`, `/query/stream` and `/ingest` go through the middleware
+- `/ingest/image` and `/ingest/pdf` take file uploads, which the middleware never reads, so each handler runs the firewall on the text the vision model or OCR extracted; `tests/test_ingest_firewall.py` runs the real `assess()` function against an injected image and an injected PDF page, and `proof/pdf-image-firewall-curl.txt` shows the same through the running stack; a PDF with one blocked page is rejected as a whole
+- The firewall does not scan filenames; `source_path` does not appear in `generation.py`, `query.py` or `search.py`, so those paths do not send it to the model. Text that is stored (/ingest, and text read from images and PDF pages) is refused at the flag line (0.60) instead of the block line (0.95), because an injection hidden in a long benign document scored 0.88 in a live test and would otherwise be stored. Questions are refused only at 0.95. An injection that scores below 0.60 inside long benign text was not tested. proof/classifier-redteam.txt shows the case.
+- The classifier (Prompt Guard 2, 86M) reads 512 tokens at a time, so longer text is split into overlapping segments and the highest score wins; at most 64 segments (about 28,000 tokens) are scored, and anything after that is checked by the regex layer only, which `tests/test_classifier_segments.py` pins
+- The classifier layer was inactive until 2026-10-09: the code compared the model's label to a Prompt Guard 1 name, so malicious verdicts became near zero scores and the regex layer did all the blocking (before the fix: `proof/web-chat-bff-red-team.txt`, after: `proof/classifier-check.txt`); the thresholds (flag 0.60, block 0.95) have only been checked against the golden set and the six cases in `evals/classifier_check.py`, so the false positive rate on real documents is unknown
+- The latency numbers come from one user on one machine, a test corpus of three documents with one chunk each, and 20 requests per case, so retrieval time on a large corpus and concurrent load are not measured. The Locust profile in `packages/observability/loadtest/locustfile.py` still sends one question for every request, so it measures the cached path
+- The RAGAS gate runs 5 questions over 3 one-chunk documents, with a free tier judge model. One question can move the context precision average by up to 0.2, answer relevancy was between 0.852 and 0.866 over four local runs (floor 0.85). A pass is evidence on a small set, not a guarantee on a large corpus.
+- Re-uploading a PDF after the text redaction rules have changed does not re-redact it, unlike text and images: the PDF route returns the stored document as a duplicate
+- The image and PDF routes do not handle a lost insert race the way `/ingest` does, so two identical uploads sent at the same moment may fail; this was not tested
+- `/api/chat` allows 20 questions per 60 seconds per user (sliding window, counted before the body is read, so malformed requests use it up) and 2 answers at once. Limits live in Redis, hold across app instances, and fail closed if Redis is down. No other route is throttled. The login route has no limit because limiting anonymous callers needs a trusted client IP, and there is no trusted proxy here.
+- Chat history is private per user and tenant (row level security needs both settings and fails closed if the user one is missing), capped at 500 conversations per user and 1,000 messages per conversation. It has no expiry or export, and deleting is permanent. Assistant messages store a copy of the retrieved source text, so later edits to a document do not change what a past answer showed. History is not an audit trail, the hash-chained log is.
+- The server saves a conversation only after an answer succeeds, never from browser input. If the save fails, the answer still shows and the browser is told it was not saved. A blocked or failed question is not saved. A save can delay the question box by a few seconds (5 second API limit). Because the web tier does the saving, a user could write to their own history by calling the API directly.
+- The sidebar shows the 50 most recent conversations, with no search, rename or export. Older ones stay stored but are unreachable from the interface. The list does not update live across tabs or devices, and it locks while an answer runs. Opening a past chat does not read it aloud, and that has not been tested with a real screen reader.
+
+**Uploads and request size**
+- The limits are constants in `upload_limits.py`, picked from vendor limits and arithmetic, not tuned on real documents: images 8 MiB and 50 million pixels, PDFs 10 MiB and 20 pages, text 100,000 characters and 200 chunks, questions 2,000 characters
+- The byte caps cover `/ingest`, `/ingest/image`, `/ingest/pdf`, `/query`, `/query/stream` and `/search`; the other POST routes (agents, reviews, documents, governance) have no byte cap yet
+- The limits stop one oversized request, not many small ones: apart from `/api/chat` and `/api/documents` in the web app no route has a rate limit, and the shared free tier embedding quota (3 requests a minute) can still be used up by a flood of small uploads from several users
+- Uploads through the web app (`POST /api/documents`) are limited to 10 per 10 minutes and 1 at a time per user, counted in Redis before the body is read. Calling the backend directly has no such limit.
+- The web upload route holds about two to three copies of a file in memory while it checks it, up to roughly 30 MiB for a 10 MiB PDF, one upload per user at a time; this is arithmetic, not a measurement
+- The upload route waits 20 seconds for text and images and 180 seconds for a PDF. They come from one local run on the free tier (text 6 s, image 3 s, 20 page PDF 92 s, [`proof/web-upload-timing.txt`](../proof/web-upload-timing.txt)), so the PDF limit keeps about twice the measured time. A timeout (504) can mean the backend finished anyway, so check the document list before uploading again
+- A `.txt` or `.md` file is judged by its name and must be valid UTF-8; every other file is judged by its first bytes, not by its extension or the type the browser reports
+- The upload form takes one file at a time, with no drag and drop and no cancel button. Closing the page does not stop the server, which may still finish the upload. The end to end tests scan it with axe, but it has not been tried with a real screen reader
+- A client that keeps sending after a 413 can get a connection reset instead of the response; the 413 is pinned by tests, but a very large real upload was not checked in a browser or with every client
+- A PDF page far larger than the page budget is rendered at a lower resolution and may read poorly, and the 20 rendered pages are held in memory together (up to 160 MiB in the worst case, not measured)
+- Only PNG, JPEG and WEBP images are accepted; GIF is refused, and HEIC and HEIF are refused because Pillow here cannot read them
+
+**Citation viewer and review queue**
+- Each source shows its full retrieved text with no length cap, and there is no link back to where the answer cited it.
+- The review queue has no pagination or filtering and loads every pending item for the workspace, matching the API's `/review-queue`. Who resolved an item is logged, not stored as a column.
+
+**Testing and delivery**
+- End to end tests cover one main chat path, a mocked stalled stream and the upload form, on Chromium only. They are not part of the fast `npm run check` loop because they need the full stack and a real model call.
+- The web Docker image builds with a placeholder `KEYCLOAK_WEB_CLIENT_SECRET` that only satisfies `next build`. The real secret is supplied at container start.
+- The web coverage gate in CI (statements 81, branches 85, functions 69, lines 82 percent) sits 2 to 3 points below measured coverage (83.54, 87.07, 71.22, 84.77), so it blocks drops without claiming high coverage. Page and route files under `src/app` have no unit tests, which is why functions coverage is about 71 percent. The gate passes at the current numbers ([`proof/web-coverage-gate.txt`](../proof/web-coverage-gate.txt)) and was shown to fail by forcing `lines=99` ([`proof/web-coverage-gate-negative-test.txt`](../proof/web-coverage-gate-negative-test.txt)).
+- `npm audit` gates production dependencies at high severity for `apps/web` and the repo root (0 vulnerabilities at the last run). It has been shown to pass, not yet to fail on a real finding in CI. Dev dependencies are not gated.
+- One dev-only advisory is open: `braces` (GHSA-vfj7-8cjw-p6xm), reached through `eslint-config-next`. No patched version is listed and it is in no production dependency. It is tracked with a review date in `docs/security-exceptions.md`.
+- A signed out visitor who opens an unknown address is sent to the login page by `proxy.ts` and never sees the 404 page, because the proxy only checks for a session cookie and runs before routing
+- The `global-error` page, which replaces the whole document, has a render test and was checked in a browser once by throwing from the root layout in development; its retry button has no click test
+- Unknown `/api/*` paths return the HTML 404 page, not JSON (checked with curl, see `proof/web-error-pages.txt`)
+- The landing page lives at `/login`, because every signed out visit is sent there and the end to end tests depend on it; its six numbers are copied by hand from the "At a glance" table, so they have to be updated together
+- The landing page links to GitHub and LinkedIn, which need internet; nothing on the page loads from outside the app
+- The web app has only an SVG icon and no `favicon.ico` fallback, so a browser without SVG icon support shows no tab icon; Safari was not tested
+- The web app sets no Open Graph tags or share image, because it runs locally and nothing fetches a link preview from it; the repository social preview image is in `docs/branding` and has to be uploaded by hand in the repository settings
+
+**API**
+- Concurrent p95 is not published (third party free tier ceiling, not an application limit).
+- The latency figures come from one day (14 October, 20 requests each, three test documents) and were not measured again. On 16 October two chat requests through the web app on a larger corpus took 8.2 s and 17.4 s before the output checks started, and a third stopped during generation. The cause is not isolated: the free tier on that day, the larger corpus and the streaming route are all possible.
+- GraphRAG entity extraction is stored but not used in retrieval.
+- Drift detection covers query embedding distribution only, not retrieval or generation quality.
+- The MCP tool interface still takes `tenant_id` as an LLM-visible argument, unlike the HTTP agent path, which binds it server side.
+- HIPAA Safe Harbor coverage is 10 of 18 identifiers. The live report endpoint has the current breakdown.
+
