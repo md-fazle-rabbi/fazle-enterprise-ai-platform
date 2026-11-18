@@ -7,9 +7,10 @@ drifting out of sync with each other.
 """
 
 from pathlib import Path
+from typing import Self
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Absolute path to the repo-root .env file, resolved from this file's own
@@ -54,12 +55,27 @@ class Settings(BaseSettings):
     keycloak_realm: str = Field(default="agent-mesh")
     web_api_audience: str = Field(default="rag-engine-api")
     tenant_group_prefix: str = Field(default="/tenants/")
-    allow_unauthenticated_tenant_header: bool = Field(default=True)
+    # Why: fail closed. A deployment that forgets to set this refuses the raw
+    # X-Tenant-ID header instead of letting any caller pick a tenant. Local compose
+    # turns it on on purpose, see docker-compose.yml.
+    allow_unauthenticated_tenant_header: bool = Field(default=False)
     opa_url: str = Field(default="http://localhost:8181")
     langfuse_host: str = Field(default="https://cloud.langfuse.com")
     langfuse_public_key: str = Field(default="")
     langfuse_secret_key: str = Field(default="")
     slack_webhook_url: str = Field(default="")
+
+    @model_validator(mode="after")
+    def _refuse_open_tenant_header_in_production(self) -> Self:
+        # Why: this switch turns tenant isolation into "trust the caller", so a
+        # production start with it on must fail loudly, not run quietly.
+        header_is_open = self.allow_unauthenticated_tenant_header
+        if self.environment.lower() == "production" and header_is_open:
+            raise ValueError(
+                "ALLOW_UNAUTHENTICATED_TENANT_HEADER must be false when "
+                "ENVIRONMENT=production"
+            )
+        return self
 
     @property
     def langfuse_auth_header(self) -> str:

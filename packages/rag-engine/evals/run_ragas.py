@@ -86,6 +86,8 @@ async def _post_with_backoff(client: AsyncClient, url: str, **kwargs):
 
 async def _collect_results() -> dict[str, list]:
     tenant_id = str(uuid.uuid4())
+    # Why: raw X-Tenant-ID goes in-process here, so allow it for this script only.
+    settings.allow_unauthenticated_tenant_header = True
     headers = {"X-Tenant-ID": tenant_id}
 
     rows: dict[str, list] = {

@@ -137,3 +137,14 @@ def mock_classifier_loading(monkeypatch):
 
     monkeypatch.setattr("rag_engine.main._get_pipeline", lambda: None)
     monkeypatch.setattr("rag_engine.security.classifier._get_pipeline", _refuse)
+
+
+@pytest.fixture(autouse=True)
+def allow_raw_tenant_header(monkeypatch):
+    """The setting defaults to false, so the app refuses a raw X-Tenant-ID header.
+    Most tests use that header to pick a tenant, so it is switched on here. The
+    tests that cover the refusal set it to false themselves, and a monkeypatch
+    inside a test runs after this one."""
+    from core.settings import settings
+
+    monkeypatch.setattr(settings, "allow_unauthenticated_tenant_header", True)
