@@ -22,7 +22,7 @@ const DOCUMENT_NAME = "handbook/refund-policy.md";
 
 // Why: a question the refund-policy document answers in one sentence, so the model usually
 // cites a single source like [5]. Grouped markers such as [4, 5] are not recognised as
-// citations (see the README's Known limitations), so a question that invites several
+// citations (see docs/known-limitations.md), so a question that invites several
 // sources makes this test flaky. It is also a question not asked in manual testing, so it
 // is less likely to be answered from the semantic cache.
 const QUESTION = "Are shipping fees refundable?";
